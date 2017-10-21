@@ -1,7 +1,7 @@
 import glob
+import random
 
 import pescador
-import random
 import skvideo.io
 import soundfile as sf
 from tqdm import tqdm
@@ -40,9 +40,9 @@ def video_to_audio(video_file):
     return '/'.join(path + ['audio', name])
 
 
-def sample_one_second(audio_file, start=None):
+def sample_one_second(audio_file, start, label):
     """Return one second audio samples randomly if start is not specified,
-       otherwise, return one second audio samples starting with start (seconds).
+       otherwise, return one second audio samples including start (seconds).
 
     Args:
         audio_file: audio_file to sample from
@@ -54,11 +54,11 @@ def sample_one_second(audio_file, start=None):
     """
 
     audio_data, sampling_frequency = sf.read(audio_file)
-    if not start:
-        start = random.randrange(len(audio_data) - sampling_frequency)
+    if label:
+        start = min(0, int(start * sampling_frequency) - random.randint(0, sampling_frequency))
     else:
-        start = int(start * sampling_frequency)
-    return audio_data[start:start+sampling_frequency]
+        start = random.randrange(len(audio_data) - sampling_frequency)
+    return audio_data[start:start+sampling_frequency], start / sampling_frequency
 
 
 def sample_one_frame(video_data, fps=30):
@@ -93,21 +93,26 @@ def sampler(video_file, audio_files):
     """
 
     video_data = skvideo.io.vread(video_file)
-    while True:
-        sample_video_data, start = sample_one_frame(video_data)
+    audio_file = video_to_audio(video_file)
 
-        audio_file = video_to_audio(video_file)
-        if random.random() < 0.5:
-            audio_file = random.choice([af for af in audio_files if af != audio_file])
-            sample_audio_data = sample_one_second(audio_file)
-            label = 0
-        else:
-            sample_audio_data = sample_one_second(audio_file, start)
-            label = 1
+    if random.random() < 0.5:
+        audio_file = random.choice([af for af in audio_files if af != audio_file])
+        label = 0
+    else:
+        label = 1
+
+    while True:
+        sample_video_data, video_start = sample_one_frame(video_data)
+        sample_audio_data, audio_start = sample_one_second(audio_file, video_start, label)
+
         yield {
             'video': sample_video_data,
             'audio': sample_audio_data[:,0],
-            'label': label
+            'label': label,
+            'audio_file': audio_file,
+            'video_file': video_file,
+            'audio_start': audio_start,
+            'video_start': video_start
         }
 
 
@@ -124,9 +129,11 @@ def data_generator(data_dir, k=32, batch_size=64):
 
     """
 
+    random.seed(20171021)
+
     audio_files, video_files = get_file_list(data_dir)
     seeds = []
-    for video_file in tqdm(video_files):
+    for video_file in tqdm(random.sample(video_files, k)):
         seeds.append(pescador.Streamer(sampler, video_file, audio_files))
 
     mux = pescador.Mux(seeds, k)
