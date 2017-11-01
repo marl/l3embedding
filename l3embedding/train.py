@@ -1,11 +1,10 @@
-import argparse
 import json
 import os
 import pickle
 import glob
 import random
 import pescador
-from scipy.misc import imresize
+import scipy.misc
 import skvideo.io
 import soundfile as sf
 from tqdm import tqdm
@@ -68,7 +67,23 @@ def sample_one_second(audio_data, sampling_frequency, start, label):
     return audio_data[start:start+sampling_frequency], start / sampling_frequency
 
 
-def sample_one_frame(video_data, fps=30):
+def l3_frame_scaling(frame_data):
+    nx, ny, nc = frame_data.shape
+    scaling = 256.0 / min(nx, ny)
+
+    new_nx, new_ny = int(scaling * nx), int(scaling * ny)
+    assert 256 in (new_nx, new_ny)
+
+
+    resized_frame_data = scipy.misc.imresize(frame_data, (new_nx, new_ny, nc))
+
+    start_x, start_y = random.randrange(new_nx - 224), random.randrange(new_ny - 224)
+    end_x, end_y = start_x + 224, start_y + 224
+
+    return resized_frame_data[start_x:end_x, start_y:end_y, :]
+
+
+def sample_one_frame(video_data, fps=30, scaling_func=None):
     """Return one frame randomly and time (seconds).
 
     Args:
@@ -79,13 +94,16 @@ def sample_one_frame(video_data, fps=30):
         One frame sampled randomly and time in seconds
 
     """
-
+    if not scaling_func:
+        scaling_func = l3_frame_scaling
     num_frames = video_data.shape[0]
     frame = random.randrange(num_frames - fps)
-    return imresize(video_data[frame, :, :, :], (224, 224)), frame / fps
+    frame_data = video_data[frame, :, :, :]
+    frame_data = scaling_func(frame_data)
+    return frame_data, frame / fps
 
 
-def sampler(video_file, audio_files):
+def sampler(video_file, audio_files, io_retries=10):
     """Sample one frame from video_file, with 50% chance sample one second from corresponding audio_file,
        50% chance sample one second from another audio_file in the list of audio_files.
 
@@ -98,8 +116,17 @@ def sampler(video_file, audio_files):
         and label (0: not from corresponding files, 1: from corresponding files)
 
     """
+    for _ in range(io_retries):
+        try:
+            video_data = skvideo.io.vread(video_file)
+            break
+        except Exception as e:
+            print("Could not open {}. Retrying...".format(video_file))
+            continue
+    else:
+        import pdb
+        pdb.set_trace()
 
-    video_data = skvideo.io.vread(video_file)
     audio_file = video_to_audio(video_file)
 
     if random.random() < 0.5:
@@ -113,16 +140,18 @@ def sampler(video_file, audio_files):
     while True:
         sample_video_data, video_start = sample_one_frame(video_data)
         sample_audio_data, audio_start = sample_one_second(audio_data, sampling_frequency, video_start, label)
+        sample_audio_data = sample_audio_data[:,0]
 
-        yield {
+        sample = {
             'video': sample_video_data,
-            'audio': sample_audio_data[:,0],
+            'audio': sample_audio_data,
             'label': label,
             'audio_file': audio_file,
             'video_file': video_file,
             'audio_start': audio_start,
             'video_start': video_start
         }
+        yield sample
 
 
 def data_generator(data_dir, k=32, batch_size=64, random_state=20171021):
@@ -179,7 +208,7 @@ class LossHistory(keras.callbacks.Callback):
 #def train(train_csv_path, model_id, output_dir, num_epochs=150, epoch_size=512,
 def train(train_data_dir, model_id, output_dir, num_epochs=150, epoch_size=512,
           batch_size=64, validation_size=1024, num_streamers=16,
-          random_seed=20171021, verbose=False):
+          random_state=20171021, verbose=False, checkpoint_interval=100):
     m, inputs, outputs = construct_cnn_L3_orig()
     loss = 'binary_crossentropy'
     metrics = ['accuracy']
@@ -208,12 +237,17 @@ def train(train_data_dir, model_id, output_dir, num_epochs=150, epoch_size=512,
         json.dump(model_json, fd, indent=2)
 
     weight_path = os.path.join(model_dir, 'model.h5')
+    checkpoint_weight_path = os.path.join(model_dir, 'model.{epoch:02d}.h5')
 
     cb = []
     cb.append(keras.callbacks.ModelCheckpoint(weight_path,
                                               save_best_only=True,
                                               verbose=1,))
                                               #monitor=monitor))
+
+    cb.append(keras.callbacks.ModelCheckpoint(checkpoint_weight_path,
+                                              #monitor=monitor,
+                                              period=checkpoint_interval))
 
     history_checkpoint = os.path.join(model_dir, 'history_checkpoint.pkl')
     cb.append(LossHistory(history_checkpoint))
@@ -223,11 +257,12 @@ def train(train_data_dir, model_id, output_dir, num_epochs=150, epoch_size=512,
                                         separator=','))
 
 
+    print('Setting up data generator...')
     train_gen = data_generator(
         #train_csv_path,
         train_data_dir,
         batch_size=batch_size,
-        random_seed=random_seed,
+        random_state=random_state,
         k=num_streamers)
 
     train_gen = pescador.maps.keras_tuples(train_gen,
@@ -269,96 +304,3 @@ def train(train_data_dir, model_id, output_dir, num_epochs=150, epoch_size=512,
     #     json.dump(results, fp, indent=2)
 
     print('Done!')
-
-
-def parse_arguments():
-    """
-    Parse arguments from the command line
-
-
-    Returns:
-        args:  Argument dictionary
-               (Type: dict[str, *])
-    """
-    parser = argparse.ArgumentParser(description='Train an L3-like audio-visual correspondence model')
-
-    parser.add_argument('-e',
-                        '--num-epochs',
-                        dest='num_epochs',
-                        action='store',
-                        type=int,
-                        default=150,
-                        help='Maximum number of training epochs')
-
-    parser.add_argument('-es',
-                        '--epoch-size',
-                        dest='epoch_size',
-                        action='store',
-                        type=int,
-                        default=512,
-                        help='Number of training batches per epoch')
-
-    parser.add_argument('-b',
-                        '--batch-size',
-                        dest='batch_size',
-                        action='store',
-                        type=int,
-                        default=64,
-                        help='Number of training examples per batch')
-
-    parser.add_argument('-v',
-                        '--validation-size',
-                        dest='validation_size',
-                        action='store',
-                        type=int,
-                        default=1024,
-                        help='Number of trianing examples in the validation set')
-
-    parser.add_argument('-s',
-                        '--num-streamers',
-                        dest='num_streamers',
-                        action='store',
-                        type=int,
-                        default=32,
-                        help='Number of pescador streamers that can be open concurrently')
-
-    parser.add_argument('-r',
-                        '--random-seed',
-                        dest='random_seed',
-                        action='store',
-                        type=int,
-                        default=20171021,
-                        help='Random seed used to set the RNG state')
-
-    parser.add_argument('-v',
-                        '--verbose',
-                        dest='verbose',
-                        action='store_true',
-                        default=False,
-                        help='If True, print detailed messages')
-
-    """
-    parser.add_argument('train_csv_path',
-                        action='store',
-                        type=str,
-                        help='Path to training csv file')
-    """
-    parser.add_argument('train_data_dir',
-                        action='store',
-                        type=str,
-                        help='Path to directory where training subset files are stored')
-
-    parser.add_argument('model_id',
-                        action='store',
-                        type=str,
-                        help='Identifier for this model')
-
-    parser.add_argument('output_dir',
-                        action='store',
-                        type=str,
-                        help='Path to directory where output files will be stored')
-
-
-    return vars(parser.parse_args())
-
-
