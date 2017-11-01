@@ -48,7 +48,7 @@ def video_to_audio(video_file):
     return '/'.join(path + ['audio', name])
 
 
-def sample_one_second(audio_file, start, label):
+def sample_one_second(audio_data, sampling_frequency, start, label):
     """Return one second audio samples randomly if start is not specified,
        otherwise, return one second audio samples including start (seconds).
 
@@ -60,8 +60,6 @@ def sample_one_second(audio_file, start, label):
         One second samples
 
     """
-
-    audio_data, sampling_frequency = sf.read(audio_file)
     if label:
         start = min(0, int(start * sampling_frequency) - random.randint(0, sampling_frequency))
     else:
@@ -109,9 +107,11 @@ def sampler(video_file, audio_files):
     else:
         label = 1
 
+    audio_data, sampling_frequency = sf.read(audio_file)
+
     while True:
         sample_video_data, video_start = sample_one_frame(video_data)
-        sample_audio_data, audio_start = sample_one_second(audio_file, video_start, label)
+        sample_audio_data, audio_start = sample_one_second(audio_data, sampling_frequency, video_start, label)
 
         yield {
             'video': sample_video_data,
@@ -124,7 +124,7 @@ def sampler(video_file, audio_files):
         }
 
 
-def data_generator(data_dir, k=32, batch_size=64, random_seed=20171021):
+def data_generator(data_dir, k=32, batch_size=64, random_state=20171021):
     """Sample video and audio from data_dir, returns a streamer that yield samples infinitely.
 
     Args:
@@ -137,7 +137,7 @@ def data_generator(data_dir, k=32, batch_size=64, random_seed=20171021):
 
     """
 
-    random.seed(random_seed)
+    random.seed(random_state)
 
     audio_files, video_files = get_file_list(data_dir)
     seeds = []
