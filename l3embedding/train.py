@@ -2,6 +2,7 @@ import glob
 import random
 
 import pescador
+from scipy.misc import imresize
 import skvideo.io
 import soundfile as sf
 from tqdm import tqdm
@@ -73,7 +74,7 @@ def sample_one_frame(video_data, fps=30):
 
     num_frames = video_data.shape[0]
     frame = random.randrange(num_frames - fps)
-    return video_data[frame, :, :, :], frame / fps
+    return imresize(video_data[frame, :, :, :], (224, 224)), frame / fps
 
 
 def sampler(video_file, audio_files):
