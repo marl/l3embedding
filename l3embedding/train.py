@@ -61,7 +61,7 @@ def sample_one_second(audio_data, sampling_frequency, start, label):
 
     """
     if label:
-        start = min(0, int(start * sampling_frequency) - random.randint(0, sampling_frequency))
+        start = max(0, int(start * sampling_frequency) - random.randint(0, sampling_frequency))
     else:
         start = random.randrange(len(audio_data) - sampling_frequency)
     return audio_data[start:start+sampling_frequency], start / sampling_frequency
