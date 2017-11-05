@@ -9,7 +9,7 @@ from keras.optimizers import Adam
 import numpy as np
 import pescador
 import scipy.misc
-from skvideo.io.ffmpeg import FFmpegReader
+from skvideo.io import vread
 import soundfile as sf
 from tqdm import tqdm
 
@@ -106,20 +106,6 @@ def sample_one_frame(video_data, fps=30, scaling_func=None):
     return frame_data, frame / fps
 
 
-def read_video(video_file):
-    reader = FFmpegReader(video_file)
-    T, M, N, C = reader.getShape()
-    videodata = np.zeros((T, M, N, C), dtype=np.uint8)
-
-    length = M * N * C
-    for idx in range(T):
-        arr = np.fromstring(reader._proc.stdout.read(length), dtype=np.uint8)
-        if len(arr) != length:
-            break
-        videodata[idx, :, :, :] = arr.reshape((M, N, C))
-    return videodata
-
-
 def sampler(video_file, audio_files):
     """Sample one frame from video_file, with 50% chance sample one second from corresponding audio_file,
        50% chance sample one second from another audio_file in the list of audio_files.
@@ -134,7 +120,7 @@ def sampler(video_file, audio_files):
 
     """
 
-    video_data = read_video(video_file)
+    video_data = vread(video_file)
     audio_file = video_to_audio(video_file)
 
     if random.random() < 0.5:
@@ -148,12 +134,12 @@ def sampler(video_file, audio_files):
     while True:
         sample_video_data, video_start = sample_one_frame(video_data)
         sample_audio_data, audio_start = sample_one_second(audio_data, sampling_frequency, video_start, label)
-        sample_audio_data = sample_audio_data[:,0]
+        sample_audio_data = sample_audio_data[:, 0].reshape((1, len(sample_audio_data)))
 
         sample = {
             'video': sample_video_data,
             'audio': sample_audio_data,
-            'label': label,
+            'label': np.array([label, 1 - label]),
             'audio_file': audio_file,
             'video_file': video_file,
             'audio_start': audio_start,
