@@ -75,7 +75,8 @@ def construct_cnn_L3_orig():
     # Audio subnetwork
     ####
     n_dft = 512
-    n_hop = 242
+    n_win = 480
+    n_hop = n_win//2
     asr = 48000
     audio_window_dur = 1
     # INPUT
@@ -83,8 +84,8 @@ def construct_cnn_L3_orig():
 
     # SPECTROGRAM PREPROCESSING
     # 257 x 199 x 1
-    y_a = Spectrogram(n_dft=n_dft, n_hop=n_hop,
-                      return_decibel_spectrogram=True)(x_a)
+    y_a = Spectrogram(n_dft=n_dft, n_win=n_win, n_hop=n_hop,
+                      return_decibel_spectrogram=True, padding='valid')(x_a)
     # CONV BLOCK 1
     n_filter_a_1 = 64
     filt_size_a_1 = (3, 3)
