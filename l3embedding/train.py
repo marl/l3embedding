@@ -14,6 +14,7 @@ import soundfile as sf
 from tqdm import tqdm
 
 from .model import construct_cnn_L3_orig
+from .image import *
 
 
 #TODO: Consider putting the sampling functionality into another file
@@ -51,7 +52,7 @@ def video_to_audio(video_file):
     return '/'.join(path + ['audio', name])
 
 
-def sample_one_second(audio_data, sampling_frequency, start, label):
+def sample_one_second(audio_data, sampling_frequency, start, label, augment=False):
     """Return one second audio samples randomly if start is not specified,
        otherwise, return one second audio samples including start (seconds).
 
@@ -63,11 +64,22 @@ def sample_one_second(audio_data, sampling_frequency, start, label):
         One second samples
 
     """
+    sampling_frequency = int(sampling_frequency)
     if label:
         start = max(0, int(start * sampling_frequency) - random.randint(0, sampling_frequency))
     else:
         start = random.randrange(len(audio_data) - sampling_frequency)
-    return audio_data[start:start+sampling_frequency], start / sampling_frequency
+
+    audio_data = audio_data[start:start+sampling_frequency]
+    if augment:
+        # Make sure we don't clip
+        gain = 1 + random.random()*min(0.1, 1.0/np.abs(audio_data).max() - 1)
+        audio_data *= gain
+        audio_aug_params = {'gain': gain}
+    else:
+        audio_aug_params = {}
+
+    return audio_data, start / sampling_frequency, audio_aug_params
 
 
 def l3_frame_scaling(frame_data):
@@ -83,10 +95,17 @@ def l3_frame_scaling(frame_data):
     start_x, start_y = random.randrange(new_nx - 224), random.randrange(new_ny - 224)
     end_x, end_y = start_x + 224, start_y + 224
 
-    return resized_frame_data[start_x:end_x, start_y:end_y, :]
+    bbox = {
+        'start_x': start_x,
+        'start_y': start_y,
+        'end_x': end_x,
+        'end_y': end_y
+    }
+
+    return resized_frame_data[start_x:end_x, start_y:end_y, :], bbox
 
 
-def sample_one_frame(video_data, fps=30, scaling_func=None):
+def sample_one_frame(video_data, fps=30, scaling_func=None, augment=False):
     """Return one frame randomly and time (seconds).
 
     Args:
@@ -102,11 +121,38 @@ def sample_one_frame(video_data, fps=30, scaling_func=None):
     num_frames = video_data.shape[0]
     frame = random.randrange(num_frames - fps)
     frame_data = video_data[frame, :, :, :]
-    frame_data = scaling_func(frame_data)
-    return frame_data, frame / fps
+    frame_data, bbox = scaling_func(frame_data)
+
+    video_aug_params = {'bounding_box': bbox}
+
+    if augment:
+        # Randomly horizontally flip the image
+        horizontal_flip = False
+        if random.random() < 0.5:
+            frame_data = horiz_flip(frame_data)
+            horizontal_flip = True
+
+        # Ranges taken from https://github.com/tensorflow/models/blob/master/research/slim/preprocessing/inception_preprocessing.py
+        # Add saturation jitter
+        saturation_factor = random.random() + 0.5
+        frame_data = adjust_saturation(frame_data, saturation_factor)
+
+        # Add brightness jitter
+        max_delta = 32. / 255.
+        brightness_delta = (2*random.random() - 1) * max_delta
+        frame_data = adjust_brightness(frame_data, brightness_delta)
+
+        video_aug_params.update({
+            'horizontal_flip': horizontal_flip,
+            'saturation_factor': saturation_factor,
+            'brightness_delta': brightness_delta
+        })
 
 
-def sampler(video_file, audio_files):
+    return frame_data, frame / fps, video_aug_params
+
+
+def sampler(video_file, audio_files, augment=False):
     """Sample one frame from video_file, with 50% chance sample one second from corresponding audio_file,
        50% chance sample one second from another audio_file in the list of audio_files.
 
@@ -132,8 +178,11 @@ def sampler(video_file, audio_files):
     audio_data, sampling_frequency = sf.read(audio_file)
 
     while True:
-        sample_video_data, video_start = sample_one_frame(video_data)
-        sample_audio_data, audio_start = sample_one_second(audio_data, sampling_frequency, video_start, label)
+        sample_video_data, video_start, video_aug_params \
+            = sample_one_frame(video_data, augment=augment)
+        sample_audio_data, audio_start, audio_aug_params \
+            = sample_one_second(audio_data, sampling_frequency, video_start,
+                                label, augment=augment)
         sample_audio_data = sample_audio_data[:, 0].reshape((1, len(sample_audio_data)))
 
         sample = {
@@ -143,7 +192,9 @@ def sampler(video_file, audio_files):
             'audio_file': audio_file,
             'video_file': video_file,
             'audio_start': audio_start,
-            'video_start': video_start
+            'video_start': video_start,
+            'audio_augment_params': audio_aug_params,
+            'video_augment_params': video_aug_params
         }
         yield sample
 
