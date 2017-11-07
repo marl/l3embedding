@@ -149,14 +149,26 @@ def sample_one_frame(video_data, fps=30, scaling_func=None, augment=False):
             horizontal_flip = True
 
         # Ranges taken from https://github.com/tensorflow/models/blob/master/research/slim/preprocessing/inception_preprocessing.py
-        # Add saturation jitter
-        saturation_factor = random.random() + 0.5
-        frame_data = adjust_saturation(frame_data, saturation_factor)
 
-        # Add brightness jitter
-        max_delta = 32. / 255.
-        brightness_delta = (2*random.random() - 1) * max_delta
-        frame_data = adjust_brightness(frame_data, brightness_delta)
+        # Randomize the order of saturation jitter and brightness jitter
+        if random.random() < 0.5:
+            # Add saturation jitter
+            saturation_factor = random.random() + 0.5
+            frame_data = adjust_saturation(frame_data, saturation_factor)
+
+            # Add brightness jitter
+            max_delta = 32. / 255.
+            brightness_delta = (2*random.random() - 1) * max_delta
+            frame_data = adjust_brightness(frame_data, brightness_delta)
+        else:
+            # Add brightness jitter
+            max_delta = 32. / 255.
+            brightness_delta = (2*random.random() - 1) * max_delta
+            frame_data = adjust_brightness(frame_data, brightness_delta)
+
+            # Add saturation jitter
+            saturation_factor = random.random() + 0.5
+            frame_data = adjust_saturation(frame_data, saturation_factor)
 
         video_aug_params.update({
             'horizontal_flip': horizontal_flip,
