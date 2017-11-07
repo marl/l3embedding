@@ -30,9 +30,14 @@ def get_file_list(data_dir):
         video_files: list of video files
 
     """
+    data_dir_contents = set(os.listdir(data_dir))
+    if 'audio' in data_dir_contents and 'video' in data_dir_contents:
+        audio_files = glob.glob('{}/audio/*'.format(data_dir))
+        video_files = glob.glob('{}/video/*'.format(data_dir))
+    else:
+        audio_files = glob.glob('{}/**/audio/*'.format(data_dir))
+        video_files = glob.glob('{}/**/video/*'.format(data_dir))
 
-    audio_files = glob.glob('{}/audio/*'.format(data_dir))
-    video_files = glob.glob('{}/video/*'.format(data_dir))
     return audio_files, video_files
 
 
@@ -83,6 +88,17 @@ def sample_one_second(audio_data, sampling_frequency, start, label, augment=Fals
 
 
 def l3_frame_scaling(frame_data):
+    """
+    Scale and crop an video frame, using the method from Look, Listen and Learn
+
+
+    Args:
+        frame_data: video frame data array
+
+    Returns:
+        scaled_frame_data: scaled and cropped frame data
+        bbox: bounding box for the cropped image
+    """
     nx, ny, nc = frame_data.shape
     scaling = 256.0 / min(nx, ny)
 
