@@ -215,7 +215,7 @@ def sampler(video_file, audio_files, augment=False):
         yield sample
 
 
-def data_generator(data_dir, k=32, batch_size=64, random_state=20171021):
+def data_generator(data_dir, k=32, batch_size=64, random_state=20171021, augment=False):
     """Sample video and audio from data_dir, returns a streamer that yield samples infinitely.
 
     Args:
@@ -233,7 +233,7 @@ def data_generator(data_dir, k=32, batch_size=64, random_state=20171021):
     audio_files, video_files = get_file_list(data_dir)
     seeds = []
     for video_file in tqdm(random.sample(video_files, k)):
-        seeds.append(pescador.Streamer(sampler, video_file, audio_files))
+        seeds.append(pescador.Streamer(sampler, video_file, audio_files, augment=augment))
 
     mux = pescador.Mux(seeds, k)
     if batch_size == 1:
@@ -267,9 +267,9 @@ class LossHistory(keras.callbacks.Callback):
 
 
 #def train(train_csv_path, model_id, output_dir, num_epochs=150, epoch_size=512,
-def train(train_data_dir, model_id, output_dir, num_epochs=150, epoch_size=512,
+def train(train_data_dir, validation_data_dir, model_id, output_dir, num_epochs=150, epoch_size=512,
           batch_size=64, validation_size=1024, num_streamers=16,
-          random_state=20171021, verbose=False, checkpoint_interval=100):
+          random_state=20171021, verbose=False, checkpoint_interval=100, augment=False):
     m, inputs, outputs = construct_cnn_L3_orig()
     loss = 'binary_crossentropy'
     metrics = ['accuracy']
@@ -318,17 +318,31 @@ def train(train_data_dir, model_id, output_dir, num_epochs=150, epoch_size=512,
                                         separator=','))
 
 
-    print('Setting up data generator...')
+    print('Setting up train data generator...')
     train_gen = data_generator(
         #train_csv_path,
         train_data_dir,
         batch_size=batch_size,
         random_state=random_state,
-        k=num_streamers)
+        k=num_streamers,
+        augment=augment)
 
     train_gen = pescador.maps.keras_tuples(train_gen,
                                            ['video', 'audio'],
                                            'label')
+
+    print('Setting up validation data generator...')
+    val_gen = data_generator(
+        validation_data_dir,
+        batch_size=batch_size,
+        random_state=random_state,
+        k=num_streamers)
+
+    val_gen = pescador.maps.keras_tuples(val_gen,
+                                           ['video', 'audio'],
+                                           'label')
+
+
 
     # Fit the model
     print('Fit model...')
@@ -337,8 +351,8 @@ def train(train_data_dir, model_id, output_dir, num_epochs=150, epoch_size=512,
     else:
         verbosity = 2
     history = m.fit_generator(train_gen, epoch_size, num_epochs,
-    #                          validation_data=gen_val,
-    #                          validation_steps=validation_size,
+                              validation_data=val_gen,
+                              validation_steps=validation_size,
                               callbacks=cb,
                               verbose=verbosity)
 

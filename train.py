@@ -61,6 +61,13 @@ def parse_arguments():
                         default=20171021,
                         help='Random seed used to set the RNG state')
 
+    parser.add_argument('-a',
+                        '--augment',
+                        dest='augment',
+                        action='store_true',
+                        default=False,
+                        help='If True, performs data augmentation on audio and images')
+
     parser.add_argument('-v',
                         '--verbose',
                         dest='verbose',
@@ -77,7 +84,12 @@ def parse_arguments():
     parser.add_argument('train_data_dir',
                         action='store',
                         type=str,
-                        help='Path to directory where training subset files are stored')
+                        help='Path to directory where training set files are stored')
+
+    parser.add_argument('validation_data_dir',
+                        action='store',
+                        type=str,
+                        help='Path to directory where validation set files are stored')
 
     parser.add_argument('model_id',
                         action='store',
