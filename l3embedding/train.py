@@ -3,6 +3,7 @@ import json
 import os
 import pickle
 import random
+import math
 
 import keras
 from keras.optimizers import Adam
@@ -14,6 +15,7 @@ import soundfile as sf
 from tqdm import tqdm
 
 from .model import construct_cnn_L3_orig
+from .image import *
 
 
 #TODO: Consider putting the sampling functionality into another file
@@ -29,9 +31,14 @@ def get_file_list(data_dir):
         video_files: list of video files
 
     """
+    data_dir_contents = set(os.listdir(data_dir))
+    if 'audio' in data_dir_contents and 'video' in data_dir_contents:
+        audio_files = glob.glob('{}/audio/*'.format(data_dir))
+        video_files = glob.glob('{}/video/*'.format(data_dir))
+    else:
+        audio_files = glob.glob('{}/**/audio/*'.format(data_dir))
+        video_files = glob.glob('{}/**/video/*'.format(data_dir))
 
-    audio_files = glob.glob('{}/audio/*'.format(data_dir))
-    video_files = glob.glob('{}/video/*'.format(data_dir))
     return audio_files, video_files
 
 
@@ -51,7 +58,7 @@ def video_to_audio(video_file):
     return '/'.join(path + ['audio', name])
 
 
-def sample_one_second(audio_data, sampling_frequency, start, label):
+def sample_one_second(audio_data, sampling_frequency, start, label, augment=False):
     """Return one second audio samples randomly if start is not specified,
        otherwise, return one second audio samples including start (seconds).
 
@@ -63,19 +70,41 @@ def sample_one_second(audio_data, sampling_frequency, start, label):
         One second samples
 
     """
+    sampling_frequency = int(sampling_frequency)
     if label:
         start = max(0, int(start * sampling_frequency) - random.randint(0, sampling_frequency))
     else:
         start = random.randrange(len(audio_data) - sampling_frequency)
-    return audio_data[start:start+sampling_frequency], start / sampling_frequency
+
+    audio_data = audio_data[start:start+sampling_frequency]
+    if augment:
+        # Make sure we don't clip
+        gain = 1 + random.random()*min(0.1, 1.0/np.abs(audio_data).max() - 1)
+        audio_data *= gain
+        audio_aug_params = {'gain': gain}
+    else:
+        audio_aug_params = {}
+
+    return audio_data, start / sampling_frequency, audio_aug_params
 
 
 def l3_frame_scaling(frame_data):
+    """
+    Scale and crop an video frame, using the method from Look, Listen and Learn
+
+
+    Args:
+        frame_data: video frame data array
+
+    Returns:
+        scaled_frame_data: scaled and cropped frame data
+        bbox: bounding box for the cropped image
+    """
     nx, ny, nc = frame_data.shape
     scaling = 256.0 / min(nx, ny)
 
-    new_nx, new_ny = int(scaling * nx), int(scaling * ny)
-    assert 256 in (new_nx, new_ny)
+    new_nx, new_ny = math.ceil(scaling * nx), math.ceil(scaling * ny)
+    assert 256 in (new_nx, new_ny), str((new_nx, new_ny))
 
 
     resized_frame_data = scipy.misc.imresize(frame_data, (new_nx, new_ny, nc))
@@ -83,10 +112,17 @@ def l3_frame_scaling(frame_data):
     start_x, start_y = random.randrange(new_nx - 224), random.randrange(new_ny - 224)
     end_x, end_y = start_x + 224, start_y + 224
 
-    return resized_frame_data[start_x:end_x, start_y:end_y, :]
+    bbox = {
+        'start_x': start_x,
+        'start_y': start_y,
+        'end_x': end_x,
+        'end_y': end_y
+    }
+
+    return resized_frame_data[start_x:end_x, start_y:end_y, :], bbox
 
 
-def sample_one_frame(video_data, fps=30, scaling_func=None):
+def sample_one_frame(video_data, fps=30, scaling_func=None, augment=False):
     """Return one frame randomly and time (seconds).
 
     Args:
@@ -102,11 +138,50 @@ def sample_one_frame(video_data, fps=30, scaling_func=None):
     num_frames = video_data.shape[0]
     frame = random.randrange(num_frames - fps)
     frame_data = video_data[frame, :, :, :]
-    frame_data = scaling_func(frame_data)
-    return frame_data, frame / fps
+    frame_data, bbox = scaling_func(frame_data)
+
+    video_aug_params = {'bounding_box': bbox}
+
+    if augment:
+        # Randomly horizontally flip the image
+        horizontal_flip = False
+        if random.random() < 0.5:
+            frame_data = horiz_flip(frame_data)
+            horizontal_flip = True
+
+        # Ranges taken from https://github.com/tensorflow/models/blob/master/research/slim/preprocessing/inception_preprocessing.py
+
+        # Randomize the order of saturation jitter and brightness jitter
+        if random.random() < 0.5:
+            # Add saturation jitter
+            saturation_factor = random.random() + 0.5
+            frame_data = adjust_saturation(frame_data, saturation_factor)
+
+            # Add brightness jitter
+            max_delta = 32. / 255.
+            brightness_delta = (2*random.random() - 1) * max_delta
+            frame_data = adjust_brightness(frame_data, brightness_delta)
+        else:
+            # Add brightness jitter
+            max_delta = 32. / 255.
+            brightness_delta = (2*random.random() - 1) * max_delta
+            frame_data = adjust_brightness(frame_data, brightness_delta)
+
+            # Add saturation jitter
+            saturation_factor = random.random() + 0.5
+            frame_data = adjust_saturation(frame_data, saturation_factor)
+
+        video_aug_params.update({
+            'horizontal_flip': horizontal_flip,
+            'saturation_factor': saturation_factor,
+            'brightness_delta': brightness_delta
+        })
 
 
-def sampler(video_file, audio_files):
+    return frame_data, frame / fps, video_aug_params
+
+
+def sampler(video_file, audio_files, augment=False):
     """Sample one frame from video_file, with 50% chance sample one second from corresponding audio_file,
        50% chance sample one second from another audio_file in the list of audio_files.
 
@@ -132,8 +207,11 @@ def sampler(video_file, audio_files):
     audio_data, sampling_frequency = sf.read(audio_file)
 
     while True:
-        sample_video_data, video_start = sample_one_frame(video_data)
-        sample_audio_data, audio_start = sample_one_second(audio_data, sampling_frequency, video_start, label)
+        sample_video_data, video_start, video_aug_params \
+            = sample_one_frame(video_data, augment=augment)
+        sample_audio_data, audio_start, audio_aug_params \
+            = sample_one_second(audio_data, sampling_frequency, video_start,
+                                label, augment=augment)
         sample_audio_data = sample_audio_data[:, 0].reshape((1, len(sample_audio_data)))
 
         sample = {
@@ -143,12 +221,14 @@ def sampler(video_file, audio_files):
             'audio_file': audio_file,
             'video_file': video_file,
             'audio_start': audio_start,
-            'video_start': video_start
+            'video_start': video_start,
+            'audio_augment_params': audio_aug_params,
+            'video_augment_params': video_aug_params
         }
         yield sample
 
 
-def data_generator(data_dir, k=32, batch_size=64, random_state=20171021):
+def data_generator(data_dir, k=32, batch_size=64, random_state=20171021, augment=False):
     """Sample video and audio from data_dir, returns a streamer that yield samples infinitely.
 
     Args:
@@ -166,7 +246,7 @@ def data_generator(data_dir, k=32, batch_size=64, random_state=20171021):
     audio_files, video_files = get_file_list(data_dir)
     seeds = []
     for video_file in tqdm(random.sample(video_files, k)):
-        seeds.append(pescador.Streamer(sampler, video_file, audio_files))
+        seeds.append(pescador.Streamer(sampler, video_file, audio_files, augment=augment))
 
     mux = pescador.Mux(seeds, k)
     if batch_size == 1:
@@ -200,9 +280,9 @@ class LossHistory(keras.callbacks.Callback):
 
 
 #def train(train_csv_path, model_id, output_dir, num_epochs=150, epoch_size=512,
-def train(train_data_dir, model_id, output_dir, num_epochs=150, epoch_size=512,
+def train(train_data_dir, validation_data_dir, model_id, output_dir, num_epochs=150, epoch_size=512,
           batch_size=64, validation_size=1024, num_streamers=16,
-          random_state=20171021, verbose=False, checkpoint_interval=100):
+          random_state=20171021, verbose=False, checkpoint_interval=100, augment=False):
     m, inputs, outputs = construct_cnn_L3_orig()
     loss = 'binary_crossentropy'
     metrics = ['accuracy']
@@ -251,17 +331,31 @@ def train(train_data_dir, model_id, output_dir, num_epochs=150, epoch_size=512,
                                         separator=','))
 
 
-    print('Setting up data generator...')
+    print('Setting up train data generator...')
     train_gen = data_generator(
         #train_csv_path,
         train_data_dir,
         batch_size=batch_size,
         random_state=random_state,
-        k=num_streamers)
+        k=num_streamers,
+        augment=augment)
 
     train_gen = pescador.maps.keras_tuples(train_gen,
                                            ['video', 'audio'],
                                            'label')
+
+    print('Setting up validation data generator...')
+    val_gen = data_generator(
+        validation_data_dir,
+        batch_size=batch_size,
+        random_state=random_state,
+        k=num_streamers)
+
+    val_gen = pescador.maps.keras_tuples(val_gen,
+                                           ['video', 'audio'],
+                                           'label')
+
+
 
     # Fit the model
     print('Fit model...')
@@ -270,8 +364,8 @@ def train(train_data_dir, model_id, output_dir, num_epochs=150, epoch_size=512,
     else:
         verbosity = 2
     history = m.fit_generator(train_gen, epoch_size, num_epochs,
-    #                          validation_data=gen_val,
-    #                          validation_steps=validation_size,
+                              validation_data=val_gen,
+                              validation_steps=validation_size,
                               callbacks=cb,
                               verbose=verbosity)
 
