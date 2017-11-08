@@ -53,6 +53,14 @@ def parse_arguments():
                         default=32,
                         help='Number of pescador streamers that can be open concurrently')
 
+    parser.add_argument('-lr',
+                        '--learning-rate',
+                        dest='learning_rate',
+                        action='store',
+                        type=float,
+                        default=1e-4,
+                        help='Optimization learning rate')
+
     parser.add_argument('-r',
                         '--random-state',
                         dest='random_state',
