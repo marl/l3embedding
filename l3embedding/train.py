@@ -3,6 +3,7 @@ import json
 import os
 import pickle
 import random
+import math
 
 import keras
 from keras.optimizers import Adam
@@ -102,8 +103,8 @@ def l3_frame_scaling(frame_data):
     nx, ny, nc = frame_data.shape
     scaling = 256.0 / min(nx, ny)
 
-    new_nx, new_ny = int(scaling * nx), int(scaling * ny)
-    assert 256 in (new_nx, new_ny)
+    new_nx, new_ny = math.ceil(scaling * nx), math.ceil(scaling * ny)
+    assert 256 in (new_nx, new_ny), str((new_nx, new_ny))
 
 
     resized_frame_data = scipy.misc.imresize(frame_data, (new_nx, new_ny, nc))
