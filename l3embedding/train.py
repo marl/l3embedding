@@ -79,7 +79,8 @@ def sample_one_second(audio_data, sampling_frequency, start, label, augment=Fals
     audio_data = audio_data[start:start+sampling_frequency]
     if augment:
         # Make sure we don't clip
-        gain = 1 + random.random()*min(0.1, 1.0/np.abs(audio_data).max() - 1)
+        max_gain = min(0.1, 1.0/np.abs(audio_data).max() - 1)
+        gain = 1 + random.uniform(-0.1, max_gain)
         audio_data *= gain
         audio_aug_params = {'gain': gain}
     else:
@@ -280,9 +281,10 @@ class LossHistory(keras.callbacks.Callback):
 
 
 #def train(train_csv_path, model_id, output_dir, num_epochs=150, epoch_size=512,
-def train(train_data_dir, validation_data_dir, model_id, output_dir, num_epochs=150, epoch_size=512,
-          batch_size=64, validation_size=1024, num_streamers=16,
-          random_state=20171021, verbose=False, checkpoint_interval=100, augment=False):
+def train(train_data_dir, validation_data_dir, model_id, output_dir,
+          num_epochs=150, epoch_size=512, batch_size=64, validation_size=1024,
+          num_streamers=16, learning_rate=1e-4, random_state=20171021,
+          verbose=False, checkpoint_interval=100, augment=False):
     m, inputs, outputs = construct_cnn_L3_orig()
     loss = 'binary_crossentropy'
     metrics = ['accuracy']
@@ -296,7 +298,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir, num_epochs=
         os.makedirs(model_dir)
 
     print('Compile model...')
-    m.compile(Adam(),
+    m.compile(Adam(lr=learning_rate),
               loss=loss,
               metrics=metrics)
 

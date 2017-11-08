@@ -1,6 +1,7 @@
 from keras.models import Model
 from keras.layers import Input, Conv2D, BatchNormalization, MaxPooling2D,\
-                         Flatten, Concatenate, Dense
+                         Flatten, Concatenate, Dense, Activation
+import keras.regularizers as regularizers
 from kapre.time_frequency import Spectrogram
 
 
@@ -15,6 +16,8 @@ def construct_cnn_L3_orig():
     model:  L3 CNN model
             (Type: keras.models.Model)
     """
+    weight_decay = 1e-5
+    l2_weight_decay = regularizers.l2(weight_decay)
     ####
     # Image subnetwork
     ####
@@ -26,10 +29,12 @@ def construct_cnn_L3_orig():
     filt_size_i_1 = (3, 3)
     pool_size_i_1 = (2, 2)
     y_i = Conv2D(n_filter_i_1, filt_size_i_1, padding='same',
-                 activation='relu')(x_i)
+                 kernel_regularizer=l2_weight_decay)(x_i)
     y_i = BatchNormalization()(y_i)
+    y_i = Activation('relu')(y_i)
     y_i = Conv2D(n_filter_i_1, filt_size_i_1, padding='same',
-                 activation='relu')(y_i)
+                 kernel_regularizer=l2_weight_decay)(y_i)
+    y_i = Activation('relu')(y_i)
     y_i = BatchNormalization()(y_i)
     y_i = MaxPooling2D(pool_size=pool_size_i_1, strides=2, padding='same')(y_i)
 
@@ -38,11 +43,13 @@ def construct_cnn_L3_orig():
     filt_size_i_2 = (3, 3)
     pool_size_i_2 = (2, 2)
     y_i = Conv2D(n_filter_i_2, filt_size_i_2, padding='same',
-                 activation='relu')(y_i)
+                 kernel_regularizer=l2_weight_decay)(y_i)
     y_i = BatchNormalization()(y_i)
+    y_i = Activation('relu')(y_i)
     y_i = Conv2D(n_filter_i_2, filt_size_i_2, padding='same',
-                 activation='relu')(y_i)
+                 kernel_regularizer=l2_weight_decay)(y_i)
     y_i = BatchNormalization()(y_i)
+    y_i = Activation('relu')(y_i)
     y_i = MaxPooling2D(pool_size=pool_size_i_2, strides=2, padding='same')(y_i)
 
     # CONV BLOCK 3
@@ -50,11 +57,13 @@ def construct_cnn_L3_orig():
     filt_size_i_3 = (3, 3)
     pool_size_i_3 = (2, 2)
     y_i = Conv2D(n_filter_i_3, filt_size_i_3, padding='same',
-                 activation='relu')(y_i)
+                 kernel_regularizer=l2_weight_decay)(y_i)
     y_i = BatchNormalization()(y_i)
+    y_i = Activation('relu')(y_i)
     y_i = Conv2D(n_filter_i_3, filt_size_i_3, padding='same',
-                 activation='relu')(y_i)
+                 kernel_regularizer=l2_weight_decay)(y_i)
     y_i = BatchNormalization()(y_i)
+    y_i = Activation('relu')(y_i)
     y_i = MaxPooling2D(pool_size=pool_size_i_3, strides=2, padding='same')(y_i)
 
     # CONV BLOCK 4
@@ -62,11 +71,13 @@ def construct_cnn_L3_orig():
     filt_size_i_4 = (3, 3)
     pool_size_i_4 = (28, 28)
     y_i = Conv2D(n_filter_i_4, filt_size_i_4, padding='same',
-                 activation='relu')(y_i)
+                 kernel_regularizer=l2_weight_decay)(y_i)
     y_i = BatchNormalization()(y_i)
+    y_i = Activation('relu')(y_i)
     y_i = Conv2D(n_filter_i_4, filt_size_i_4, padding='same',
-                 activation='relu')(y_i)
+                 kernel_regularizer=l2_weight_decay)(y_i)
     y_i = BatchNormalization()(y_i)
+    y_i = Activation('relu')(y_i)
     y_i = MaxPooling2D(pool_size=pool_size_i_4, padding='same')(y_i)
     y_i = Flatten()(y_i)
 
@@ -91,11 +102,13 @@ def construct_cnn_L3_orig():
     filt_size_a_1 = (3, 3)
     pool_size_a_1 = (2, 2)
     y_a = Conv2D(n_filter_a_1, filt_size_a_1, padding='same',
-                activation='relu')(y_a)
+                kernel_regularizer=l2_weight_decay)(y_a)
     y_a = BatchNormalization()(y_a)
+    y_a = Activation('relu')(y_a)
     y_a = Conv2D(n_filter_a_1, filt_size_a_1, padding='same',
-                activation='relu')(y_a)
+                kernel_regularizer=l2_weight_decay)(y_a)
     y_a = BatchNormalization()(y_a)
+    y_a = Activation('relu')(y_a)
     y_a = MaxPooling2D(pool_size=pool_size_a_1, strides=2)(y_a)
 
     # CONV BLOCK 2
@@ -103,11 +116,13 @@ def construct_cnn_L3_orig():
     filt_size_a_2 = (3, 3)
     pool_size_a_2 = (2, 2)
     y_a = Conv2D(n_filter_a_2, filt_size_a_2, padding='same',
-                 activation='relu')(y_a)
+                 kernel_regularizer=l2_weight_decay)(y_a)
     y_a = BatchNormalization()(y_a)
+    y_a = Activation('relu')(y_a)
     y_a = Conv2D(n_filter_a_2, filt_size_a_2, padding='same',
-                 activation='relu')(y_a)
+                 kernel_regularizer=l2_weight_decay)(y_a)
     y_a = BatchNormalization()(y_a)
+    y_a = Activation('relu')(y_a)
     y_a = MaxPooling2D(pool_size=pool_size_a_2, strides=2)(y_a)
 
     # CONV BLOCK 3
@@ -115,11 +130,13 @@ def construct_cnn_L3_orig():
     filt_size_a_3 = (3, 3)
     pool_size_a_3 = (2, 2)
     y_a = Conv2D(n_filter_a_3, filt_size_a_3, padding='same',
-                 activation='relu')(y_a)
+                 kernel_regularizer=l2_weight_decay)(y_a)
     y_a = BatchNormalization()(y_a)
+    y_a = Activation('relu')(y_a)
     y_a = Conv2D(n_filter_a_3, filt_size_a_3, padding='same',
-                 activation='relu')(y_a)
+                 kernel_regularizer=l2_weight_decay)(y_a)
     y_a = BatchNormalization()(y_a)
+    y_a = Activation('relu')(y_a)
     y_a = MaxPooling2D(pool_size=pool_size_a_3, strides=2)(y_a)
 
     # CONV BLOCK 4
@@ -127,19 +144,21 @@ def construct_cnn_L3_orig():
     filt_size_a_4 = (3, 3)
     pool_size_a_4 = (32, 24)
     y_a = Conv2D(n_filter_a_4, filt_size_a_4, padding='same',
-                 activation='relu')(y_a)
+                 kernel_regularizer=l2_weight_decay)(y_a)
     y_a = BatchNormalization()(y_a)
+    y_a = Activation('relu')(y_a)
     y_a = Conv2D(n_filter_a_4, filt_size_a_4, padding='same',
-                 activation='relu')(y_a)
+                 kernel_regularizer=l2_weight_decay)(y_a)
     y_a = BatchNormalization()(y_a)
+    y_a = Activation('relu')(y_a)
     y_a = MaxPooling2D(pool_size=pool_size_a_4)(y_a)
 
     y_a = Flatten()(y_a)
 
     # Merge the subnetworks
     y = Concatenate()([y_i, y_a])
-    y = Dense(128, activation='relu')(y)
-    y = Dense(2, activation='softmax')(y)
+    y = Dense(128, activation='relu', kernel_regularizer=l2_weight_decay)(y)
+    y = Dense(2, activation='softmax', kernel_regularizer=l2_weight_decay)(y)
 
     m = Model(inputs=[x_i, x_a], outputs=y)
     return m, [x_i, x_a], y
