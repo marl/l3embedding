@@ -75,7 +75,10 @@ def sample_one_second(audio_data, sampling_frequency, start, label, augment=Fals
     if label:
         start = max(0, int(start * sampling_frequency) - random.randint(0, sampling_frequency))
     else:
-        start = random.randrange(len(audio_data) - sampling_frequency)
+        try:
+            start = random.randrange(len(audio_data) - sampling_frequency)
+        except ValueError:
+            start = 0
 
     audio_data = audio_data[start:start+sampling_frequency]
     if augment:
@@ -209,11 +212,13 @@ def sampler(video_file, audio_files, augment=False):
     audio_data, sampling_frequency = sf.read(audio_file)
 
     while True:
-        sample_video_data, video_start, video_aug_params \
-            = sample_one_frame(video_data, augment=augment)
-        sample_audio_data, audio_start, audio_aug_params \
-            = sample_one_second(audio_data, sampling_frequency, video_start,
-                                label, augment=augment)
+        sample_video_data, video_start, video_aug_params = sample_one_frame(video_data,
+                                                                            augment=augment)
+        sample_audio_data, audio_start, audio_aug_params = sample_one_second(audio_data,
+                                                                             sampling_frequency,
+                                                                             video_start,
+                                                                             label,
+                                                                             augment=augment)
         sample_audio_data = sample_audio_data[:, 0].reshape((1, len(sample_audio_data)))
 
         sample = {
