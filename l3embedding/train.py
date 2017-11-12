@@ -1,9 +1,9 @@
 import glob
 import json
+import math
 import os
 import pickle
 import random
-import math
 
 import keras
 from keras.optimizers import Adam
@@ -14,8 +14,9 @@ from skvideo.io import vread
 import soundfile as sf
 from tqdm import tqdm
 
-from .model import construct_cnn_L3_orig
 from .image import *
+from .model import construct_cnn_L3_orig
+from .training_utils import multi_gpu_model
 
 
 #TODO: Consider putting the sampling functionality into another file
@@ -284,8 +285,9 @@ class LossHistory(keras.callbacks.Callback):
 def train(train_data_dir, validation_data_dir, model_id, output_dir,
           num_epochs=150, epoch_size=512, batch_size=64, validation_size=1024,
           num_streamers=16, learning_rate=1e-4, random_state=20171021,
-          verbose=False, checkpoint_interval=100, augment=False):
-    m, inputs, outputs = construct_cnn_L3_orig()
+          verbose=False, checkpoint_interval=100, augment=False, gpus=1):
+    single_gpu_model, inputs, outputs = construct_cnn_L3_orig()
+    m = multi_gpu_model(single_gpu_model, gpus=gpus)
     loss = 'binary_crossentropy'
     metrics = ['accuracy']
     #monitor = 'val_loss'

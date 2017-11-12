@@ -76,6 +76,11 @@ def parse_arguments():
                         default=False,
                         help='If True, performs data augmentation on audio and images')
 
+    parser.add_argument('--gpus',
+                        dest='gpus',
+                        default=1,
+                        help='Number of gpus used for data parallelism.')
+
     parser.add_argument('-v',
                         '--verbose',
                         dest='verbose',
