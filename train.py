@@ -78,6 +78,7 @@ def parse_arguments():
 
     parser.add_argument('--gpus',
                         dest='gpus',
+                        type=int,
                         default=1,
                         help='Number of gpus used for data parallelism.')
 
