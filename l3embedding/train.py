@@ -4,6 +4,7 @@ import math
 import os
 import pickle
 import random
+import warnings
 
 import keras
 from keras.optimizers import Adam
@@ -100,12 +101,19 @@ def sample_one_second(audio_data, sampling_frequency, start, label, augment=Fals
             start = 0
 
     audio_data = audio_data[start:start+sampling_frequency]
+    if audio_data.shape[0] != sampling_frequency:
+        # Pad audio that isn't one second
+        warnings.warn('Got audio that is less than one second', UserWarning)
+        audio_data = np.pad(audio_data,
+                            ((0, sampling_frequency - audio_data.shape[0]), (0,0)),
+                            mode='constant')
     if augment:
         # Make sure we don't clip
         if np.abs(audio_data).max():
             max_gain = min(0.1, 1.0/np.abs(audio_data).max() - 1)
         else:
             # TODO: Handle audio with all zeros
+            warnings.warn('Got audio sample with all zeros', UserWarning)
             max_gain = 0.1
         gain = 1 + random.uniform(-0.1, max_gain)
         audio_data *= gain
@@ -232,7 +240,7 @@ def sampler(video_file, audio_files, augment=False):
     else:
         label = 1
 
-    audio_data, sampling_frequency = sf.read(audio_file)
+    audio_data, sampling_frequency = sf.read(audio_file, always_2d=True)
 
     while True:
         sample_video_data, video_start, video_aug_params = sample_one_frame(video_data,
@@ -242,7 +250,7 @@ def sampler(video_file, audio_files, augment=False):
                                                                              video_start,
                                                                              label,
                                                                              augment=augment)
-        sample_audio_data = sample_audio_data[:, 0].reshape((1, len(sample_audio_data)))
+        sample_audio_data = sample_audio_data.mean(axis=-1).reshape((1, sample_audio_data.shape[0]))
 
         sample = {
             'video': sample_video_data,
