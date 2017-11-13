@@ -33,7 +33,7 @@ def get_filename(path):
     return os.path.splitext(os.path.basename(path))[0]
 
 
-def get_file_list(data_dir, ensure_both=False):
+def get_file_list(data_dir):
     """Return audio and video file list.
 
     Args:
@@ -52,13 +52,13 @@ def get_file_list(data_dir, ensure_both=False):
         audio_files = glob.glob('{}/**/audio/*'.format(data_dir))
         video_files = glob.glob('{}/**/video/*'.format(data_dir))
 
-    if ensure_both:
-        audio_filenames = set([get_filename(path) for path in audio_files])
-        video_filenames = set([get_filename(path) for path in video_files])
+    # Make sure that audio files and video files correspond to each other
+    audio_filenames = set([get_filename(path) for path in audio_files])
+    video_filenames = set([get_filename(path) for path in video_files])
 
-        valid_filenames = audio_filenames & video_filenames
-        audio_files = [path for path in audio_files if get_filename(path) in valid_filenames]
-        video_files = [path for path in video_files if get_filename(path) in valid_filenames]
+    valid_filenames = audio_filenames & video_filenames
+    audio_files = [path for path in audio_files if get_filename(path) in valid_filenames]
+    video_files = [path for path in video_files if get_filename(path) in valid_filenames]
 
     return audio_files, video_files
 
@@ -267,7 +267,7 @@ def sampler(video_file, audio_files, augment=False):
 
 
 def data_generator(data_dir, k=32, batch_size=64, random_state=20171021,
-                   augment=False, ensure_both=False):
+                   augment=False):
     """Sample video and audio from data_dir, returns a streamer that yield samples infinitely.
 
     Args:
@@ -282,7 +282,7 @@ def data_generator(data_dir, k=32, batch_size=64, random_state=20171021,
 
     random.seed(random_state)
 
-    audio_files, video_files = get_file_list(data_dir, ensure_both=ensure_both)
+    audio_files, video_files = get_file_list(data_dir)
     seeds = []
     for video_file in tqdm(random.sample(video_files, k)):
         seeds.append(pescador.Streamer(sampler, video_file, audio_files, augment=augment))
@@ -322,8 +322,7 @@ class LossHistory(keras.callbacks.Callback):
 def train(train_data_dir, validation_data_dir, model_id, output_dir,
           num_epochs=150, epoch_size=512, batch_size=64, validation_size=1024,
           num_streamers=16, learning_rate=1e-4, random_state=20171021,
-          verbose=False, checkpoint_interval=10, augment=False, gpus=1,
-          ensure_both_audio_video=False):
+          verbose=False, checkpoint_interval=10, augment=False, gpus=1):
     single_gpu_model, inputs, outputs = construct_cnn_L3_orig()
     m = multi_gpu_model(single_gpu_model, gpus=gpus)
     loss = 'binary_crossentropy'
@@ -380,8 +379,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
         batch_size=batch_size,
         random_state=random_state,
         k=num_streamers,
-        augment=augment,
-        ensure_both=ensure_both_audio_video)
+        augment=augment)
 
     train_gen = pescador.maps.keras_tuples(train_gen,
                                            ['video', 'audio'],

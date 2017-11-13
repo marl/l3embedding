@@ -65,9 +65,9 @@ def parse_arguments():
                         '--checkpoint-interval',
                         dest='checkpoint_interval',
                         action='store',
-                        type=float,
-                        default=1e-4,
-                        help='Optimization learning rate')
+                        type=int,
+                        default=10,
+                        help='The number of epochs between model checkpoints')
 
     parser.add_argument('-r',
                         '--random-state',
@@ -89,13 +89,6 @@ def parse_arguments():
                         type=int,
                         default=1,
                         help='Number of gpus used for data parallelism.')
-
-    parser.add_argument('-eb',
-                        '--ensure-both-audio-video',
-                        dest='ensure_both_audio_video',
-                        action='store_true',
-                        default=False,
-                        help='If True, only use video and audio files that exist in corresponding pairs')
 
     parser.add_argument('-v',
                         '--verbose',
