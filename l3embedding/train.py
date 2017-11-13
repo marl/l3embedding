@@ -21,7 +21,18 @@ from .training_utils import multi_gpu_model
 
 #TODO: Consider putting the sampling functionality into another file
 
-def get_file_list(data_dir):
+def get_filename(path):
+    """Return the filename of a path
+
+    Args: path: path to file
+
+    Returns:
+        filename: name of file (without extension)
+    """
+    return os.path.splitext(os.path.basename(path))[0]
+
+
+def get_file_list(data_dir, ensure_both=False):
     """Return audio and video file list.
 
     Args:
@@ -39,6 +50,14 @@ def get_file_list(data_dir):
     else:
         audio_files = glob.glob('{}/**/audio/*'.format(data_dir))
         video_files = glob.glob('{}/**/video/*'.format(data_dir))
+
+    if ensure_both:
+        audio_filenames = set([get_filename(path) for path in audio_files])
+        video_filenames = set([get_filename(path) for path in video_files])
+
+        valid_filenames = audio_filenames & video_filenames
+        audio_files = [path for path in audio_files if get_filename(path) in valid_filenames]
+        video_files = [path for path in video_files if get_filename(path) in valid_filenames]
 
     return audio_files, video_files
 
@@ -83,7 +102,11 @@ def sample_one_second(audio_data, sampling_frequency, start, label, augment=Fals
     audio_data = audio_data[start:start+sampling_frequency]
     if augment:
         # Make sure we don't clip
-        max_gain = min(0.1, 1.0/np.abs(audio_data).max() - 1)
+        if np.abs(audio_data).max():
+            max_gain = min(0.1, 1.0/np.abs(audio_data).max() - 1)
+        else:
+            # TODO: Handle audio with all zeros
+            max_gain = 0.1
         gain = 1 + random.uniform(-0.1, max_gain)
         audio_data *= gain
         audio_aug_params = {'gain': gain}
@@ -235,7 +258,8 @@ def sampler(video_file, audio_files, augment=False):
         yield sample
 
 
-def data_generator(data_dir, k=32, batch_size=64, random_state=20171021, augment=False):
+def data_generator(data_dir, k=32, batch_size=64, random_state=20171021,
+                   augment=False, ensure_both=False):
     """Sample video and audio from data_dir, returns a streamer that yield samples infinitely.
 
     Args:
@@ -250,7 +274,7 @@ def data_generator(data_dir, k=32, batch_size=64, random_state=20171021, augment
 
     random.seed(random_state)
 
-    audio_files, video_files = get_file_list(data_dir)
+    audio_files, video_files = get_file_list(data_dir, ensure_both=ensure_both)
     seeds = []
     for video_file in tqdm(random.sample(video_files, k)):
         seeds.append(pescador.Streamer(sampler, video_file, audio_files, augment=augment))
@@ -290,7 +314,8 @@ class LossHistory(keras.callbacks.Callback):
 def train(train_data_dir, validation_data_dir, model_id, output_dir,
           num_epochs=150, epoch_size=512, batch_size=64, validation_size=1024,
           num_streamers=16, learning_rate=1e-4, random_state=20171021,
-          verbose=False, checkpoint_interval=10, augment=False, gpus=1):
+          verbose=False, checkpoint_interval=10, augment=False, gpus=1,
+          ensure_both_audio_video=False):
     single_gpu_model, inputs, outputs = construct_cnn_L3_orig()
     m = multi_gpu_model(single_gpu_model, gpus=gpus)
     loss = 'binary_crossentropy'
@@ -347,7 +372,8 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
         batch_size=batch_size,
         random_state=random_state,
         k=num_streamers,
-        augment=augment)
+        augment=augment,
+        ensure_both=ensure_both_audio_video)
 
     train_gen = pescador.maps.keras_tuples(train_gen,
                                            ['video', 'audio'],
