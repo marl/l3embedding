@@ -1,9 +1,9 @@
 import glob
 import json
+import math
 import os
 import pickle
 import random
-import math
 
 import keras
 from keras.optimizers import Adam
@@ -14,8 +14,9 @@ from skvideo.io import vread
 import soundfile as sf
 from tqdm import tqdm
 
-from .model import construct_cnn_L3_orig
 from .image import *
+from .model import construct_cnn_L3_orig
+from .training_utils import multi_gpu_model
 
 
 #TODO: Consider putting the sampling functionality into another file
@@ -74,7 +75,10 @@ def sample_one_second(audio_data, sampling_frequency, start, label, augment=Fals
     if label:
         start = max(0, int(start * sampling_frequency) - random.randint(0, sampling_frequency))
     else:
-        start = random.randrange(len(audio_data) - sampling_frequency)
+        if len(audio_data) > sampling_frequency:
+            start = random.randrange(len(audio_data) - sampling_frequency)
+        else:
+            start = 0
 
     audio_data = audio_data[start:start+sampling_frequency]
     if augment:
@@ -208,11 +212,13 @@ def sampler(video_file, audio_files, augment=False):
     audio_data, sampling_frequency = sf.read(audio_file)
 
     while True:
-        sample_video_data, video_start, video_aug_params \
-            = sample_one_frame(video_data, augment=augment)
-        sample_audio_data, audio_start, audio_aug_params \
-            = sample_one_second(audio_data, sampling_frequency, video_start,
-                                label, augment=augment)
+        sample_video_data, video_start, video_aug_params = sample_one_frame(video_data,
+                                                                            augment=augment)
+        sample_audio_data, audio_start, audio_aug_params = sample_one_second(audio_data,
+                                                                             sampling_frequency,
+                                                                             video_start,
+                                                                             label,
+                                                                             augment=augment)
         sample_audio_data = sample_audio_data[:, 0].reshape((1, len(sample_audio_data)))
 
         sample = {
@@ -284,8 +290,9 @@ class LossHistory(keras.callbacks.Callback):
 def train(train_data_dir, validation_data_dir, model_id, output_dir,
           num_epochs=150, epoch_size=512, batch_size=64, validation_size=1024,
           num_streamers=16, learning_rate=1e-4, random_state=20171021,
-          verbose=False, checkpoint_interval=100, augment=False):
-    m, inputs, outputs = construct_cnn_L3_orig()
+          verbose=False, checkpoint_interval=10, augment=False, gpus=1):
+    single_gpu_model, inputs, outputs = construct_cnn_L3_orig()
+    m = multi_gpu_model(single_gpu_model, gpus=gpus)
     loss = 'binary_crossentropy'
     metrics = ['accuracy']
     #monitor = 'val_loss'
