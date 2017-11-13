@@ -61,6 +61,14 @@ def parse_arguments():
                         default=1e-4,
                         help='Optimization learning rate')
 
+    parser.add_argument('-ci',
+                        '--checkpoint-interval',
+                        dest='checkpoint_interval',
+                        action='store',
+                        type=int,
+                        default=10,
+                        help='The number of epochs between model checkpoints')
+
     parser.add_argument('-r',
                         '--random-state',
                         dest='random_state',
