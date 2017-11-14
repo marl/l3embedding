@@ -252,7 +252,7 @@ def data_generator(data_dir, k=32, batch_size=64, random_state=20171021, augment
 
     audio_files, video_files = get_file_list(data_dir)
     seeds = []
-    for video_file in tqdm(random.sample(video_files, k)):
+    for video_file in tqdm(video_files):
         seeds.append(pescador.Streamer(sampler, video_file, audio_files, augment=augment))
 
     mux = pescador.Mux(seeds, k)
