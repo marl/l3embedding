@@ -172,7 +172,7 @@ def sample_one_frame(video_data, fps=30, scaling_func=None, augment=False):
     if not scaling_func:
         scaling_func = l3_frame_scaling
     num_frames = video_data.shape[0]
-    frame = random.randrange(num_frames - fps)
+    frame = random.randrange(num_frames)
     frame_data = video_data[frame, :, :, :]
     frame_data, bbox = scaling_func(frame_data)
 
