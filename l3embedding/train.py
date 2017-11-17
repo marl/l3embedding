@@ -184,11 +184,13 @@ def sample_one_frame(video_data, start=None, fps=30, scaling_func=None, augment=
         if duration != fps:
             warnings.warn('Got video that is less than one second', UserWarning)
 
-        if duration != 0:
+        if duration > 0:
             frame = start_frame + random.randrange(duration)
         else:
             warnings.warn('Got video with only a single frame', UserWarning)
-            frame = 0
+            # For robustness, use the last frame if the start_frame goes past
+            # the end of video frame
+            frame = min(start_frame, num_frames - 1)
     else:
         frame = random.randrange(num_frames)
 
