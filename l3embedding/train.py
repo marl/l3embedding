@@ -185,7 +185,7 @@ def sample_one_frame(video_data, start=None, fps=30, scaling_func=None, augment=
             warnings.warn('Got video that is less than one second', UserWarning)
 
         if duration != 0:
-            frame = start + random.randrange(duration)
+            frame = start_frame + random.randrange(duration)
         else:
             warnings.warn('Got video with only a single frame', UserWarning)
             frame = 0
@@ -264,10 +264,9 @@ def sampler(video_file, audio_files, augment=False):
     while True:
         sample_audio_data, audio_start, audio_aug_params = sample_one_second(audio_data,
                                                                              sampling_frequency,
-                                                                             label,
                                                                              augment=augment)
         sample_video_data, video_start, video_aug_params = sample_one_frame(video_data,
-                                                                            audio_start,
+                                                                            start=audio_start,
                                                                             augment=augment)
         sample_audio_data = sample_audio_data.mean(axis=-1).reshape((1, sample_audio_data.shape[0]))
 
@@ -302,6 +301,13 @@ def data_generator(data_dir, k=32, batch_size=64, random_state=20171021,
     random.seed(random_state)
 
     audio_files, video_files = get_file_list(data_dir)
+
+    # Randomly shuffle the files
+    ordering = list(range(len(audio_files)))
+    random.shuffle(ordering)
+    audio_files = [audio_files[idx] for idx in ordering]
+    video_files = [video_files[idx] for idx in ordering]
+
     seeds = []
     for video_file in tqdm(video_files):
         seeds.append(pescador.Streamer(sampler, video_file, audio_files, augment=augment))
@@ -342,8 +348,9 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
           num_epochs=150, epoch_size=512, batch_size=64, validation_size=1024,
           num_streamers=16, learning_rate=1e-4, random_state=20171021,
           verbose=False, checkpoint_interval=10, augment=False, gpus=1):
-    single_gpu_model, inputs, outputs = construct_cnn_L3_orig()
-    m = multi_gpu_model(single_gpu_model, gpus=gpus)
+    m, inputs, outputs = construct_cnn_L3_orig()
+    if gpus > 1:
+        m = multi_gpu_model(m, gpus=gpus)
     loss = 'binary_crossentropy'
     metrics = ['accuracy']
     monitor = 'val_loss'
