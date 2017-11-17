@@ -79,26 +79,23 @@ def video_to_audio(video_file):
     return '/'.join(path + ['audio', name])
 
 
-def sample_one_second(audio_data, sampling_frequency, start, label, augment=False):
-    """Return one second audio samples randomly if start is not specified,
-       otherwise, return one second audio samples including start (seconds).
+def sample_one_second(audio_data, sampling_frequency, augment=False):
+    """Return one second audio samples randomly
 
     Args:
-        audio_file: audio_file to sample from
-        start: starting time to fetch one second samples
+        audio_data: audio data to sample from
+        sampling_frequency: audio sample rate
+        augment: if True, perturb the data in some fashion
 
     Returns:
-        One second samples
+        One second samples, start time, and augmentation parameters
 
     """
     sampling_frequency = int(sampling_frequency)
-    if label:
-        start = max(0, int(start * sampling_frequency) - random.randint(0, sampling_frequency))
+    if len(audio_data) > sampling_frequency:
+        start = random.randrange(len(audio_data) - sampling_frequency)
     else:
-        if len(audio_data) > sampling_frequency:
-            start = random.randrange(len(audio_data) - sampling_frequency)
-        else:
-            start = 0
+        start = 0
 
     audio_data = audio_data[start:start+sampling_frequency]
     if audio_data.shape[0] != sampling_frequency:
@@ -158,21 +155,45 @@ def l3_frame_scaling(frame_data):
     return resized_frame_data[start_x:end_x, start_y:end_y, :], bbox
 
 
-def sample_one_frame(video_data, fps=30, scaling_func=None, augment=False):
+def sample_one_frame(video_data, start=None, fps=30, scaling_func=None, augment=False):
     """Return one frame randomly and time (seconds).
 
     Args:
         video_data: video data to sample from
+        start: start time of a one second window from which to sample
         fps: frame per second
+        scaling_func: function that rescales the sampled video frame
+        augment: if True, perturb the data in some fashion
 
     Returns:
-        One frame sampled randomly and time in seconds
+        One frame sampled randomly, start time in seconds, and augmentation parameters
 
     """
     if not scaling_func:
         scaling_func = l3_frame_scaling
+
     num_frames = video_data.shape[0]
-    frame = random.randrange(num_frames)
+    if start is not None:
+        start_frame = int(start * fps)
+        # Sample frame from a one second window, or until the end of the video
+        # if the video is less than a second for some reason
+        # Audio should always be sampled one second from the end of the audio,
+        # so video frames we're sampling from should also be a second. If it's
+        # not, then our video is probably less than a second
+        duration = min(fps, num_frames - start_frame)
+        if duration != fps:
+            warnings.warn('Got video that is less than one second', UserWarning)
+
+        if duration > 0:
+            frame = start_frame + random.randrange(duration)
+        else:
+            warnings.warn('Got video with only a single frame', UserWarning)
+            # For robustness, use the last frame if the start_frame goes past
+            # the end of video frame
+            frame = min(start_frame, num_frames - 1)
+    else:
+        frame = random.randrange(num_frames)
+
     frame_data = video_data[frame, :, :, :]
     frame_data, bbox = scaling_func(frame_data)
 
@@ -243,13 +264,12 @@ def sampler(video_file, audio_files, augment=False):
     audio_data, sampling_frequency = sf.read(audio_file, always_2d=True)
 
     while True:
-        sample_video_data, video_start, video_aug_params = sample_one_frame(video_data,
-                                                                            augment=augment)
         sample_audio_data, audio_start, audio_aug_params = sample_one_second(audio_data,
                                                                              sampling_frequency,
-                                                                             video_start,
-                                                                             label,
                                                                              augment=augment)
+        sample_video_data, video_start, video_aug_params = sample_one_frame(video_data,
+                                                                            start=audio_start,
+                                                                            augment=augment)
         sample_audio_data = sample_audio_data.mean(axis=-1).reshape((1, sample_audio_data.shape[0]))
 
         sample = {
@@ -283,6 +303,13 @@ def data_generator(data_dir, k=32, batch_size=64, random_state=20171021,
     random.seed(random_state)
 
     audio_files, video_files = get_file_list(data_dir)
+
+    # Randomly shuffle the files
+    ordering = list(range(len(audio_files)))
+    random.shuffle(ordering)
+    audio_files = [audio_files[idx] for idx in ordering]
+    video_files = [video_files[idx] for idx in ordering]
+
     seeds = []
     for video_file in tqdm(video_files):
         seeds.append(pescador.Streamer(sampler, video_file, audio_files, augment=augment))
@@ -323,11 +350,12 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
           num_epochs=150, epoch_size=512, batch_size=64, validation_size=1024,
           num_streamers=16, learning_rate=1e-4, random_state=20171021,
           verbose=False, checkpoint_interval=10, augment=False, gpus=1):
-    single_gpu_model, inputs, outputs = construct_cnn_L3_orig()
-    m = multi_gpu_model(single_gpu_model, gpus=gpus)
+    m, inputs, outputs = construct_cnn_L3_orig()
+    if gpus > 1:
+        m = multi_gpu_model(m, gpus=gpus)
     loss = 'binary_crossentropy'
     metrics = ['accuracy']
-    #monitor = 'val_loss'
+    monitor = 'val_loss'
 
     # Make sure the directories we need exist
     model_dir = os.path.join(output_dir, model_id)
@@ -356,12 +384,14 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
 
     cb = []
     cb.append(keras.callbacks.ModelCheckpoint(weight_path,
+                                              save_weights_only=True,
                                               save_best_only=True,
-                                              verbose=1,))
-                                              #monitor=monitor))
+                                              verbose=1,
+                                              monitor=monitor))
 
     cb.append(keras.callbacks.ModelCheckpoint(checkpoint_weight_path,
-                                              #monitor=monitor,
+                                              save_weights_only=True,
+                                              monitor=monitor,
                                               period=checkpoint_interval))
 
     history_checkpoint = os.path.join(model_dir, 'history_checkpoint.pkl')
