@@ -252,7 +252,13 @@ def sampler(video_file, audio_files, augment=False):
 
     """
 
-    video_data = vread(video_file)
+    try:
+        video_data = vread(video_file)
+    except Exception as e:
+        warn_msg = 'Could not open video file {} - {}: {}; Skipping...'
+        warnings.warn(warn_msg.format(video_file, type(e), e))
+        raise StopIteration()
+
     audio_file = video_to_audio(video_file)
 
     if random.random() < 0.5:
@@ -261,7 +267,12 @@ def sampler(video_file, audio_files, augment=False):
     else:
         label = 1
 
-    audio_data, sampling_frequency = sf.read(audio_file, always_2d=True)
+    try:
+        audio_data, sampling_frequency = sf.read(audio_file, always_2d=True)
+    except Exception as e:
+        warn_msg = 'Could not open audio file {} - {}: {}; Skipping...'
+        warnings.warn(warn_msg.format(audio_file, type(e), e))
+        raise StopIteration()
 
     while True:
         sample_audio_data, audio_start, audio_aug_params = sample_one_second(audio_data,
@@ -314,6 +325,11 @@ def data_generator(data_dir, k=32, batch_size=64, random_state=20171021,
     for video_file in tqdm(video_files):
         seeds.append(pescador.Streamer(sampler, video_file, audio_files, augment=augment))
 
+    # TODO:
+    # Order 1024 streamers open
+    # Set rate 16?
+    # Set larger rate for validation (32) for stability
+    # Sampling is very delicate!
     mux = pescador.Mux(seeds, k)
     if batch_size == 1:
         return mux
