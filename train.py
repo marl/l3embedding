@@ -32,7 +32,7 @@ def parse_arguments():
 
     parser.add_argument('-ves',
                         '--validation-epoch-size',
-                        dest='validation_size',
+                        dest='validation_epoch_size',
                         action='store',
                         type=int,
                         default=1024,
@@ -48,13 +48,13 @@ def parse_arguments():
 
     parser.add_argument('-vbs',
                         '--validation-batch-size',
-                        dest='batch_size',
+                        dest='validation_batch_size',
                         action='store',
                         type=int,
                         default=64,
                         help='Number of examples per  batch')
 
-    parser.add_argument('-ts',
+    parser.add_argument('-tns',
                         '--train-num-streamers',
                         dest='train_num_streamers',
                         action='store',
@@ -62,13 +62,29 @@ def parse_arguments():
                         default=32,
                         help='Number of training pescador streamers that can be open concurrently')
 
-    parser.add_argument('-vs',
+    parser.add_argument('-vns',
                         '--validation-num-streamers',
                         dest='validation_num_streamers',
                         action='store',
                         type=int,
                         default=32,
                         help='Number of validation pescador streamers that can be open concurrently')
+
+    parser.add_argument('-tnd',
+                        '--train-num-distractors',
+                        dest='train_num_distractors',
+                        action='store',
+                        type=int,
+                        default=1,
+                        help='Number of distractors for generating training examples')
+
+    parser.add_argument('-vnd',
+                        '--validation-num-distractors',
+                        dest='validation_num_distractors',
+                        action='store',
+                        type=int,
+                        default=2,
+                        help='Number of distractors for generating validation examples')
 
     parser.add_argument('-tmr',
                         '--train-mux-rate',
@@ -147,21 +163,24 @@ def parse_arguments():
 
     parser.add_argument('-vmp',
                         '--validation-metadata-path',
+                        dest='validation_metadata_path',
                         action='store',
                         type=str,
                         help='Path to validation csv file. Accepts a glob string.')
 
     parser.add_argument('-tfp',
                         '--train-filter-path',
+                        dest='train_filter_path',
                         action='store',
                         type=str,
                         help='Path to training csv file(s). Accepts a glob string.')
 
-    parser.add_argument('-vcp',
-                        '--validation-csv-path',
+    parser.add_argument('-vfp',
+                        '--validation-filter-path',
+                        dest='validation_filter_path',
                         action='store',
                         type=str,
-                        help='Path to validation csv file. Accepts a glob string.')
+                        help='Path to validationing csv file(s). Accepts a glob string.')
 
     parser.add_argument('train_data_dir',
                         action='store',

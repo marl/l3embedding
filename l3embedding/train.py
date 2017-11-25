@@ -19,7 +19,7 @@ from tqdm import tqdm
 from .image import *
 from .model import construct_cnn_L3_orig
 from .training_utils import multi_gpu_model
-from ..audioset.ontology import ASOntology
+from audioset.ontology import ASOntology
 
 
 #TODO: Consider putting the sampling functionality into another file
@@ -480,6 +480,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
           train_epoch_size=512, validation_epoch_size=1024,
           train_batch_size=64, validation_batch_size=64,
           train_num_streamers=16, validation_num_streamers=16,
+          train_num_distractors=1, validation_num_distractors=2,
           train_mux_rate=16, validation_mux_rate=16,
           learning_rate=1e-4, random_state=20171021,
           verbose=False, checkpoint_interval=10, ontology_path=None,
@@ -545,6 +546,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
         random_state=random_state,
         k=train_num_streamers,
         augment=augment,
+        num_distractors=train_num_distractors,
         rate=train_mux_rate)
 
     train_gen = pescador.maps.keras_tuples(train_gen,
@@ -559,6 +561,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
         batch_size=validation_batch_size,
         random_state=random_state,
         k=validation_num_streamers,
+        num_distractors=validation_num_distractors,
         rate=validation_mux_rate)
 
     val_gen = pescador.maps.keras_tuples(val_gen,
