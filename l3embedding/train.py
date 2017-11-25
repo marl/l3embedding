@@ -238,32 +238,20 @@ def sample_one_frame(video_data, start=None, fps=30, scaling_func=None, augment=
     return frame_data, frame / fps, video_aug_params
 
 
-def sampler(video_file, audio_files, augment=False):
-    """Sample one frame from video_file, with 50% chance sample one second from corresponding audio_file,
-       50% chance sample one second from another audio_file in the list of audio_files.
-
-    Args:
-        video_file: video_file to sample from
-        audio_files: candidate audio_files to sample from
-
-    Returns:
-        A generator that yields dictionary of video sample, audio sample,
-        and label (0: not from corresponding files, 1: from corresponding files)
-
-    """
-
-    video_data = vread(video_file)
-    audio_file = video_to_audio(video_file)
-
-    if random.random() < 0.5:
-        audio_file = random.choice([af for af in audio_files if af != audio_file])
-        label = 0
-    else:
-        label = 1
-
-    audio_data, sampling_frequency = sf.read(audio_file, always_2d=True)
-
+def sampler(video_files, audio_files, augment=False):
     while True:
+        video_file = random.choice(video_files)
+        video_data = vread(video_file)
+        audio_file = video_to_audio(video_file)
+
+        if random.random() < 0.5:
+            audio_file = random.choice([af for af in audio_files if af != audio_file])
+            label = 0
+        else:
+            label = 1
+
+        audio_data, sampling_frequency = sf.read(audio_file, always_2d=True)
+
         sample_audio_data, audio_start, audio_aug_params = sample_one_second(audio_data,
                                                                              sampling_frequency,
                                                                              augment=augment)
@@ -310,11 +298,12 @@ def data_generator(data_dir, k=32, batch_size=64, random_state=20171021,
     audio_files = [audio_files[idx] for idx in ordering]
     video_files = [video_files[idx] for idx in ordering]
 
-    seeds = []
-    for video_file in tqdm(video_files):
-        seeds.append(pescador.Streamer(sampler, video_file, audio_files, augment=augment))
+    seeds = [pescador.Streamer(sampler,
+                               video_files,
+                               audio_files,
+                               augment=augment) for i in range(batch_size)]
 
-    mux = pescador.Mux(seeds, k)
+    mux = pescador.Mux(seeds, k, rate=16)
     if batch_size == 1:
         return mux
     else:
