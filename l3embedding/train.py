@@ -433,7 +433,10 @@ def data_generator(data_dir, metadata_path=None, filter_path=None, ontology_path
     seeds = []
     for video_file_1 in tqdm(video_files):
         for _ in range(num_distractors):
-            video_file_2 = random.choice(video_files)
+            video_file_2 = video_file_1
+            # Make sure we sample a different file
+            while video_file_2 == video_file_1:
+                video_file_2 = random.choice(video_files)
             seeds.append(pescador.Streamer(sampler, video_file_1, video_file_2, augment=augment))
 
     # TODO:
