@@ -199,9 +199,34 @@ def sample_one_second(audio_data, sampling_frequency, augment=False):
     return audio_data, start / sampling_frequency, audio_aug_params
 
 
-def l3_frame_scaling(frame_data):
+def rescale_video(video_data):
     """
-    Scale and crop an video frame, using the method from Look, Listen and Learn
+    Rescales video such that the minimum dimension of the video becomes 256,
+    as is down in Look, Listen and Learn
+
+
+    Args:
+        video_data: video data array
+
+    Returns:
+        rescaled_video_data: rescaled video data array
+    """
+    num_frames, nx, ny, nc = video_data.shape
+
+    scaling = 256.0 / min(nx, ny)
+
+    new_nx, new_ny = math.ceil(scaling * nx), math.ceil(scaling * ny)
+    assert 256 in (new_nx, new_ny), str((new_nx, new_ny))
+
+    resized_video_data = np.array([scipy.misc.imresize(frame, (new_nx, new_ny, nc))
+                                   for frame in video_data])
+
+    return resized_video_data
+
+
+def sample_cropped_frame(frame_data):
+    """
+    Randomly crop a video frame, using the method from Look, Listen and Learn
 
 
     Args:
@@ -212,15 +237,7 @@ def l3_frame_scaling(frame_data):
         bbox: bounding box for the cropped image
     """
     nx, ny, nc = frame_data.shape
-    scaling = 256.0 / min(nx, ny)
-
-    new_nx, new_ny = math.ceil(scaling * nx), math.ceil(scaling * ny)
-    assert 256 in (new_nx, new_ny), str((new_nx, new_ny))
-
-
-    resized_frame_data = scipy.misc.imresize(frame_data, (new_nx, new_ny, nc))
-
-    start_x, start_y = random.randrange(new_nx - 224), random.randrange(new_ny - 224)
+    start_x, start_y = random.randrange(nx - 224), random.randrange(ny - 224)
     end_x, end_y = start_x + 224, start_y + 224
 
     bbox = {
@@ -230,25 +247,22 @@ def l3_frame_scaling(frame_data):
         'end_y': end_y
     }
 
-    return resized_frame_data[start_x:end_x, start_y:end_y, :], bbox
+    return frame_data[start_x:end_x, start_y:end_y, :], bbox
 
 
-def sample_one_frame(video_data, start=None, fps=30, scaling_func=None, augment=False):
+def sample_one_frame(video_data, start=None, fps=30, augment=False):
     """Return one frame randomly and time (seconds).
 
     Args:
         video_data: video data to sample from
         start: start time of a one second window from which to sample
         fps: frame per second
-        scaling_func: function that rescales the sampled video frame
         augment: if True, perturb the data in some fashion
 
     Returns:
         One frame sampled randomly, start time in seconds, and augmentation parameters
 
     """
-    if not scaling_func:
-        scaling_func = l3_frame_scaling
 
     num_frames = video_data.shape[0]
     if start is not None:
@@ -273,7 +287,7 @@ def sample_one_frame(video_data, start=None, fps=30, scaling_func=None, augment=
         frame = random.randrange(num_frames)
 
     frame_data = video_data[frame, :, :, :]
-    frame_data, bbox = scaling_func(frame_data)
+    frame_data, bbox = sample_cropped_frame(frame_data)
 
     video_aug_params = {'bounding_box': bbox}
 
@@ -331,14 +345,14 @@ def sampler(video_file_1, video_file_2, augment=False):
     """
 
     try:
-        video_data_1 = vread(video_file_1)
+        video_data_1 = rescale_video(vread(video_file_1).astype('float32'))
     except Exception as e:
         warn_msg = 'Could not open video file {} - {}: {}; Skipping...'
         warnings.warn(warn_msg.format(video_file_1, type(e), e))
         raise StopIteration()
 
     try:
-        video_data_2 = vread(video_file_2)
+        video_data_2 = rescale_video(vread(video_file_2).astype('float32'))
     except Exception as e:
         warn_msg = 'Could not open video file {} - {}: {}; Skipping...'
         warnings.warn(warn_msg.format(video_file_2, type(e), e))
@@ -348,14 +362,14 @@ def sampler(video_file_1, video_file_2, augment=False):
     audio_file_2 = video_to_audio(video_file_2)
 
     try:
-        audio_data_1, sampling_frequency = sf.read(audio_file_1, always_2d=True)
+        audio_data_1, sampling_frequency = sf.read(audio_file_1, dtype='float32', always_2d=True)
     except Exception as e:
         warn_msg = 'Could not open audio file {} - {}: {}; Skipping...'
         warnings.warn(warn_msg.format(audio_file_1, type(e), e))
         raise StopIteration()
 
     try:
-        audio_data_2, sampling_frequency = sf.read(audio_file_2, always_2d=True)
+        audio_data_2, sampling_frequency = sf.read(audio_file_2, dtype='float32', always_2d=True)
     except Exception as e:
         warn_msg = 'Could not open audio file {} - {}: {}; Skipping...'
         warnings.warn(warn_msg.format(audio_file_2, type(e), e))
@@ -424,12 +438,6 @@ def data_generator(data_dir, metadata_path=None, filter_path=None, ontology_path
     audio_files, video_files = get_file_list(data_dir, metadata_path=metadata_path,
                                              filter_path=filter_path, ontology_path=ontology_path)
 
-    # Randomly shuffle the files
-    ordering = list(range(len(audio_files)))
-    random.shuffle(ordering)
-    audio_files = [audio_files[idx] for idx in ordering]
-    video_files = [video_files[idx] for idx in ordering]
-
     seeds = []
     for video_file_1 in tqdm(video_files):
         for _ in range(num_distractors):
@@ -438,6 +446,9 @@ def data_generator(data_dir, metadata_path=None, filter_path=None, ontology_path
             while video_file_2 == video_file_1:
                 video_file_2 = random.choice(video_files)
             seeds.append(pescador.Streamer(sampler, video_file_1, video_file_2, augment=augment))
+
+    # Randomly shuffle the seeds
+    random.shuffle(seeds)
 
     # TODO:
     # Order 1024 streamers open
