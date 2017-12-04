@@ -86,5 +86,6 @@ def construct_cnn_L3_orig_vision_model():
     y_i = Flatten(name='vision_embedding')(y_i)
 
     m = Model(inputs=x_i, outputs=y_i)
+    m.name = 'vision_embedding'
 
     return m, x_i, y_i

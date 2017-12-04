@@ -96,5 +96,6 @@ def construct_cnn_L3_orig_audio_model():
     y_a = Flatten(name='audio_embedding')(y_a)
 
     m = Model(inputs=x_a, outputs=y_a)
+    m.name = 'audio_embedding'
 
     return m, x_a, y_a
