@@ -5,6 +5,7 @@ import os
 import pickle
 import random
 import warnings
+import csv
 
 import keras
 from keras.optimizers import Adam
@@ -18,6 +19,7 @@ from tqdm import tqdm
 from .image import *
 from .model import construct_cnn_L3_orig
 from .training_utils import multi_gpu_model
+from audioset.ontology import ASOntology
 
 
 #TODO: Consider putting the sampling functionality into another file
@@ -33,7 +35,45 @@ def get_filename(path):
     return os.path.splitext(os.path.basename(path))[0]
 
 
-def get_file_list(data_dir):
+def load_metadata(metadata_path):
+    metadata = {}
+    with open(metadata_path, 'r') as f:
+        for idx, line in enumerate(f):
+            if idx in (0, 1):
+                continue
+            elif idx == 2:
+                fields = [field.strip() for field in line.lstrip('# ').rstrip().split(',')]
+            else:
+                row = [val.strip() for val in line.strip().split(',')]
+                ytid = row[0]
+
+                entry = {field: val
+                         for field, val in zip(fields, row[1:])}
+
+                entry['positive_labels'] = entry['positive_labels'].strip('"').split(',')
+
+                metadata[ytid] = entry
+
+    return metadata
+
+
+def load_filters(filter_path):
+    filters = []
+
+    with open(filter_path, 'r') as f:
+        reader = csv.DictReader(filter_path)
+        for row in reader:
+            filters.append(row)
+
+    return filters
+
+def get_ytid_from_filename(filename):
+    first_us_idx = filename.rindex('_')
+    second_us_idx = filename.rindeX('_', 0, first_us_idx)
+    return filename[:second_us_idx]
+
+
+def get_file_list(data_dir, metadata_path=None, filter_path=None, ontology_path=None):
     """Return audio and video file list.
 
     Args:
@@ -57,6 +97,44 @@ def get_file_list(data_dir):
     video_filenames = set([get_filename(path) for path in video_files])
 
     valid_filenames = audio_filenames & video_filenames
+
+    if metadata_path and filter_path:
+        if not ontology_path:
+            raise ValueError('Must provide ontology path to filter')
+
+        ontology = ASOntology(ontology_path)
+
+        metadata = load_metadata(metadata_path)
+        filters = load_filters(filter_path)
+
+        filtered_filenames = []
+
+        for filename in valid_filenames:
+            ytid = get_ytid_from_filename(filename)
+            video_metadata = metadata[ytid]
+
+            accept = True
+            for _filter in filters:
+                filter_type = _filter['filter_type']
+                filter_accept = _filter['accept_reject'] == 'accept'
+                string = _filter['string']
+
+                if filter_type == 'ytid':
+                    match = ytid == string
+
+                elif filter_type == 'label':
+                    label = ontology.get_node(string).name
+                    match = label in video_metadata['positive_labels']
+
+                # TODO: check this logic
+                if match == filter_accept:
+                    accept = False
+
+            if accept:
+                filtered_filenames.append(filename)
+
+        valid_filenames = filtered_filenames
+
     audio_files = [path for path in audio_files if get_filename(path) in valid_filenames]
     video_files = [path for path in video_files if get_filename(path) in valid_filenames]
 
@@ -121,9 +199,34 @@ def sample_one_second(audio_data, sampling_frequency, augment=False):
     return audio_data, start / sampling_frequency, audio_aug_params
 
 
-def l3_frame_scaling(frame_data):
+def rescale_video(video_data):
     """
-    Scale and crop an video frame, using the method from Look, Listen and Learn
+    Rescales video such that the minimum dimension of the video becomes 256,
+    as is down in Look, Listen and Learn
+
+
+    Args:
+        video_data: video data array
+
+    Returns:
+        rescaled_video_data: rescaled video data array
+    """
+    num_frames, nx, ny, nc = video_data.shape
+
+    scaling = 256.0 / min(nx, ny)
+
+    new_nx, new_ny = math.ceil(scaling * nx), math.ceil(scaling * ny)
+    assert 256 in (new_nx, new_ny), str((new_nx, new_ny))
+
+    resized_video_data = np.array([scipy.misc.imresize(frame, (new_nx, new_ny, nc))
+                                   for frame in video_data])
+
+    return resized_video_data
+
+
+def sample_cropped_frame(frame_data):
+    """
+    Randomly crop a video frame, using the method from Look, Listen and Learn
 
 
     Args:
@@ -134,15 +237,7 @@ def l3_frame_scaling(frame_data):
         bbox: bounding box for the cropped image
     """
     nx, ny, nc = frame_data.shape
-    scaling = 256.0 / min(nx, ny)
-
-    new_nx, new_ny = math.ceil(scaling * nx), math.ceil(scaling * ny)
-    assert 256 in (new_nx, new_ny), str((new_nx, new_ny))
-
-
-    resized_frame_data = scipy.misc.imresize(frame_data, (new_nx, new_ny, nc))
-
-    start_x, start_y = random.randrange(new_nx - 224), random.randrange(new_ny - 224)
+    start_x, start_y = random.randrange(nx - 224), random.randrange(ny - 224)
     end_x, end_y = start_x + 224, start_y + 224
 
     bbox = {
@@ -152,25 +247,22 @@ def l3_frame_scaling(frame_data):
         'end_y': end_y
     }
 
-    return resized_frame_data[start_x:end_x, start_y:end_y, :], bbox
+    return frame_data[start_x:end_x, start_y:end_y, :], bbox
 
 
-def sample_one_frame(video_data, start=None, fps=30, scaling_func=None, augment=False):
+def sample_one_frame(video_data, start=None, fps=30, augment=False):
     """Return one frame randomly and time (seconds).
 
     Args:
         video_data: video data to sample from
         start: start time of a one second window from which to sample
         fps: frame per second
-        scaling_func: function that rescales the sampled video frame
         augment: if True, perturb the data in some fashion
 
     Returns:
         One frame sampled randomly, start time in seconds, and augmentation parameters
 
     """
-    if not scaling_func:
-        scaling_func = l3_frame_scaling
 
     num_frames = video_data.shape[0]
     if start is not None:
@@ -195,7 +287,7 @@ def sample_one_frame(video_data, start=None, fps=30, scaling_func=None, augment=
         frame = random.randrange(num_frames)
 
     frame_data = video_data[frame, :, :, :]
-    frame_data, bbox = scaling_func(frame_data)
+    frame_data, bbox = sample_cropped_frame(frame_data)
 
     video_aug_params = {'bounding_box': bbox}
 
@@ -238,13 +330,13 @@ def sample_one_frame(video_data, start=None, fps=30, scaling_func=None, augment=
     return frame_data, frame / fps, video_aug_params
 
 
-def sampler(video_file, audio_files, augment=False):
+def sampler(video_file_1, video_file_2, augment=False):
     """Sample one frame from video_file, with 50% chance sample one second from corresponding audio_file,
        50% chance sample one second from another audio_file in the list of audio_files.
 
     Args:
-        video_file: video_file to sample from
-        audio_files: candidate audio_files to sample from
+        video_file_1: video_file to sample from
+        video_file_2: candidate audio_files to sample from
 
     Returns:
         A generator that yields dictionary of video sample, audio sample,
@@ -252,18 +344,58 @@ def sampler(video_file, audio_files, augment=False):
 
     """
 
-    video_data = vread(video_file)
-    audio_file = video_to_audio(video_file)
+    try:
+        video_data_1 = rescale_video(vread(video_file_1).astype('float32'))
+    except Exception as e:
+        warn_msg = 'Could not open video file {} - {}: {}; Skipping...'
+        warnings.warn(warn_msg.format(video_file_1, type(e), e))
+        raise StopIteration()
 
-    if random.random() < 0.5:
-        audio_file = random.choice([af for af in audio_files if af != audio_file])
-        label = 0
-    else:
-        label = 1
+    try:
+        video_data_2 = rescale_video(vread(video_file_2).astype('float32'))
+    except Exception as e:
+        warn_msg = 'Could not open video file {} - {}: {}; Skipping...'
+        warnings.warn(warn_msg.format(video_file_2, type(e), e))
+        raise StopIteration()
 
-    audio_data, sampling_frequency = sf.read(audio_file, always_2d=True)
+    audio_file_1 = video_to_audio(video_file_1)
+    audio_file_2 = video_to_audio(video_file_2)
+
+    try:
+        audio_data_1, sampling_frequency = sf.read(audio_file_1, dtype='float32', always_2d=True)
+    except Exception as e:
+        warn_msg = 'Could not open audio file {} - {}: {}; Skipping...'
+        warnings.warn(warn_msg.format(audio_file_1, type(e), e))
+        raise StopIteration()
+
+    try:
+        audio_data_2, sampling_frequency = sf.read(audio_file_2, dtype='float32', always_2d=True)
+    except Exception as e:
+        warn_msg = 'Could not open audio file {} - {}: {}; Skipping...'
+        warnings.warn(warn_msg.format(audio_file_2, type(e), e))
+        raise StopIteration()
 
     while True:
+
+        video_choice = random.random() < 0.5
+        audio_choice = random.random() < 0.5
+
+        if audio_choice:
+            audio_file = audio_file_1
+            audio_data = audio_data_1
+        else:
+            audio_file = audio_file_2
+            audio_data = audio_data_2
+
+        if video_choice:
+            video_file = video_file_1
+            video_data = video_data_1
+        else:
+            video_file = video_file_2
+            video_data = video_data_2
+
+        label = int(video_choice != audio_choice)
+
         sample_audio_data, audio_start, audio_aug_params = sample_one_second(audio_data,
                                                                              sampling_frequency,
                                                                              augment=augment)
@@ -286,8 +418,9 @@ def sampler(video_file, audio_files, augment=False):
         yield sample
 
 
-def data_generator(data_dir, k=32, batch_size=64, random_state=20171021,
-                   augment=False):
+def data_generator(data_dir, metadata_path=None, filter_path=None, ontology_path=None,
+                   k=32, batch_size=64, random_state=20171021,
+                   num_distractors=1, augment=False, rate=32):
     """Sample video and audio from data_dir, returns a streamer that yield samples infinitely.
 
     Args:
@@ -302,23 +435,31 @@ def data_generator(data_dir, k=32, batch_size=64, random_state=20171021,
 
     random.seed(random_state)
 
-    audio_files, video_files = get_file_list(data_dir)
-
-    # Randomly shuffle the files
-    ordering = list(range(len(audio_files)))
-    random.shuffle(ordering)
-    audio_files = [audio_files[idx] for idx in ordering]
-    video_files = [video_files[idx] for idx in ordering]
+    audio_files, video_files = get_file_list(data_dir, metadata_path=metadata_path,
+                                             filter_path=filter_path, ontology_path=ontology_path)
 
     seeds = []
-    for video_file in tqdm(video_files):
-        seeds.append(pescador.Streamer(sampler, video_file, audio_files, augment=augment))
+    for video_file_1 in tqdm(video_files):
+        for _ in range(num_distractors):
+            video_file_2 = video_file_1
+            # Make sure we sample a different file
+            while video_file_2 == video_file_1:
+                video_file_2 = random.choice(video_files)
+            seeds.append(pescador.Streamer(sampler, video_file_1, video_file_2, augment=augment))
 
-    mux = pescador.Mux(seeds, k)
+    # Randomly shuffle the seeds
+    random.shuffle(seeds)
+
+    # TODO:
+    # Order 1024 streamers open
+    # Set rate 16?
+    # Set larger rate for validation (32) for stability
+    # Sampling is very delicate!
+    mux = pescador.Mux(seeds, k, rate=rate)
     if batch_size == 1:
         return mux
     else:
-        return pescador.BufferedStreamer(mux, batch_size)
+        return pescador.maps.buffer_stream(mux, batch_size)
 
 
 class LossHistory(keras.callbacks.Callback):
@@ -347,9 +488,17 @@ class LossHistory(keras.callbacks.Callback):
 
 #def train(train_csv_path, model_id, output_dir, num_epochs=150, epoch_size=512,
 def train(train_data_dir, validation_data_dir, model_id, output_dir,
-          num_epochs=150, epoch_size=512, batch_size=64, validation_size=1024,
-          num_streamers=16, learning_rate=1e-4, random_state=20171021,
-          verbose=False, checkpoint_interval=10, augment=False, gpus=1):
+          num_epochs=150,
+          train_metadata_path=None, validation_metadata_path=None,
+          train_filter_path=None, validation_filter_path=None,
+          train_epoch_size=512, validation_epoch_size=1024,
+          train_batch_size=64, validation_batch_size=64,
+          train_num_streamers=16, validation_num_streamers=16,
+          train_num_distractors=1, validation_num_distractors=2,
+          train_mux_rate=16, validation_mux_rate=16,
+          learning_rate=1e-4, random_state=20171021,
+          verbose=False, checkpoint_interval=10, ontology_path=None,
+          augment=False, gpus=1):
     m, inputs, outputs = construct_cnn_L3_orig()
     if gpus > 1:
         m = multi_gpu_model(m, gpus=gpus)
@@ -404,12 +553,15 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
 
     print('Setting up train data generator...')
     train_gen = data_generator(
-        #train_csv_path,
         train_data_dir,
-        batch_size=batch_size,
+        metadata_path=train_metadata_path,
+        filter_path=train_filter_path,
+        batch_size=train_batch_size,
         random_state=random_state,
-        k=num_streamers,
-        augment=augment)
+        k=train_num_streamers,
+        augment=augment,
+        num_distractors=train_num_distractors,
+        rate=train_mux_rate)
 
     train_gen = pescador.maps.keras_tuples(train_gen,
                                            ['video', 'audio'],
@@ -418,9 +570,13 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
     print('Setting up validation data generator...')
     val_gen = data_generator(
         validation_data_dir,
-        batch_size=batch_size,
+        metadata_path=validation_metadata_path,
+        filter_path=validation_filter_path,
+        batch_size=validation_batch_size,
         random_state=random_state,
-        k=num_streamers)
+        k=validation_num_streamers,
+        num_distractors=validation_num_distractors,
+        rate=validation_mux_rate)
 
     val_gen = pescador.maps.keras_tuples(val_gen,
                                            ['video', 'audio'],
@@ -434,9 +590,9 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
         verbosity = 1
     else:
         verbosity = 2
-    history = m.fit_generator(train_gen, epoch_size, num_epochs,
+    history = m.fit_generator(train_gen, train_epoch_size, num_epochs,
                               validation_data=val_gen,
-                              validation_steps=validation_size,
+                              validation_steps=validation_epoch_size,
                               callbacks=cb,
                               verbose=verbosity)
 
