@@ -334,6 +334,9 @@ def train_svm(X_train, y_train, X_test, y_test, C=1e-4, verbose=False, **kwargs)
         clf: Classifier object
              (Type: sklearn.svm.SVC)
 
+        y_train_pred: Predicted train output of classifier
+                     (Type: np.ndarray)
+
         y_test_pred: Predicted test output of classifier
                      (Type: np.ndarray)
     """
@@ -342,13 +345,13 @@ def train_svm(X_train, y_train, X_test, y_test, C=1e-4, verbose=False, **kwargs)
     X_train = stdizer.fit_transform(X_train)
 
     clf = SVC(C=C, verbose=verbose)
-    clf.fit(X_train, y_train)
+    y_train_pred = clf.fit_transform(X_train, y_train)
 
 
     X_test = stdizer.transform(X_test)
     y_test_pred = clf.predict(X_test)
 
-    return clf, y_test_pred
+    return clf, y_train_pred, y_test_pred
 
 
 def train_mlp(X_train, y_train, X_test, y_test, verbose=False, **kwargs):
@@ -436,7 +439,7 @@ def aggregate_metrics(fold_metrics):
     return aggr_metrics
 
 
-def print_metrics(metrics):
+def print_metrics(metrics, subset_name):
     """
     Print classifier metrics
 
@@ -444,7 +447,7 @@ def print_metrics(metrics):
         metrics: Metrics dictionary
                  (Type: dict[str, *])
     """
-    print("Results")
+    print("Results metrics for {}".format(subset_name))
     print("=====================================================")
     for metric, metric_stats in metrics.items():
         print("* " + metric)
@@ -480,40 +483,63 @@ def train(metadata_path, data_dir, model_id, output_dir,
                                features=features, label_format=label_format)
 
     model_output_path = os.path.join(model_dir, "model_fold{}.{}")
-    fold_metrics = []
-    fold_preds = []
+
+    results = {
+        'folds': []
+    }
     # Fit the model
     print('Fitting model...')
     for fold_idx in range(10):
         print('\t* Training with fold {} held out'.format(fold_idx+1))
         X_train, y_train, X_test, y_test = get_fold_split(fold_data, fold_idx)
         if model_type == 'svm':
-            model, y_test_pred = train_svm(X_train, y_train, X_test, y_test,
-                                           verbose=verbose, **model_args)
+            model, y_train_pred, y_test_pred = train_svm(
+                    X_train, y_train, X_test, y_test,
+                    verbose=verbose, **model_args)
 
             # Save the model for this fold
             joblib.dump(model, model_output_path.format(fold_idx+1, 'pkl'))
 
         elif model_type == 'mlp':
-            model, y_test_pred = train_mlp(X_train, y_train, X_test, y_test,
-                                           verbose=verbose, **model_args)
+            model, y_train_pred, y_test_pred = train_mlp(
+                    X_train, y_train, X_test, y_test,
+                    verbose=verbose, **model_args)
 
             # TODO: Save MLP model
 
         else:
             raise ValueError('Invalid model type: {}'.format(model_type))
 
-        fold_preds.append(y_test_pred)
-
         # Compute metrics for this fold
+        train_metrics = compute_metrics(y_train, y_train_pred)
         test_metrics = compute_metrics(y_test, y_test_pred)
+
+        results['folds'].append({
+            'train': {
+                'metrics': train_metrics,
+                'target': y_train.tolist(),
+                'prediction': y_train_pred.tolist()
+            }
+            'test': {
+                'metrics': test_metrics,
+                'target': y_test.tolist(),
+                'prediction': y_test_pred.tolist()
+            }
+        })
         fold_metrics.append(test_metrics)
 
-    print(fold_preds)
-    print(fold_metrics)
+    train_metrics = aggregate_metrics([fold['train']['metrics']
+                                       for fold in results['folds']])
+    print_metrics(train_metrics, 'train')
 
-    metrics = aggregate_metrics(fold_metrics)
-    print_metrics(metrics)
+    test_metrics = aggregate_metrics([fold['test']['metrics']
+                                      for fold in results['folds']])
+    print_metrics(test_metrics, 'test')
+
+    results['summary'] = {
+        'train': train_metrics,
+        'test': test_metrics
+    }
 
     print('Done training. Saving results to disk...')
 
@@ -529,9 +555,9 @@ def train(metadata_path, data_dir, model_id, output_dir,
     #                       strong_label_file, duration, modelid,
     #                       use_orig_duration=True)
 
-    # Save results to disk
-    # results_file = os.path.join(model_dir, 'results.json')
-    # with open(results_file, 'w') as fp:
-    #     json.dump(results, fp, indent=2)
+    Save results to disk
+    results_file = os.path.join(model_dir, 'results.json')
+    with open(results_file, 'w') as fp:
+        json.dump(results, fp, indent=2)
 
     print('Done!')
