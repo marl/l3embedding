@@ -20,6 +20,10 @@ from .image import *
 from .model import construct_cnn_L3_orig
 from .training_utils import multi_gpu_model
 from audioset.ontology import ASOntology
+from log import *
+
+LOGGER = logging.getLogger('l3embedding')
+LOGGER.setLevel(logging.DEBUG)
 
 
 #TODO: Consider putting the sampling functionality into another file
@@ -37,22 +41,25 @@ def get_filename(path):
 
 def load_metadata(metadata_path):
     metadata = {}
-    with open(metadata_path, 'r') as f:
-        for idx, line in enumerate(f):
-            if idx in (0, 1):
-                continue
-            elif idx == 2:
-                fields = [field.strip() for field in line.lstrip('# ').rstrip().split(',')]
-            else:
-                row = [val.strip() for val in line.strip().split(',')]
-                ytid = row[0]
+    for path in glob.glob(metadata_path):
+        with open(path, 'r') as f:
+            for idx, line in enumerate(f):
+                if idx in (0, 1):
+                    continue
+                elif idx == 2:
+                    fields = [field.strip() for field in line.lstrip('# ').rstrip().split(', ')]
+                else:
+                    row = [val.strip() for val in line.strip().split(', ')]
+                    ytid = row[0]
 
-                entry = {field: val
-                         for field, val in zip(fields, row[1:])}
+                    entry = {field: val
+                            for field, val in zip(fields[1:], row[1:])}
 
-                entry['positive_labels'] = entry['positive_labels'].strip('"').split(',')
+                    entry['positive_labels'] = entry['positive_labels'].strip('"').split(',')
+                    entry['start_seconds'] = float(entry['start_seconds'])
+                    entry['end_seconds'] = float(entry['end_seconds'])
 
-                metadata[ytid] = entry
+                    metadata[ytid] = entry
 
     return metadata
 
@@ -61,7 +68,7 @@ def load_filters(filter_path):
     filters = []
 
     with open(filter_path, 'r') as f:
-        reader = csv.DictReader(filter_path)
+        reader = csv.DictReader(f)
         for row in reader:
             filters.append(row)
 
@@ -69,7 +76,7 @@ def load_filters(filter_path):
 
 def get_ytid_from_filename(filename):
     first_us_idx = filename.rindex('_')
-    second_us_idx = filename.rindeX('_', 0, first_us_idx)
+    second_us_idx = filename.rindex('_', 0, first_us_idx)
     return filename[:second_us_idx]
 
 
@@ -99,8 +106,11 @@ def get_file_list(data_dir, metadata_path=None, filter_path=None, ontology_path=
     valid_filenames = audio_filenames & video_filenames
 
     if metadata_path and filter_path:
+        LOGGER.info('Filtering examples...')
         if not ontology_path:
-            raise ValueError('Must provide ontology path to filter')
+            err_msg = 'Must provide ontology path to filter'
+            LOGGER.error(err_msg)
+            raise ValueError(err_msg)
 
         ontology = ASOntology(ontology_path)
 
@@ -113,6 +123,9 @@ def get_file_list(data_dir, metadata_path=None, filter_path=None, ontology_path=
             ytid = get_ytid_from_filename(filename)
             video_metadata = metadata[ytid]
 
+            video_labels = [ontology.get_node(label_id).name.lower()
+                            for label_id in video_metadata['positive_labels']]
+
             accept = True
             for _filter in filters:
                 filter_type = _filter['filter_type']
@@ -123,18 +136,19 @@ def get_file_list(data_dir, metadata_path=None, filter_path=None, ontology_path=
                     match = ytid == string
 
                 elif filter_type == 'label':
-                    label = ontology.get_node(string).name
-                    match = label in video_metadata['positive_labels']
+                    match = string.lower() in video_labels
 
                 # TODO: check this logic
                 if match == filter_accept:
                     accept = False
 
             if accept:
+                LOGGER.debug('Using video: "{}"'.format(filename))
                 filtered_filenames.append(filename)
 
         valid_filenames = filtered_filenames
 
+    LOGGER.info('Total videos used: {}'.format(len(valid_filenames)))
     audio_files = [path for path in audio_files if get_filename(path) in valid_filenames]
     video_files = [path for path in video_files if get_filename(path) in valid_filenames]
 
@@ -343,11 +357,14 @@ def sampler(video_file_1, video_file_2, augment=False):
         and label (0: not from corresponding files, 1: from corresponding files)
 
     """
+    debug_msg = 'Initializing streamer with videos "{}" and "{}"'
+    LOGGER.debug(debug_msg.format(video_file_1, video_file_2))
 
     try:
         video_data_1 = rescale_video(vread(video_file_1).astype('float32'))
     except Exception as e:
         warn_msg = 'Could not open video file {} - {}: {}; Skipping...'
+        LOGGER.warning(warn_msg)
         warnings.warn(warn_msg.format(video_file_1, type(e), e))
         raise StopIteration()
 
@@ -355,6 +372,7 @@ def sampler(video_file_1, video_file_2, augment=False):
         video_data_2 = rescale_video(vread(video_file_2).astype('float32'))
     except Exception as e:
         warn_msg = 'Could not open video file {} - {}: {}; Skipping...'
+        LOGGER.warning(warn_msg)
         warnings.warn(warn_msg.format(video_file_2, type(e), e))
         raise StopIteration()
 
@@ -365,6 +383,7 @@ def sampler(video_file_1, video_file_2, augment=False):
         audio_data_1, sampling_frequency = sf.read(audio_file_1, dtype='float32', always_2d=True)
     except Exception as e:
         warn_msg = 'Could not open audio file {} - {}: {}; Skipping...'
+        LOGGER.warning(warn_msg)
         warnings.warn(warn_msg.format(audio_file_1, type(e), e))
         raise StopIteration()
 
@@ -372,6 +391,7 @@ def sampler(video_file_1, video_file_2, augment=False):
         audio_data_2, sampling_frequency = sf.read(audio_file_2, dtype='float32', always_2d=True)
     except Exception as e:
         warn_msg = 'Could not open audio file {} - {}: {}; Skipping...'
+        LOGGER.warning(warn_msg)
         warnings.warn(warn_msg.format(audio_file_2, type(e), e))
         raise StopIteration()
 
@@ -435,9 +455,11 @@ def data_generator(data_dir, metadata_path=None, filter_path=None, ontology_path
 
     random.seed(random_state)
 
+    LOGGER.info("Getting file list...")
     audio_files, video_files = get_file_list(data_dir, metadata_path=metadata_path,
                                              filter_path=filter_path, ontology_path=ontology_path)
 
+    LOGGER.info("Creating streamers...")
     seeds = []
     for video_file_1 in tqdm(video_files):
         for _ in range(num_distractors):
@@ -445,6 +467,9 @@ def data_generator(data_dir, metadata_path=None, filter_path=None, ontology_path
             # Make sure we sample a different file
             while video_file_2 == video_file_1:
                 video_file_2 = random.choice(video_files)
+
+            debug_msg = 'Created streamer for videos "{}" and "{}'
+            LOGGER.info(debug_msg.format(video_file_1, video_file_2))
             seeds.append(pescador.Streamer(sampler, video_file_1, video_file_2, augment=augment))
 
     # Randomly shuffle the seeds
@@ -498,7 +523,13 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
           train_mux_rate=16, validation_mux_rate=16,
           learning_rate=1e-4, random_state=20171021,
           verbose=False, checkpoint_interval=10, ontology_path=None,
-          augment=False, gpus=1):
+          log_path=None, disable_logging=False, augment=False, gpus=1):
+
+    init_console_logger(LOGGER, verbose=verbose)
+    if not disable_logging:
+        init_file_logger(LOGGER, log_path=log_path)
+    LOGGER.debug('Initialized logging.')
+
     m, inputs, outputs = construct_cnn_L3_orig()
     if gpus > 1:
         m = multi_gpu_model(m, gpus=gpus)
@@ -513,7 +544,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
     if not os.path.isdir(model_dir):
         os.makedirs(model_dir)
 
-    print('Compile model...')
+    LOGGER.info('Compile model...')
     m.compile(Adam(lr=learning_rate),
               loss=loss,
               metrics=metrics)
@@ -551,10 +582,11 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
                                         separator=','))
 
 
-    print('Setting up train data generator...')
+    LOGGER.info('Setting up train data generator...')
     train_gen = data_generator(
         train_data_dir,
         metadata_path=train_metadata_path,
+        ontology_path=ontology_path,
         filter_path=train_filter_path,
         batch_size=train_batch_size,
         random_state=random_state,
@@ -567,10 +599,11 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
                                            ['video', 'audio'],
                                            'label')
 
-    print('Setting up validation data generator...')
+    LOGGER.info('Setting up validation data generator...')
     val_gen = data_generator(
         validation_data_dir,
         metadata_path=validation_metadata_path,
+        ontology_path=ontology_path,
         filter_path=validation_filter_path,
         batch_size=validation_batch_size,
         random_state=random_state,
@@ -585,7 +618,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
 
 
     # Fit the model
-    print('Fit model...')
+    LOGGER.info('Fit model...')
     if verbose:
         verbosity = 1
     else:
@@ -596,7 +629,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
                               callbacks=cb,
                               verbose=verbosity)
 
-    print('Done training. Saving results to disk...')
+    LOGGER.info('Done training. Saving results to disk...')
     # Save history
     with open(os.path.join(model_dir, 'history.pkl'), 'wb') as fd:
         pickle.dump(history.history, fd)

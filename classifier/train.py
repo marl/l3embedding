@@ -2,14 +2,25 @@ import os
 import scipy as sp
 import numpy as np
 import soundfile as sf
+import json
 import csv
+import logging
 import librosa
+import keras
+from keras.optimizers import Adam
+import keras.regularizers as regularizers
+from keras.models import Model
+from keras.layers import Input, Dense, Activation
 from itertools import islice
 from sklearn.externals import joblib
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
-from l3embedding.train import sample_one_second
+from l3embedding.train import sample_one_second, LossHistory
 from l3embedding.model import load_embedding
+from log import *
+
+LOGGER = logging.getLogger('classifier')
+LOGGER.setLevel(logging.DEBUG)
 
 
 def load_us8k_metadata(path):
@@ -21,10 +32,10 @@ def load_us8k_metadata(path):
               (Type: str)
 
     Returns:
-        metadata: Metadata dictionary
-                  (Type: dict[str, *])
+        metadata: List of metadata dictionaries
+                  (Type: list[dict[str, *]])
     """
-    metadata = {}
+    metadata = [{} for _ in range(10)]
     with open(path) as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
@@ -32,9 +43,9 @@ def load_us8k_metadata(path):
             row['start'] = float(row['start'])
             row['end'] = float(row['end'])
             row['salience'] = float(row['salience'])
-            row['fold'] = int(row['fold'])
+            fold_num = row['fold'] = int(row['fold'])
             row['classID'] = int(row['classID'])
-            metadata[fname] = row
+            metadata[fold_num-1][fname] = row
 
     return metadata
 
@@ -127,15 +138,21 @@ def get_l3_stats_features(audio_path, l3embedding_model):
                    (Type: np.ndarray)
     """
     sr = 48000
-    audio = librosa.load(audio_path, sr=sr, mono=True)
+    audio, _ = librosa.load(audio_path, sr=sr, mono=True)
 
-    hop_size = 10e-3
+    hop_size = 0.25 # REVISIT
     hop_length = int(hop_size * sr)
     frame_length = 48000 * 1
 
-    # Zero pad so we compute embedding on all samples
-    pad_length = int(np.ceil(audio_length - frame_length)/hop_length) * hop_length \
-                 - (audio_length - frame_length)
+    audio_length = len(audio)
+    if audio_length < (frame_length + 2*hop_length):
+        # Make sure we can have at least three frames so that we can compute
+        # all of the stats.
+        pad_length = frame_length + 2*hop_length - audio_length
+    else:
+        # Zero pad so we compute embedding on all samples
+        pad_length = int(np.ceil(audio_length - frame_length)/hop_length) * hop_length \
+                     - (audio_length - frame_length)
 
     if pad_length > 0:
         # Use (roughly) symmetric padding
@@ -145,14 +162,13 @@ def get_l3_stats_features(audio_path, l3embedding_model):
 
 
     # Divide into overlapping 1 second frames
-    x = librosa.util.utils.frame(audio, frame_length=frame_length, hop_length=hop_length)
+    x = librosa.util.utils.frame(audio, frame_length=frame_length, hop_length=hop_length).T
 
     # Add a channel dimension
     x = x.reshape((x.shape[0], 1, x.shape[-1]))
 
     # Get the L3 embedding for each frame
     l3embedding = l3embedding_model.predict(x)
-
 
     # Compute statistics on the time series of embeddings
     minimum = np.min(l3embedding, axis=0)
@@ -185,7 +201,7 @@ def get_us8k_folds(metadata, data_dir, l3embedding_model=None,
     Load all of the data for each fold
 
     Args:
-        metadata: Metadata dictionary
+        metadata: List of metadata dictionaries
                   (Type: dict[str,*])
 
         data_dir: Path to data directory
@@ -208,6 +224,7 @@ def get_us8k_folds(metadata, data_dir, l3embedding_model=None,
     """
     fold_data = []
     for fold_idx in range(10):
+        LOGGER.info("Loading fold {}...".format(fold_idx+1))
         fold_data.append(get_fold_data(metadata, data_dir, fold_idx,
                                        l3embedding_model=l3embedding_model,
                                        features=features, label_format=label_format))
@@ -220,8 +237,8 @@ def get_fold_data(metadata, data_dir, fold_idx, l3embedding_model=None, features
     Load all of the data for a specific fold
 
     Args:
-        metadata: Metadata dictionary
-                  (Type: dict[str,*])
+        metadata: List of metadata dictionaries
+                  (Type: list[dict[str,*]])
 
         data_dir: Path to data directory
                   (Type: str)
@@ -249,21 +266,24 @@ def get_fold_data(metadata, data_dir, fold_idx, l3embedding_model=None, features
     X = []
     y = []
 
-    for idx, (fname, example_metadata) in enumerate(metadata.items()):
-        if example_metadata['fold'] != (fold_idx+1):
-            continue
-
+    for idx, (fname, example_metadata) in enumerate(metadata[fold_idx].items()):
         path = os.path.join(data_dir, "fold{}".format(fold_idx+1), fname)
 
         if features.startswith('l3') and not l3embedding_model:
             raise ValueError('Must provide L3 embedding model to use {} features'.format(features))
 
         if features == 'l3_stack':
-            X.append(get_l3_stack_features(path, l3embedding_model))
+            feature_vector = get_l3_stack_features(path, l3embedding_model)
         elif features == 'l3_stats':
-            X.append(get_l3_stats_features(path, l3embedding_model))
+            feature_vector = get_l3_stats_features(path, l3embedding_model)
         else:
             raise ValueError('Invalid feature type: {}'.format(features))
+
+        # If we were not able to compute the features, skip this file
+        if feature_vector is None:
+            continue
+
+        X.append(feature_vector)
 
 
         class_label = example_metadata['classID']
@@ -341,20 +361,38 @@ def train_svm(X_train, y_train, X_test, y_test, C=1e-4, verbose=False, **kwargs)
                      (Type: np.ndarray)
     """
     # Standardize
+    LOGGER.debug('Standardizing data...')
     stdizer = StandardScaler()
     X_train = stdizer.fit_transform(X_train)
 
     clf = SVC(C=C, verbose=verbose)
-    y_train_pred = clf.fit_transform(X_train, y_train)
-
+    LOGGER.debug('Fitting model to data...')
+    clf.fit(X_train, y_train)
+    y_train_pred = clf.predict(X_train)
 
     X_test = stdizer.transform(X_test)
     y_test_pred = clf.predict(X_test)
 
     return clf, y_train_pred, y_test_pred
 
+def construct_mlp_model(input_shape, weight_decay=1e-5):
+    weight_decay = 1e-5
+    l2_weight_decay = regularizers.l2(weight_decay)
+    inp = Input(shape=input_shape, dtype='float32')
+    y = Dense(512, activation='relu', kernel_regularizer=l2_weight_decay)(inp)
+    y = Dense(128, activation='relu', kernel_regularizer=l2_weight_decay)(y)
+    y = Dense(10, activation='softmax', kernel_regularizer=l2_weight_decay)(y)
+    m = Model(inputs=inp, outputs=y)
+    m.name = 'urban_sound_classifier'
 
-def train_mlp(X_train, y_train, X_test, y_test, verbose=False, **kwargs):
+    return m, inp, y
+
+
+def train_mlp(X_train, y_train, X_test, y_test, model_dir,
+              batch_size=64, num_epochs=100, train_epoch_size=None,
+              validation_epoch_size=None, validation_split=0.1,
+              learning_rate=1e-4, weight_decay=1e-5,
+              verbose=False, **kwargs):
     """
     Train a Multi-layer perceptron model on the given data
 
@@ -367,12 +405,51 @@ def train_mlp(X_train, y_train, X_test, y_test, verbose=False, **kwargs):
                 (Type: np.ndarray)
         y_test: Testing label data
                 (Type: np.ndarray)
+        model_dir: Path to model directory
+                   (Type: str)
 
     Keyword Args:
         verbose:  If True, print verbose messages
                   (Type: bool)
     """
-    raise NotImplementedError()
+    loss = 'categorical_crossentropy'
+    metrics = ['accuracy']
+    monitor = 'val_loss'
+
+    m, inp, out = construct_mlp_model(X_train.shape[1:], weight_decay=weight_decay)
+    weight_path = os.path.join(model_dir, 'model.h5')
+
+    cb = []
+    cb.append(keras.callbacks.ModelCheckpoint(weight_path,
+                                              save_weights_only=True,
+                                              save_best_only=True,
+                                              monitor=monitor))
+
+    history_checkpoint = os.path.join(model_dir, 'history_checkpoint.pkl')
+    cb.append(LossHistory(history_checkpoint))
+
+    history_csvlog = os.path.join(model_dir, 'history_csvlog.csv')
+    cb.append(keras.callbacks.CSVLogger(history_csvlog, append=True,
+                                        separator=','))
+
+    LOGGER.debug('Compiling model...')
+
+    m.compile(Adam(lr=learning_rate), loss=loss, metrics=metrics)
+
+    LOGGER.debug('Fitting model to data...')
+
+    history = m.fit(x=X_train, y=y_train, batch_size=batch_size,
+                    epochs=num_epochs,
+                    steps_per_epoch=train_epoch_size,
+                    validation_split=validation_split,
+                    validation_steps=validation_epoch_size,
+                    callbacks=cb,
+                    verbose=10 if verbose else 1)
+
+    y_train_pred = m.predict(X_train)
+    y_test_pred = m.predict(X_test)
+
+    return m, y_train_pred, y_test_pred
 
 
 def compute_metrics(y, pred):
@@ -447,19 +524,25 @@ def print_metrics(metrics, subset_name):
         metrics: Metrics dictionary
                  (Type: dict[str, *])
     """
-    print("Results metrics for {}".format(subset_name))
-    print("=====================================================")
+    LOGGER.info("Results metrics for {}".format(subset_name))
+    LOGGER.info("=====================================================")
     for metric, metric_stats in metrics.items():
-        print("* " + metric)
+        LOGGER.info("* " + metric)
         for stat_name, stat_val in metric_stats.items():
-            print("\t- {}: {}".format(stat_name, stat_val))
-        print()
+            LOGGER.info("\t- {}: {}".format(stat_name, stat_val))
+        LOGGER.info()
 
 
 def train(metadata_path, data_dir, model_id, output_dir,
           model_type='svm', features='l3_stack', label_format='int',
           l3embedding_model_path=None, l3embedding_model_type='cnn_L3_orig',
-          random_state=20171021, verbose=False, **model_args):
+          random_state=20171021, verbose=False, log_path=None,
+          disable_logging=False, **model_args):
+
+    init_console_logger(LOGGER, verbose=verbose)
+    if not disable_logging:
+        init_file_logger(LOGGER, log_path=log_path)
+    LOGGER.debug('Initialized logging.')
 
     # Make sure the directories we need exist
     model_dir = os.path.join(output_dir, model_id)
@@ -467,14 +550,14 @@ def train(metadata_path, data_dir, model_id, output_dir,
         os.makedirs(model_dir)
 
     if features.startswith('l3'):
-        print('Loading embedding model...')
+        LOGGER.info('Loading embedding model...')
         l3embedding_model = load_embedding(l3embedding_model_path,
                                            l3embedding_model_type, 'audio')
     else:
         l3embedding_model = None
 
 
-    print('Loading data...')
+    LOGGER.info('Loading data...')
     # Load metadata
     metadata = load_us8k_metadata(metadata_path)
 
@@ -488,24 +571,23 @@ def train(metadata_path, data_dir, model_id, output_dir,
         'folds': []
     }
     # Fit the model
-    print('Fitting model...')
+    LOGGER.info('Preparing to fit models...')
     for fold_idx in range(10):
-        print('\t* Training with fold {} held out'.format(fold_idx+1))
+        LOGGER.info('\t* Training with fold {} held out'.format(fold_idx+1))
         X_train, y_train, X_test, y_test = get_fold_split(fold_data, fold_idx)
         if model_type == 'svm':
             model, y_train_pred, y_test_pred = train_svm(
                     X_train, y_train, X_test, y_test,
                     verbose=verbose, **model_args)
 
+            LOGGER.info('Saving model...')
             # Save the model for this fold
             joblib.dump(model, model_output_path.format(fold_idx+1, 'pkl'))
 
         elif model_type == 'mlp':
             model, y_train_pred, y_test_pred = train_mlp(
-                    X_train, y_train, X_test, y_test,
+                    X_train, y_train, X_test, y_test, model_dir,
                     verbose=verbose, **model_args)
-
-            # TODO: Save MLP model
 
         else:
             raise ValueError('Invalid model type: {}'.format(model_type))
@@ -519,14 +601,13 @@ def train(metadata_path, data_dir, model_id, output_dir,
                 'metrics': train_metrics,
                 'target': y_train.tolist(),
                 'prediction': y_train_pred.tolist()
-            }
+            },
             'test': {
                 'metrics': test_metrics,
                 'target': y_test.tolist(),
                 'prediction': y_test_pred.tolist()
             }
         })
-        fold_metrics.append(test_metrics)
 
     train_metrics = aggregate_metrics([fold['train']['metrics']
                                        for fold in results['folds']])
@@ -541,7 +622,7 @@ def train(metadata_path, data_dir, model_id, output_dir,
         'test': test_metrics
     }
 
-    print('Done training. Saving results to disk...')
+    LOGGER.info('Done training. Saving results to disk...')
 
     # Evaluate model
     # print('Evaluate model...')
@@ -555,9 +636,9 @@ def train(metadata_path, data_dir, model_id, output_dir,
     #                       strong_label_file, duration, modelid,
     #                       use_orig_duration=True)
 
-    Save results to disk
+    # Save results to disk
     results_file = os.path.join(model_dir, 'results.json')
     with open(results_file, 'w') as fp:
         json.dump(results, fp, indent=2)
 
-    print('Done!')
+    LOGGER.info('Done!')
