@@ -146,7 +146,7 @@ def get_file_list(data_dir, metadata_path=None, filter_path=None, ontology_path=
                 LOGGER.debug('Using video: "{}"'.format(filename))
                 filtered_filenames.append(filename)
 
-        valid_filenames = filtered_filenames
+        valid_filenames = set(filtered_filenames)
 
     LOGGER.info('Total videos used: {}'.format(len(valid_filenames)))
     audio_files = [path for path in audio_files if get_filename(path) in valid_filenames]
