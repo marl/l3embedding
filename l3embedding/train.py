@@ -1,6 +1,7 @@
 import glob
 import json
 import math
+import time
 import os
 import pickle
 import random
@@ -12,6 +13,7 @@ from keras.optimizers import Adam
 import numpy as np
 import pescador
 import scipy.misc
+import skimage
 from skvideo.io import vread
 import soundfile as sf
 from tqdm import tqdm
@@ -143,7 +145,7 @@ def get_file_list(data_dir, metadata_path=None, filter_path=None, ontology_path=
                     accept = False
 
             if accept:
-                LOGGER.debug('Using video: "{}"'.format(filename))
+                #LOGGER.debug('Using video: "{}"'.format(filename))
                 filtered_filenames.append(filename)
 
         valid_filenames = set(filtered_filenames)
@@ -238,7 +240,31 @@ def rescale_video(video_data):
     return resized_video_data
 
 
-def sample_cropped_frame(frame_data):
+def rescale_frame(frame_data):
+    """
+    Rescales frame such that the minimum dimension of the frame becomes 256,
+    as is down in Look, Listen and Learn
+
+
+    Args:
+        frame_data: frame data array
+
+    Returns:
+        rescaled_frame_data: rescaled frame data array
+    """
+    nx, ny, nc = frame_data.shape
+
+    scaling = 256.0 / min(nx, ny)
+
+    new_nx, new_ny = math.ceil(scaling * nx), math.ceil(scaling * ny)
+    assert 256 in (new_nx, new_ny), str((new_nx, new_ny))
+
+    resized_frame_data = scipy.misc.imresize(frame, (new_nx, new_ny, nc))
+
+    return resized_frame_data
+
+
+def sample_cropped_frame(frame_data, rescale=True):
     """
     Randomly crop a video frame, using the method from Look, Listen and Learn
 
@@ -250,6 +276,8 @@ def sample_cropped_frame(frame_data):
         scaled_frame_data: scaled and cropped frame data
         bbox: bounding box for the cropped image
     """
+    if rescale:
+        frame_data = rescale_frame(frame_data)
     nx, ny, nc = frame_data.shape
     start_x, start_y = random.randrange(nx - 224), random.randrange(ny - 224)
     end_x, end_y = start_x + 224, start_y + 224
@@ -264,7 +292,7 @@ def sample_cropped_frame(frame_data):
     return frame_data[start_x:end_x, start_y:end_y, :], bbox
 
 
-def sample_one_frame(video_data, start=None, fps=30, augment=False):
+def sample_one_frame(video_data, start=None, fps=30, augment=False, rescale=True):
     """Return one frame randomly and time (seconds).
 
     Args:
@@ -301,7 +329,7 @@ def sample_one_frame(video_data, start=None, fps=30, augment=False):
         frame = random.randrange(num_frames)
 
     frame_data = video_data[frame, :, :, :]
-    frame_data, bbox = sample_cropped_frame(frame_data)
+    frame_data, bbox = sample_cropped_frame(frame_data, rescale=rescale)
 
     video_aug_params = {'bounding_box': bbox}
 
@@ -359,9 +387,11 @@ def sampler(video_file_1, video_file_2, augment=False):
     """
     debug_msg = 'Initializing streamer with videos "{}" and "{}"'
     LOGGER.debug(debug_msg.format(video_file_1, video_file_2))
+    audio_file_1 = video_to_audio(video_file_1)
+    audio_file_2 = video_to_audio(video_file_2)
 
     try:
-        video_data_1 = rescale_video(vread(video_file_1).astype('float32'))
+        video_data_1 = skimage.img_as_float32(rescale_video(vread(video_file_1)))
     except Exception as e:
         warn_msg = 'Could not open video file {} - {}: {}; Skipping...'
         LOGGER.warning(warn_msg)
@@ -369,15 +399,12 @@ def sampler(video_file_1, video_file_2, augment=False):
         raise StopIteration()
 
     try:
-        video_data_2 = rescale_video(vread(video_file_2).astype('float32'))
+        video_data_2 = skimage.img_as_float32(rescale_video(vread(video_file_2)))
     except Exception as e:
         warn_msg = 'Could not open video file {} - {}: {}; Skipping...'
         LOGGER.warning(warn_msg)
         warnings.warn(warn_msg.format(video_file_2, type(e), e))
         raise StopIteration()
-
-    audio_file_1 = video_to_audio(video_file_1)
-    audio_file_2 = video_to_audio(video_file_2)
 
     try:
         audio_data_1, sampling_frequency = sf.read(audio_file_1, dtype='float32', always_2d=True)
@@ -416,12 +443,12 @@ def sampler(video_file_1, video_file_2, augment=False):
 
         label = int(video_choice != audio_choice)
 
-        sample_audio_data, audio_start, audio_aug_params = sample_one_second(audio_data,
-                                                                             sampling_frequency,
-                                                                             augment=augment)
-        sample_video_data, video_start, video_aug_params = sample_one_frame(video_data,
-                                                                            start=audio_start,
-                                                                            augment=augment)
+        sample_audio_data, audio_start, audio_aug_params \
+            = sample_one_second(audio_data, sampling_frequency, augment=augment)
+
+        sample_video_data, video_start, video_aug_params \
+            = sample_one_frame(video_data, start=audio_start, augment=augment, rescale=False)
+
         sample_audio_data = sample_audio_data.mean(axis=-1).reshape((1, sample_audio_data.shape[0]))
 
         sample = {
@@ -468,8 +495,8 @@ def data_generator(data_dir, metadata_path=None, filter_path=None, ontology_path
             while video_file_2 == video_file_1:
                 video_file_2 = random.choice(video_files)
 
-            debug_msg = 'Created streamer for videos "{}" and "{}'
-            LOGGER.info(debug_msg.format(video_file_1, video_file_2))
+            #debug_msg = 'Created streamer for videos "{}" and "{}'
+            #LOGGER.debug(debug_msg.format(video_file_1, video_file_2))
             seeds.append(pescador.Streamer(sampler, video_file_1, video_file_2, augment=augment))
 
     # Randomly shuffle the seeds
@@ -511,6 +538,20 @@ class LossHistory(keras.callbacks.Callback):
             pickle.dump(loss_dict, fp)
 
 
+class TimeHistory(keras.callbacks.Callback):
+    # Copied from https://stackoverflow.com/a/43186440/1260544
+    def on_train_begin(self, logs={}):
+        self.times = []
+
+    def on_epoch_begin(self, batch, logs={}):
+        self.epoch_time_start = time.time()
+
+    def on_epoch_end(self, batch, logs={}):
+        t = time.time() - self.epoch_time_start
+        LOGGER.info('Epoch took {} seconds'.format(t))
+        self.times.append(t)
+
+
 #def train(train_csv_path, model_id, output_dir, num_epochs=150, epoch_size=512,
 def train(train_data_dir, validation_data_dir, model_id, output_dir,
           num_epochs=150,
@@ -533,7 +574,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
     m, inputs, outputs = construct_cnn_L3_orig()
     if gpus > 1:
         m = multi_gpu_model(m, gpus=gpus)
-    loss = 'binary_crossentropy'
+    loss = 'categorical_crossentropy'
     metrics = ['accuracy']
     monitor = 'val_loss'
 
@@ -544,7 +585,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
     if not os.path.isdir(model_dir):
         os.makedirs(model_dir)
 
-    LOGGER.info('Compile model...')
+    LOGGER.info('Compiling model...')
     m.compile(Adam(lr=learning_rate),
               loss=loss,
               metrics=metrics)
@@ -574,13 +615,15 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
                                               monitor=monitor,
                                               period=checkpoint_interval))
 
+    timer_cb = TimeHistory()
+    cb.append(timer_cb)
+
     history_checkpoint = os.path.join(model_dir, 'history_checkpoint.pkl')
     cb.append(LossHistory(history_checkpoint))
 
     history_csvlog = os.path.join(model_dir, 'history_csvlog.csv')
     cb.append(keras.callbacks.CSVLogger(history_csvlog, append=True,
                                         separator=','))
-
 
     LOGGER.info('Setting up train data generator...')
     train_gen = data_generator(
@@ -618,11 +661,11 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
 
 
     # Fit the model
-    LOGGER.info('Fit model...')
+    LOGGER.info('Fitting model...')
     if verbose:
-        verbosity = 1
-    else:
         verbosity = 2
+    else:
+        verbosity = 1
     history = m.fit_generator(train_gen, train_epoch_size, num_epochs,
                               validation_data=val_gen,
                               validation_steps=validation_epoch_size,
