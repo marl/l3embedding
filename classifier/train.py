@@ -530,7 +530,7 @@ def print_metrics(metrics, subset_name):
         LOGGER.info("* " + metric)
         for stat_name, stat_val in metric_stats.items():
             LOGGER.info("\t- {}: {}".format(stat_name, stat_val))
-        LOGGER.info()
+        LOGGER.info("\n")
 
 
 def train(metadata_path, data_dir, model_id, output_dir,
