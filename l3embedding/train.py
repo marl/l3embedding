@@ -259,7 +259,7 @@ def rescale_frame(frame_data):
     new_nx, new_ny = math.ceil(scaling * nx), math.ceil(scaling * ny)
     assert 256 in (new_nx, new_ny), str((new_nx, new_ny))
 
-    resized_frame_data = scipy.misc.imresize(frame, (new_nx, new_ny, nc))
+    resized_frame_data = scipy.misc.imresize(frame_data, (new_nx, new_ny, nc))
 
     return resized_frame_data
 
@@ -277,7 +277,7 @@ def sample_cropped_frame(frame_data, rescale=True):
         bbox: bounding box for the cropped image
     """
     if rescale:
-        frame_data = rescale_frame(frame_data)
+        frame_data = skimage.img_as_float32(rescale_frame(frame_data))
     nx, ny, nc = frame_data.shape
     start_x, start_y = random.randrange(nx - 224), random.randrange(ny - 224)
     end_x, end_y = start_x + 224, start_y + 224
@@ -372,7 +372,7 @@ def sample_one_frame(video_data, start=None, fps=30, augment=False, rescale=True
     return frame_data, frame / fps, video_aug_params
 
 
-def sampler(video_file_1, video_file_2, augment=False):
+def sampler(video_file_1, video_file_2, rate=32, augment=False):
     """Sample one frame from video_file, with 50% chance sample one second from corresponding audio_file,
        50% chance sample one second from another audio_file in the list of audio_files.
 
@@ -390,8 +390,13 @@ def sampler(video_file_1, video_file_2, augment=False):
     audio_file_1 = video_to_audio(video_file_1)
     audio_file_2 = video_to_audio(video_file_2)
 
+    # Hack: choose a number of samples such that we with high probability, we
+    #       won't run out of samples, but is also less than the entire length of
+    #       the video so we don't have to resize all of the frames
+    num_samples = int(scipy.stats.poisson.ppf(0.999, rate))
+
     try:
-        video_data_1 = skimage.img_as_float32(rescale_video(vread(video_file_1)))
+        video_data_1 = vread(video_file_1)
     except Exception as e:
         warn_msg = 'Could not open video file {} - {}: {}; Skipping...'
         LOGGER.warning(warn_msg)
@@ -399,7 +404,7 @@ def sampler(video_file_1, video_file_2, augment=False):
         raise StopIteration()
 
     try:
-        video_data_2 = skimage.img_as_float32(rescale_video(vread(video_file_2)))
+        video_data_2 = vread(video_file_2)
     except Exception as e:
         warn_msg = 'Could not open video file {} - {}: {}; Skipping...'
         LOGGER.warning(warn_msg)
@@ -422,7 +427,8 @@ def sampler(video_file_1, video_file_2, augment=False):
         warnings.warn(warn_msg.format(audio_file_2, type(e), e))
         raise StopIteration()
 
-    while True:
+    samples = []
+    for _ in range(num_samples):
 
         video_choice = random.random() < 0.5
         audio_choice = random.random() < 0.5
@@ -447,7 +453,7 @@ def sampler(video_file_1, video_file_2, augment=False):
             = sample_one_second(audio_data, sampling_frequency, augment=augment)
 
         sample_video_data, video_start, video_aug_params \
-            = sample_one_frame(video_data, start=audio_start, augment=augment, rescale=False)
+            = sample_one_frame(video_data, start=audio_start, augment=augment, rescale=True)
 
         sample_audio_data = sample_audio_data.mean(axis=-1).reshape((1, sample_audio_data.shape[0]))
 
@@ -462,7 +468,19 @@ def sampler(video_file_1, video_file_2, augment=False):
             'audio_augment_params': audio_aug_params,
             'video_augment_params': video_aug_params
         }
+        samples.append(sample)
+
+    del audio_data
+    del video_data
+    del audio_data_1
+    del audio_data_2
+    del video_data_1
+    del video_data_2
+
+    for sample in samples:
         yield sample
+
+    raise StopIteration()
 
 
 def data_generator(data_dir, metadata_path=None, filter_path=None, ontology_path=None,
@@ -497,7 +515,7 @@ def data_generator(data_dir, metadata_path=None, filter_path=None, ontology_path
 
             #debug_msg = 'Created streamer for videos "{}" and "{}'
             #LOGGER.debug(debug_msg.format(video_file_1, video_file_2))
-            seeds.append(pescador.Streamer(sampler, video_file_1, video_file_2, augment=augment))
+            seeds.append(pescador.Streamer(sampler, video_file_1, video_file_2, rate=rate, augment=augment))
 
     # Randomly shuffle the seeds
     random.shuffle(seeds)
