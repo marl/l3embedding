@@ -1,6 +1,7 @@
 import glob
 import json
 import math
+import datetime
 import time
 import os
 import pickle
@@ -399,32 +400,36 @@ def sampler(video_file_1, video_file_2, rate=32, augment=False):
         video_data_1 = vread(video_file_1)
     except Exception as e:
         warn_msg = 'Could not open video file {} - {}: {}; Skipping...'
+        warn_msg = warn_msg.format(video_file_1, type(e), e)
         LOGGER.warning(warn_msg)
-        warnings.warn(warn_msg.format(video_file_1, type(e), e))
+        warnings.warn(warn_msg)
         raise StopIteration()
 
     try:
         video_data_2 = vread(video_file_2)
     except Exception as e:
         warn_msg = 'Could not open video file {} - {}: {}; Skipping...'
+        warn_msg = warn_msg.format(video_file_2, type(e), e)
         LOGGER.warning(warn_msg)
-        warnings.warn(warn_msg.format(video_file_2, type(e), e))
+        warnings.warn(warn_msg)
         raise StopIteration()
 
     try:
         audio_data_1, sampling_frequency = sf.read(audio_file_1, dtype='float32', always_2d=True)
     except Exception as e:
         warn_msg = 'Could not open audio file {} - {}: {}; Skipping...'
+        warn_msg = warn_msg.format(audio_file_1, type(e), e)
         LOGGER.warning(warn_msg)
-        warnings.warn(warn_msg.format(audio_file_1, type(e), e))
+        warnings.warn(warn_msg)
         raise StopIteration()
 
     try:
         audio_data_2, sampling_frequency = sf.read(audio_file_2, dtype='float32', always_2d=True)
     except Exception as e:
         warn_msg = 'Could not open audio file {} - {}: {}; Skipping...'
+        warn_msg = warn_msg.format(audio_file_2, type(e), e)
         LOGGER.warning(warn_msg)
-        warnings.warn(warn_msg.format(audio_file_2, type(e), e))
+        warnings.warn(warn_msg)
         raise StopIteration()
 
     samples = []
@@ -485,7 +490,7 @@ def sampler(video_file_1, video_file_2, rate=32, augment=False):
 
 def data_generator(data_dir, metadata_path=None, filter_path=None, ontology_path=None,
                    k=32, batch_size=64, random_state=20171021,
-                   num_distractors=1, augment=False, rate=32):
+                   num_distractors=1, augment=False, rate=32, max_videos=None):
     """Sample video and audio from data_dir, returns a streamer that yield samples infinitely.
 
     Args:
@@ -501,10 +506,15 @@ def data_generator(data_dir, metadata_path=None, filter_path=None, ontology_path
     random.seed(random_state)
 
     LOGGER.info("Getting file list...")
-    audio_files, video_files = get_file_list(data_dir, metadata_path=metadata_path,
+    _, video_files = get_file_list(data_dir, metadata_path=metadata_path,
                                              filter_path=filter_path, ontology_path=ontology_path)
 
     LOGGER.info("Creating streamers...")
+    if max_videos is not None and max_videos < len(video_files):
+        LOGGER.info("Using a subset of {} videos".format(max_videos))
+        random.shuffle(video_files)
+        video_files = video_files[:max_videos]
+
     seeds = []
     for video_file_1 in tqdm(video_files):
         for _ in range(num_distractors):
@@ -580,9 +590,10 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
           train_num_streamers=16, validation_num_streamers=16,
           train_num_distractors=1, validation_num_distractors=2,
           train_mux_rate=16, validation_mux_rate=16,
-          learning_rate=1e-4, random_state=20171021,
-          verbose=False, checkpoint_interval=10, ontology_path=None,
-          log_path=None, disable_logging=False, augment=False, gpus=1):
+          learning_rate=1e-4, random_state=20171021, train_max_videos=None,
+          validation_max_videos=None, verbose=False, checkpoint_interval=10,
+          ontology_path=None, log_path=None, disable_logging=False,
+          augment=False, gpus=1):
 
     init_console_logger(LOGGER, verbose=verbose)
     if not disable_logging:
@@ -597,9 +608,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
     monitor = 'val_loss'
 
     # Make sure the directories we need exist
-    model_dir = os.path.join(output_dir, model_id)
-    if not os.path.isdir(output_dir):
-        os.makedirs(output_dir)
+    model_dir = os.path.join(output_dir, model_id, datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
     if not os.path.isdir(model_dir):
         os.makedirs(model_dir)
 
@@ -607,6 +616,8 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
     m.compile(Adam(lr=learning_rate),
               loss=loss,
               metrics=metrics)
+
+    LOGGER.info('Model files can be found in "{}"'.format(model_dir))
 
     # Save the model
     model_spec_path = os.path.join(model_dir, 'model_spec.pkl')
@@ -654,6 +665,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
         k=train_num_streamers,
         augment=augment,
         num_distractors=train_num_distractors,
+        max_videos=train_max_videos,
         rate=train_mux_rate)
 
     train_gen = pescador.maps.keras_tuples(train_gen,
@@ -670,6 +682,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
         random_state=random_state,
         k=validation_num_streamers,
         num_distractors=validation_num_distractors,
+        max_videos=validation_max_videos,
         rate=validation_mux_rate)
 
     val_gen = pescador.maps.keras_tuples(val_gen,
@@ -681,9 +694,9 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
     # Fit the model
     LOGGER.info('Fitting model...')
     if verbose:
-        verbosity = 2
-    else:
         verbosity = 1
+    else:
+        verbosity = 2
     history = m.fit_generator(train_gen, train_epoch_size, num_epochs,
                               validation_data=val_gen,
                               validation_steps=validation_epoch_size,

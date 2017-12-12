@@ -126,6 +126,20 @@ def parse_arguments():
                         default=os.path.join(os.path.dirname(__file__), 'resources/ontology.json'),
                         help='Path to AudioSet ontology')
 
+    parser.add_argument('-tmv',
+                        '--train-max-videos',
+                        dest='train_max_videos',
+                        action='store',
+                        type=int,
+                        help='Maximum number of videos to use for training. If not specified, all videos will be used')
+
+    parser.add_argument('-vmv',
+                        '--validation-max-videos',
+                        dest='validation_max_videos',
+                        action='store',
+                        type=int,
+                        help='Maximum number of videos to use for validation. If not specified, all videos will be used')
+
     parser.add_argument('-r',
                         '--random-state',
                         dest='random_state',
