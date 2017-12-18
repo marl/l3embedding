@@ -15,12 +15,12 @@ import numpy as np
 import pescador
 import scipy.misc
 import skimage
-from skvideo.io import vread
+from skvideo.io import FFmpegReader, ffprobe
 import soundfile as sf
 from tqdm import tqdm
 
 from .image import *
-from .model import construct_cnn_L3_orig
+from .model import MODELS
 from .training_utils import multi_gpu_model
 from audioset.ontology import ASOntology
 from log import *
@@ -192,13 +192,16 @@ def sample_one_second(audio_data, sampling_frequency, augment=False):
     else:
         start = 0
 
-    audio_data = audio_data[start:start+sampling_frequency]
+    with LogTimer(LOGGER, 'Slicing audio'):
+        audio_data = audio_data[start:start+sampling_frequency]
+
     if audio_data.shape[0] != sampling_frequency:
         # Pad audio that isn't one second
         warnings.warn('Got audio that is less than one second', UserWarning)
-        audio_data = np.pad(audio_data,
-                            ((0, sampling_frequency - audio_data.shape[0]), (0,0)),
-                            mode='constant')
+        with LogTimer(LOGGER, 'Slicing audio'):
+            audio_data = np.pad(audio_data,
+                                ((0, sampling_frequency - audio_data.shape[0]), (0,0)),
+                                mode='constant')
     if augment:
         # Make sure we don't clip
         if np.abs(audio_data).max():
@@ -208,7 +211,8 @@ def sample_one_second(audio_data, sampling_frequency, augment=False):
             warnings.warn('Got audio sample with all zeros', UserWarning)
             max_gain = 0.1
         gain = 1 + random.uniform(-0.1, max_gain)
-        audio_data *= gain
+        with LogTimer(LOGGER, 'Applying gain to audio'):
+            audio_data *= gain
         audio_aug_params = {'gain': gain}
     else:
         audio_aug_params = {}
@@ -216,56 +220,7 @@ def sample_one_second(audio_data, sampling_frequency, augment=False):
     return audio_data, start / sampling_frequency, audio_aug_params
 
 
-def rescale_video(video_data):
-    """
-    Rescales video such that the minimum dimension of the video becomes 256,
-    as is down in Look, Listen and Learn
-
-
-    Args:
-        video_data: video data array
-
-    Returns:
-        rescaled_video_data: rescaled video data array
-    """
-    num_frames, nx, ny, nc = video_data.shape
-
-    scaling = 256.0 / min(nx, ny)
-
-    new_nx, new_ny = math.ceil(scaling * nx), math.ceil(scaling * ny)
-    assert 256 in (new_nx, new_ny), str((new_nx, new_ny))
-
-    resized_video_data = np.array([scipy.misc.imresize(frame, (new_nx, new_ny, nc))
-                                   for frame in video_data])
-
-    return resized_video_data
-
-
-def rescale_frame(frame_data):
-    """
-    Rescales frame such that the minimum dimension of the frame becomes 256,
-    as is down in Look, Listen and Learn
-
-
-    Args:
-        frame_data: frame data array
-
-    Returns:
-        rescaled_frame_data: rescaled frame data array
-    """
-    nx, ny, nc = frame_data.shape
-
-    scaling = 256.0 / min(nx, ny)
-
-    new_nx, new_ny = math.ceil(scaling * nx), math.ceil(scaling * ny)
-    assert 256 in (new_nx, new_ny), str((new_nx, new_ny))
-
-    resized_frame_data = scipy.misc.imresize(frame_data, (new_nx, new_ny, nc))
-
-    return resized_frame_data
-
-
-def sample_cropped_frame(frame_data, rescale=True):
+def sample_cropped_frame(frame_data):
     """
     Randomly crop a video frame, using the method from Look, Listen and Learn
 
@@ -277,8 +232,6 @@ def sample_cropped_frame(frame_data, rescale=True):
         scaled_frame_data: scaled and cropped frame data
         bbox: bounding box for the cropped image
     """
-    if rescale:
-        frame_data = skimage.img_as_float32(rescale_frame(frame_data))
     nx, ny, nc = frame_data.shape
     start_x, start_y = random.randrange(nx - 224), random.randrange(ny - 224)
     end_x, end_y = start_x + 224, start_y + 224
@@ -290,10 +243,13 @@ def sample_cropped_frame(frame_data, rescale=True):
         'end_y': end_y
     }
 
-    return frame_data[start_x:end_x, start_y:end_y, :], bbox
+    with LogTimer(LOGGER, 'Cropping frame'):
+        frame_data = frame_data[start_x:end_x, start_y:end_y, :]
+
+    return frame_data, bbox
 
 
-def sample_one_frame(video_data, start=None, fps=30, augment=False, rescale=True):
+def sample_one_frame(video_data, start=None, fps=30, augment=False):
     """Return one frame randomly and time (seconds).
 
     Args:
@@ -307,7 +263,7 @@ def sample_one_frame(video_data, start=None, fps=30, augment=False, rescale=True
 
     """
 
-    num_frames = video_data.shape[0]
+    num_frames = len(video_data)
     if start is not None:
         start_frame = int(start * fps)
         # Sample frame from a one second window, or until the end of the video
@@ -329,8 +285,8 @@ def sample_one_frame(video_data, start=None, fps=30, augment=False, rescale=True
     else:
         frame = random.randrange(num_frames)
 
-    frame_data = video_data[frame, :, :, :]
-    frame_data, bbox = sample_cropped_frame(frame_data, rescale=rescale)
+    frame_data = video_data[frame]
+    frame_data, bbox = sample_cropped_frame(frame_data)
 
     video_aug_params = {'bounding_box': bbox}
 
@@ -338,30 +294,36 @@ def sample_one_frame(video_data, start=None, fps=30, augment=False, rescale=True
         # Randomly horizontally flip the image
         horizontal_flip = False
         if random.random() < 0.5:
-            frame_data = horiz_flip(frame_data)
+            with LogTimer(LOGGER, 'Flipping frame'):
+                frame_data = horiz_flip(frame_data)
             horizontal_flip = True
+
 
         # Ranges taken from https://github.com/tensorflow/models/blob/master/research/slim/preprocessing/inception_preprocessing.py
 
         # Randomize the order of saturation jitter and brightness jitter
         if random.random() < 0.5:
             # Add saturation jitter
-            saturation_factor = random.random() + 0.5
-            frame_data = adjust_saturation(frame_data, saturation_factor)
+            saturation_factor = np.float32(random.random() + 0.5)
+            with LogTimer(LOGGER, 'Adjusting saturation'):
+                frame_data = adjust_saturation(frame_data, saturation_factor)
 
             # Add brightness jitter
             max_delta = 32. / 255.
-            brightness_delta = (2*random.random() - 1) * max_delta
-            frame_data = adjust_brightness(frame_data, brightness_delta)
+            brightness_delta = np.float32((2*random.random() - 1) * max_delta)
+            with LogTimer(LOGGER, 'Adjusting brightness'):
+                frame_data = adjust_brightness(frame_data, brightness_delta)
         else:
             # Add brightness jitter
             max_delta = 32. / 255.
-            brightness_delta = (2*random.random() - 1) * max_delta
-            frame_data = adjust_brightness(frame_data, brightness_delta)
+            brightness_delta = np.float32((2*random.random() - 1) * max_delta)
+            with LogTimer(LOGGER, 'Adjusting brightness'):
+                frame_data = adjust_brightness(frame_data, brightness_delta)
 
             # Add saturation jitter
-            saturation_factor = random.random() + 0.5
-            frame_data = adjust_saturation(frame_data, saturation_factor)
+            saturation_factor = np.float32(random.random() + 0.5)
+            with LogTimer(LOGGER, 'Adjusting saturation'):
+                frame_data = adjust_saturation(frame_data, saturation_factor)
 
         video_aug_params.update({
             'horizontal_flip': horizontal_flip,
@@ -369,11 +331,79 @@ def sample_one_frame(video_data, start=None, fps=30, augment=False, rescale=True
             'brightness_delta': brightness_delta
         })
 
+    frame_data = skimage.img_as_float32(frame_data)
+
 
     return frame_data, frame / fps, video_aug_params
 
 
-def sampler(video_file_1, video_file_2, rate=32, augment=False):
+def read_video(video_path):
+    vinfo = ffprobe(video_path)['video']
+    width = int(vinfo['@width'])
+    height = int(vinfo['@height'])
+
+    scaling = 256.0 / min(width, height)
+    new_width = math.ceil(scaling * width)
+    new_height = math.ceil(scaling * height)
+
+    # Resize frames
+    reader = FFmpegReader(video_path,
+                          outputdict={'-s': "{}x{}".format(new_width,
+                                                           new_height) })
+
+    frames = []
+    for frame in reader.nextFrame():
+        frames.append(frame)
+
+    return frames
+
+
+def generate_sample(audio_file_1, audio_data_1, audio_file_2, audio_data_2,
+                    video_file_1, video_data_1, video_file_2, video_data_2,
+                    audio_sampling_frequency, augment=False):
+    video_choice = random.random() < 0.5
+    audio_choice = random.random() < 0.5
+
+    if audio_choice:
+        audio_file = audio_file_1
+        audio_data = audio_data_1
+    else:
+        audio_file = audio_file_2
+        audio_data = audio_data_2
+
+    if video_choice:
+        video_file = video_file_1
+        video_data = video_data_1
+    else:
+        video_file = video_file_2
+        video_data = video_data_2
+
+    label = int(video_choice != audio_choice)
+
+    sample_audio_data, audio_start, audio_aug_params \
+        = sample_one_second(audio_data, audio_sampling_frequency, augment=augment)
+
+    sample_video_data, video_start, video_aug_params \
+        = sample_one_frame(video_data, start=audio_start, augment=augment)
+
+    sample_audio_data = sample_audio_data.mean(axis=-1).reshape((1, sample_audio_data.shape[0]))
+
+    sample = {
+        'video': np.ascontiguousarray(sample_video_data),
+        'audio': np.ascontiguousarray(sample_audio_data),
+        'label': np.ascontiguousarray(np.array([label, 1 - label])),
+#            'audio_file': audio_file,
+#            'video_file': video_file,
+#            'audio_start': audio_start,
+#            'video_start': video_start,
+#            'audio_augment_params': audio_aug_params,
+#            'video_augment_params': video_aug_params
+    }
+
+    return sample
+
+
+def sampler(video_file_1, video_file_2, rate=32, augment=False, precompute=False):
     """Sample one frame from video_file, with 50% chance sample one second from corresponding audio_file,
        50% chance sample one second from another audio_file in the list of audio_files.
 
@@ -396,8 +426,10 @@ def sampler(video_file_1, video_file_2, rate=32, augment=False):
     #       the video so we don't have to resize all of the frames
     num_samples = int(scipy.stats.poisson.ppf(0.999, rate))
 
+
     try:
-        video_data_1 = vread(video_file_1)
+        with LogTimer(LOGGER, 'Reading video'):
+            video_data_1 = read_video(video_file_1)
     except Exception as e:
         warn_msg = 'Could not open video file {} - {}: {}; Skipping...'
         warn_msg = warn_msg.format(video_file_1, type(e), e)
@@ -406,7 +438,8 @@ def sampler(video_file_1, video_file_2, rate=32, augment=False):
         raise StopIteration()
 
     try:
-        video_data_2 = vread(video_file_2)
+        with LogTimer(LOGGER, 'Reading video'):
+            video_data_2 = read_video(video_file_2)
     except Exception as e:
         warn_msg = 'Could not open video file {} - {}: {}; Skipping...'
         warn_msg = warn_msg.format(video_file_2, type(e), e)
@@ -415,7 +448,10 @@ def sampler(video_file_1, video_file_2, rate=32, augment=False):
         raise StopIteration()
 
     try:
-        audio_data_1, sampling_frequency = sf.read(audio_file_1, dtype='float32', always_2d=True)
+        with LogTimer(LOGGER, 'Reading audio'):
+            audio_data_1, sampling_frequency = sf.read(audio_file_1,
+                                                       dtype='float32',
+                                                       always_2d=True)
     except Exception as e:
         warn_msg = 'Could not open audio file {} - {}: {}; Skipping...'
         warn_msg = warn_msg.format(audio_file_1, type(e), e)
@@ -424,7 +460,10 @@ def sampler(video_file_1, video_file_2, rate=32, augment=False):
         raise StopIteration()
 
     try:
-        audio_data_2, sampling_frequency = sf.read(audio_file_2, dtype='float32', always_2d=True)
+        with LogTimer(LOGGER, 'Reading audio'):
+            audio_data_2, sampling_frequency = sf.read(audio_file_2,
+                                                       dtype='float32',
+                                                       always_2d=True)
     except Exception as e:
         warn_msg = 'Could not open audio file {} - {}: {}; Skipping...'
         warn_msg = warn_msg.format(audio_file_2, type(e), e)
@@ -432,64 +471,46 @@ def sampler(video_file_1, video_file_2, rate=32, augment=False):
         warnings.warn(warn_msg)
         raise StopIteration()
 
-    samples = []
-    for _ in range(num_samples):
+    if precompute:
+        samples = []
+        for _ in range(num_samples):
+            sample = generate_sample(
+                audio_file_1, audio_data_1, audio_file_2, audio_data_2,
+                video_file_1, video_data_1, video_file_2, video_data_2,
+                sampling_frequency, augment=augment)
 
-        video_choice = random.random() < 0.5
-        audio_choice = random.random() < 0.5
+            samples.append(sample)
 
-        if audio_choice:
-            audio_file = audio_file_1
-            audio_data = audio_data_1
-        else:
-            audio_file = audio_file_2
-            audio_data = audio_data_2
+        # Clear the data from memory
+        video_data_1 = None
+        video_data_2 = None
+        audio_data_1 = None
+        audio_data_2 = None
+        video_data = None
+        audio_data = None
+        del video_data_1
+        del video_data_2
+        del audio_data_1
+        del audio_data_2
+        del video_data
+        del audio_data
 
-        if video_choice:
-            video_file = video_file_1
-            video_data = video_data_1
-        else:
-            video_file = video_file_2
-            video_data = video_data_2
-
-        label = int(video_choice != audio_choice)
-
-        sample_audio_data, audio_start, audio_aug_params \
-            = sample_one_second(audio_data, sampling_frequency, augment=augment)
-
-        sample_video_data, video_start, video_aug_params \
-            = sample_one_frame(video_data, start=audio_start, augment=augment, rescale=True)
-
-        sample_audio_data = sample_audio_data.mean(axis=-1).reshape((1, sample_audio_data.shape[0]))
-
-        sample = {
-            'video': sample_video_data,
-            'audio': sample_audio_data,
-            'label': np.array([label, 1 - label]),
-            'audio_file': audio_file,
-            'video_file': video_file,
-            'audio_start': audio_start,
-            'video_start': video_start,
-            'audio_augment_params': audio_aug_params,
-            'video_augment_params': video_aug_params
-        }
-        samples.append(sample)
-
-    del audio_data
-    del video_data
-    del audio_data_1
-    del audio_data_2
-    del video_data_1
-    del video_data_2
-
-    for sample in samples:
-        yield sample
+        while samples:
+            # Yield the sample, and remove from the list to free up some memory
+            yield samples.pop()
+    else:
+        while True:
+            yield generate_sample(
+                audio_file_1, audio_data_1, audio_file_2, audio_data_2,
+                video_file_1, video_data_1, video_file_2, video_data_2,
+                sampling_frequency, augment=augment)
 
     raise StopIteration()
 
 
+
 def data_generator(data_dir, metadata_path=None, filter_path=None, ontology_path=None,
-                   k=32, batch_size=64, random_state=20171021,
+                   k=32, batch_size=64, random_state=20171021, precompute=False,
                    num_distractors=1, augment=False, rate=32, max_videos=None):
     """Sample video and audio from data_dir, returns a streamer that yield samples infinitely.
 
@@ -525,16 +546,16 @@ def data_generator(data_dir, metadata_path=None, filter_path=None, ontology_path
 
             #debug_msg = 'Created streamer for videos "{}" and "{}'
             #LOGGER.debug(debug_msg.format(video_file_1, video_file_2))
-            seeds.append(pescador.Streamer(sampler, video_file_1, video_file_2, rate=rate, augment=augment))
+            streamer = pescador.Streamer(sampler, video_file_1, video_file_2,
+                                         rate=rate, augment=augment,
+                                         precompute=precompute)
+            # ZMQ streamers make the script stall inexplicably
+            #streamer = pescador.ZMQStreamer(streamer)
+            seeds.append(streamer)
 
     # Randomly shuffle the seeds
     random.shuffle(seeds)
 
-    # TODO:
-    # Order 1024 streamers open
-    # Set rate 16?
-    # Set larger rate for validation (32) for stability
-    # Sampling is very delicate!
     mux = pescador.Mux(seeds, k, rate=rate)
     if batch_size == 1:
         return mux
@@ -569,15 +590,24 @@ class LossHistory(keras.callbacks.Callback):
 class TimeHistory(keras.callbacks.Callback):
     # Copied from https://stackoverflow.com/a/43186440/1260544
     def on_train_begin(self, logs={}):
-        self.times = []
+        self.epoch_times = []
+        self.batch_times = []
 
-    def on_epoch_begin(self, batch, logs={}):
+    def on_epoch_begin(self, batch, logs=None):
         self.epoch_time_start = time.time()
 
-    def on_epoch_end(self, batch, logs={}):
+    def on_epoch_end(self, batch, logs=None):
         t = time.time() - self.epoch_time_start
         LOGGER.info('Epoch took {} seconds'.format(t))
-        self.times.append(t)
+        self.epoch_times.append(t)
+
+    def on_batch_begin(self, batch, logs=None):
+        self.batch_time_start = time.time()
+
+    def on_batch_end(self, batch, logs=None):
+        t = time.time() - self.batch_time_start
+        LOGGER.info('Batch took {} seconds'.format(t))
+        self.batch_times.append(t)
 
 
 #def train(train_csv_path, model_id, output_dir, num_epochs=150, epoch_size=512,
@@ -589,18 +619,18 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
           train_batch_size=64, validation_batch_size=64,
           train_num_streamers=16, validation_num_streamers=16,
           train_num_distractors=1, validation_num_distractors=2,
-          train_mux_rate=16, validation_mux_rate=16,
+          model_type='cnn_L3_orig', train_mux_rate=16, validation_mux_rate=16,
           learning_rate=1e-4, random_state=20171021, train_max_videos=None,
           validation_max_videos=None, verbose=False, checkpoint_interval=10,
           ontology_path=None, log_path=None, disable_logging=False,
-          augment=False, gpus=1):
+          precompute=False, augment=False, gpus=1):
 
     init_console_logger(LOGGER, verbose=verbose)
     if not disable_logging:
         init_file_logger(LOGGER, log_path=log_path)
     LOGGER.debug('Initialized logging.')
 
-    m, inputs, outputs = construct_cnn_L3_orig()
+    m, inputs, outputs = MODELS[model_type]()
     if gpus > 1:
         m = multi_gpu_model(m, gpus=gpus)
     loss = 'categorical_crossentropy'
@@ -666,6 +696,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
         augment=augment,
         num_distractors=train_num_distractors,
         max_videos=train_max_videos,
+        precompute=precompute,
         rate=train_mux_rate)
 
     train_gen = pescador.maps.keras_tuples(train_gen,
@@ -683,6 +714,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
         k=validation_num_streamers,
         num_distractors=validation_num_distractors,
         max_videos=validation_max_videos,
+        precompute=precompute,
         rate=validation_mux_rate)
 
     val_gen = pescador.maps.keras_tuples(val_gen,
@@ -700,6 +732,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
     history = m.fit_generator(train_gen, train_epoch_size, num_epochs,
                               validation_data=val_gen,
                               validation_steps=validation_epoch_size,
+                              #use_multiprocessing=True,
                               callbacks=cb,
                               verbose=verbosity)
 

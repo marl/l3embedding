@@ -110,6 +110,14 @@ def parse_arguments():
                         default=1e-4,
                         help='Optimization learning rate')
 
+    parser.add_argument('-mt',
+                        '--model-type',
+                        dest='model_type',
+                        action='store',
+                        type=str,
+                        default='cnn_L3_orig',
+                        help='Name of model type to train')
+
     parser.add_argument('-ci',
                         '--checkpoint-interval',
                         dest='checkpoint_interval',
@@ -154,6 +162,13 @@ def parse_arguments():
                         action='store_true',
                         default=False,
                         help='If True, performs data augmentation on audio and images')
+
+    parser.add_argument('-pc',
+                        '--precompute',
+                        dest='precompute',
+                        action='store_true',
+                        default=False,
+                        help='If True, streamer precompute samples')
 
     parser.add_argument('--gpus',
                         dest='gpus',

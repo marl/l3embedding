@@ -14,7 +14,8 @@ def adjust_saturation(rgb_img, factor):
         adjusted_img: RGB image with adjusted saturation
     """
     hsv_img = skimage.color.rgb2hsv(rgb_img)
-    hsv_img[:,:,1] = np.clip(hsv_img[:,:,1] * factor, 0.0, 1.0)
+    imin, imax = skimage.dtype_limits(hsv_img)
+    hsv_img[:,:,1] = np.clip(hsv_img[:,:,1] * factor, imin, imax)
     return skimage.color.hsv2rgb(hsv_img)
 
 
