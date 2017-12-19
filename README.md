@@ -1,6 +1,11 @@
 # l3embedding
 This is an implementation of the proposed model in Look, Listen and Learn ([Arandjelović, R., Zisserman, A. 2017](https://arxiv.org/pdf/1705.08168.pdf)). This model uses videos to learn vision and audio features in an unsupervised fashion by training the model for the proposed Audio-Visual Correspondence (AVC) task. This task tries to determine whether a piece of audio and an image frame come from the same video and occur simulatneously.
 
+Dependencies
+* Python 3
+* [ffmpeg](http://www.ffmpeg.org)
+* [sox](http://sox.sourceforge.net)
+
 The code for the model and training implementation can be found in `l3embedding/`. Note that the metadata format expected is the same used in [AudioSet](https://research.google.com/audioset/download.html) ([Gemmeke, J., Ellis, D., et al. 2017](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/45857.pdf)), as training this model on AudioSet was one of the goals for this implementation.
 
 You can train an AVC/embedding model using `train.py`. Run `python train.py -h` to read the help message regarding how to use the script.
