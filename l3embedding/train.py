@@ -11,10 +11,8 @@ import csv
 
 import keras
 from keras.optimizers import Adam
-import numpy as np
 import pescador
 import scipy.misc
-import skimage
 from skvideo.io import FFmpegReader, ffprobe
 import soundfile as sf
 from tqdm import tqdm
@@ -88,6 +86,11 @@ def get_file_list(data_dir, metadata_path=None, filter_path=None, ontology_path=
 
     Args:
         data_dir: input directory that contains audio/ and video/
+
+    Keyword Args:
+        metadata_path: Path to audioset metadata file
+        filter_path: Path to filter specification file
+        ontology_path: Path to AudioSet ontology file
 
     Returns:
         audio_files: list of audio files
@@ -254,6 +257,8 @@ def sample_one_frame(video_data, start=None, fps=30, augment=False):
 
     Args:
         video_data: video data to sample from
+
+    Keyword Args:
         start: start time of a one second window from which to sample
         fps: frame per second
         augment: if True, perturb the data in some fashion
@@ -338,6 +343,18 @@ def sample_one_frame(video_data, start=None, fps=30, augment=False):
 
 
 def read_video(video_path):
+    """
+    Read a video file as a numpy array
+
+    Resizes frames so that the minimum side is 256 pixels
+
+    Args:
+        video_path: Path to video file
+
+    Returns:
+        video: Numpy data array
+
+    """
     vinfo = ffprobe(video_path)['video']
     width = int(vinfo['@width'])
     height = int(vinfo['@height'])
@@ -361,6 +378,30 @@ def read_video(video_path):
 def generate_sample(audio_file_1, audio_data_1, audio_file_2, audio_data_2,
                     video_file_1, video_data_1, video_file_2, video_data_2,
                     audio_sampling_frequency, augment=False):
+    """
+    Generate a sample from the given audio and video files
+
+    The video from which the audio come from is chosen with a fair coin, as is
+    the video frame. Thus, there is a 50% chance of producing a positive or
+    negative example.
+
+    Args:
+        audio_file_1: audio filename
+        audio_data_1: audio data array
+        audio_file_2: audio filename
+        audio_data_2: audio data array
+        video_file_1: video filename
+        video_data_1: video data array
+        video_file_2: video filename
+        video_data_2: video data array
+        audio_sampling_frequency: audio sample rate
+
+    Keyword Args
+        augment: If True, perform data augmention
+
+    Returns:
+        sample: sample dictionary
+    """
     video_choice = random.random() < 0.5
     audio_choice = random.random() < 0.5
 
@@ -392,12 +433,12 @@ def generate_sample(audio_file_1, audio_data_1, audio_file_2, audio_data_2,
         'video': np.ascontiguousarray(sample_video_data),
         'audio': np.ascontiguousarray(sample_audio_data),
         'label': np.ascontiguousarray(np.array([label, 1 - label])),
-#            'audio_file': audio_file,
-#            'video_file': video_file,
-#            'audio_start': audio_start,
-#            'video_start': video_start,
-#            'audio_augment_params': audio_aug_params,
-#            'video_augment_params': video_aug_params
+#       'audio_file': audio_file,
+#       'video_file': video_file,
+#       'audio_start': audio_start,
+#       'video_start': video_start,
+#       'audio_augment_params': audio_aug_params,
+#       'video_augment_params': video_aug_params
     }
 
     return sample
@@ -410,6 +451,12 @@ def sampler(video_file_1, video_file_2, rate=32, augment=False, precompute=False
     Args:
         video_file_1: video_file to sample from
         video_file_2: candidate audio_files to sample from
+
+    Keyword Args:
+        rate: Poisson rate parameter. Used for precomputing samples
+        augment: If True, perform data augmention
+        precompute: If True, precompute samples during initialization so that
+                    memory can be discarded
 
     Returns:
         A generator that yields dictionary of video sample, audio sample,
@@ -516,8 +563,13 @@ def data_generator(data_dir, metadata_path=None, filter_path=None, ontology_path
 
     Args:
         data_dir: directory to sample video and audio from
+        metadata_path: Path to audioset metadata file
+        filter_path: Path to filter specification file
+        ontology_path: Path to AudioSet ontology file
         k: number of concurrent open streamer
         batch_size: batch size
+        random_state: Value used to initialize state of RNG
+        num_distractors: Number of pairs to generate a stream for each video
 
     Returns:
         A generator that yield infinite video and audio samples from data_dir
@@ -564,6 +616,9 @@ def data_generator(data_dir, metadata_path=None, filter_path=None, ontology_path
 
 
 class LossHistory(keras.callbacks.Callback):
+    """
+    Keras callback to record loss history
+    """
 
     def __init__(self, outfile):
         super().__init__()
@@ -588,8 +643,11 @@ class LossHistory(keras.callbacks.Callback):
 
 
 class TimeHistory(keras.callbacks.Callback):
+    """
+    Keras callback to log epoch and batch running time
+    """
     # Copied from https://stackoverflow.com/a/43186440/1260544
-    def on_train_begin(self, logs={}):
+    def on_train_begin(self, logs=None):
         self.epoch_times = []
         self.batch_times = []
 
@@ -741,21 +799,4 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
     with open(os.path.join(model_dir, 'history.pkl'), 'wb') as fd:
         pickle.dump(history.history, fd)
 
-    # Evaluate model
-    # print('Evaluate model...')
-    # Load best params
-    # m.load_weights(weight_path)
-    # with open(os.path.join(output_dir, 'index_test.json'), 'r') as fp:
-    #     test_idx = json.load(fp)['id']
-
-    # Compute eval scores
-    # results = score_model(output_dir, pump, model, test_idx, working,
-    #                       strong_label_file, duration, modelid,
-    #                       use_orig_duration=True)
-
-    # Save results to disk
-    # results_file = os.path.join(model_dir, 'results.json')
-    # with open(results_file, 'w') as fp:
-    #     json.dump(results, fp, indent=2)
-
-    print('Done!')
+    LOGGER.info('Done!')

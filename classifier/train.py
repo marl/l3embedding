@@ -1,7 +1,6 @@
 import os
 import scipy as sp
 import numpy as np
-import soundfile as sf
 import json
 import csv
 import logging
@@ -11,7 +10,6 @@ from keras.optimizers import Adam
 import keras.regularizers as regularizers
 from keras.models import Model
 from keras.layers import Input, Dense, Activation
-from itertools import islice
 from sklearn.externals import joblib
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
@@ -232,7 +230,8 @@ def get_us8k_folds(metadata, data_dir, l3embedding_model=None,
     return fold_data
 
 
-def get_fold_data(metadata, data_dir, fold_idx, l3embedding_model=None, features='l3_stack', label_format='int'):
+def get_fold_data(metadata, data_dir, fold_idx, l3embedding_model=None,
+                  features='l3_stack', label_format='int'):
     """
     Load all of the data for a specific fold
 
@@ -375,7 +374,25 @@ def train_svm(X_train, y_train, X_test, y_test, C=1e-4, verbose=False, **kwargs)
 
     return clf, y_train_pred, y_test_pred
 
+
 def construct_mlp_model(input_shape, weight_decay=1e-5):
+    """
+    Constructs a multi-layer perceptron model
+
+    Args:
+        input_shape: Shape of input data
+                     (Type: tuple[int])
+        weight_decay: L2 regularization factor
+                      (Type: float)
+
+    Returns:
+        model: L3 CNN model
+               (Type: keras.models.Model)
+        input: Model input
+               (Type: list[keras.layers.Input])
+        output:Model output
+                (Type: keras.layers.Layer)
+    """
     weight_decay = 1e-5
     l2_weight_decay = regularizers.l2(weight_decay)
     inp = Input(shape=input_shape, dtype='float32')
@@ -411,6 +428,20 @@ def train_mlp(X_train, y_train, X_test, y_test, model_dir,
     Keyword Args:
         verbose:  If True, print verbose messages
                   (Type: bool)
+        batch_size: Number of smamples per batch
+                    (Type: int)
+        num_epochs: Number of training epochs
+                    (Type: int)
+        train_epoch_size: Number of training batches per training epoch
+                          (Type: int)
+        validation_epoch_size: Number of validation batches per validation epoch
+                               (Type: int)
+        validation_split: Percentage of training data used for validation
+                          (Type: float)
+        learning_rate: Learning rate value
+                       (Type: float)
+        weight_decay: L2 regularization factor
+                      (Type: float)
     """
     loss = 'categorical_crossentropy'
     metrics = ['accuracy']
@@ -495,6 +526,10 @@ def aggregate_metrics(fold_metrics):
     Args:
         fold_metrics: List of fold metrics dictionaries
                       (Type: list[dict[str, *]])
+
+    Returns:
+        aggr_metrics: Statistics averaged across epochs
+                      (Type: dict[str, dict[str,float]])
     """
     metric_keys = list(fold_metrics[0].keys())
     fold_metrics_list = {k: [fold[k] for fold in fold_metrics]
@@ -523,6 +558,8 @@ def print_metrics(metrics, subset_name):
     Args:
         metrics: Metrics dictionary
                  (Type: dict[str, *])
+        subset_name: Name of subset to print
+                     (Type: str)
     """
     LOGGER.info("Results metrics for {}".format(subset_name))
     LOGGER.info("=====================================================")

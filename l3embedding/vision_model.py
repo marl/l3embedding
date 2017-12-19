@@ -77,8 +77,8 @@ def construct_cnn_L3_orig_vision_model():
                  kernel_regularizer=regularizers.l2(weight_decay))(y_i)
     y_i = BatchNormalization()(y_i)
     y_i = Activation('relu')(y_i)
-    y_i = Conv2D(name='vision_embedding_layer',
-                 n_filter_i_4, filt_size_i_4, padding='same',
+    y_i = Conv2D(n_filter_i_4, filt_size_i_4,
+                 name='vision_embedding_layer', padding='same',
                  kernel_regularizer=regularizers.l2(weight_decay))(y_i)
     y_i = BatchNormalization()(y_i)
     y_i = Activation('relu')(y_i)
@@ -91,13 +91,27 @@ def construct_cnn_L3_orig_vision_model():
     return m, x_i, y_i
 
 
-def construct_cnn_l3_orig_vision_embedding(vision_model, x_i):
+def construct_cnn_l3_orig_vision_embedding_model(vision_model, x_i):
+    """
+    Constructs a model that produces the learned vision embedding
+
+    Args:
+        vision_model: Vision subnetwork
+        x_i: Image data input Tensor
+
+    Returns:
+        m:   Model object
+        x_i: Image data input Tensor
+        y_i: Embedding output Tensor
+
+    """
     pool_size = (7, 7)
     embed_layer = vision_model.get_layer('vision_embedding_layer')
     y_i = MaxPooling2D(pool_size=pool_size, padding='same')(embed_layer)
     y_i = Flatten()(y_i)
 
     m = Model(inputs=x_i, outputs=y_i)
+    return m, x_i, y_i
 
 
 def construct_tiny_L3_vision_model():
@@ -145,5 +159,5 @@ def construct_tiny_L3_vision_model():
 
 
 EMBEDDING_MODELS = {
-    'cnn_L3_orig': construct_cnn_l3_orig_vision_embedding
+    'cnn_L3_orig': construct_cnn_l3_orig_vision_embedding_model
 }

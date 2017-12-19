@@ -1,6 +1,5 @@
 from keras.models import Model
 from keras.layers import concatenate, Dense, MaxPooling2D, Flatten
-import keras.regularizers as regularizers
 from .vision_model import *
 from .audio_model import *
 
@@ -44,9 +43,17 @@ def load_model(weights_path, model_type, return_io=False):
         model_type:    Name of model type
                        (Type: str)
 
+    Keyword Args:
+        return_io:  If True, return input and output tensors
+                    (Type: bool)
+
     Returns:
         model:  Loaded model object
                 (Type: keras.engine.training.Model)
+        x_i:    Input Tensor. Not returned if return_io is False.
+                (Type: keras.layers.Input)
+        y_i:    Embedding output Tensor/Layer. Not returned if return_io is False.
+                (Type: keras.layers.Layer)
     """
     if model_type not in MODELS:
         raise ValueError('Invalid model type: "{}"'.format(model_type))
@@ -54,12 +61,12 @@ def load_model(weights_path, model_type, return_io=False):
     m, inputs, output = MODELS[model_type]()
     m.load_weights(weights_path)
     if return_io:
-        return m, inputs, outputs
+        return m, inputs, output
     else:
         return m
 
 
-def load_embedding(weights_path, model_type, embedding_type):
+def load_embedding(weights_path, model_type, embedding_type, return_io=False):
     """
     Loads an embedding model
 
@@ -71,25 +78,34 @@ def load_embedding(weights_path, model_type, embedding_type):
         embedding_type:  Type of embedding to load ('audio' or 'vision')
                          (Type: str)
 
+    Keyword Args:
+        return_io:  If True, return input and output tensors
+                    (Type: bool)
+
     Returns:
-        model:  Loaded model object
+        model:  Embedding model object
                 (Type: keras.engine.training.Model)
+        x_i:    Input Tensor. Not returned if return_io is False.
+                (Type: keras.layers.Input)
+        y_i:    Embedding output Tensor/Layer. Not returned if return_io is False.
+                (Type: keras.layers.Layer)
     """
     m, inputs, output = load_model(weights_path, model_type, return_io=True)
     x_i, x_a = inputs
     if embedding_type == 'vision':
         m_embed_model = m.get_layer('vision_model')
-        m_embed_layer = m_embed.get_layer('vision_embedding_layer')
-        m_embed = EMBEDDING_MODELS[model_type](m_embed, x_i)
+        m_embed, x_embed, y_embed = EMBEDDING_MODELS[model_type](m_embed_model, x_i)
 
     elif embedding_type == 'audio':
         m_embed_model = m.get_layer('audio_model')
-        m_embed_layer = m_embed.get_layer('audio_embedding_layer')
-        m_embed = EMBEDDING_MODELS[model_type](m_embed, x_a)
+        m_embed, x_embed, y_embed = EMBEDDING_MODELS[model_type](m_embed_model, x_a)
     else:
         raise ValueError('Invalid embedding type: "{}"'.format(embedding_type))
 
-    return m_embed
+    if return_io:
+        return m_embed, x_embed, y_embed
+    else:
+        return m_embed
 
 
 def construct_cnn_L3_orig():
