@@ -23,7 +23,7 @@ from tqdm import tqdm
 
 from log import *
 
-LOGGER = logging.getLogger('l3embedding')
+LOGGER = logging.getLogger('sampling')
 LOGGER.setLevel(logging.ERROR)
 
 
@@ -677,8 +677,6 @@ def sample_and_save(index):
         write_to_h5('{}_{}_{}.h5'.format(output_dir, index, sub_index), batch)
 
 
-from multiprocessing import Pool
-
 def map_iterate_in_parallel(iterable, function, processes=8):
     pool = Pool(processes=processes)
     output = pool.map(function, iterable)
@@ -736,12 +734,14 @@ if __name__ == '__main__':
     # train_num_streamers = 64
     # train_mux_rate = 2
     # output_dir = '/scratch/hhw230/train'
+    # num_workers = 2
 
     train_data_dir = args.train_data_dir
     train_batch_size = args.train_batch_size
     train_num_streamers = args.train_num_streamers
     train_mux_rate = args.train_mux_rate
     output_dir = args.output_dir
+    num_workers = args.num_workers
 
-    map_iterate_in_parallel(range(args.num_workers), sample_and_save,
-                            processes=args.num_workers)
+    map_iterate_in_parallel(range(num_workers), sample_and_save,
+                            processes=num_workers)
