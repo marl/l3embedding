@@ -711,6 +711,14 @@ if __name__ == '__main__':
                         default=2.0,
                         help='Poisson distribution parameter for determining number of training samples to take from a streamer')
 
+    parser.add_argument('-n',
+                        '--num-workers',
+                        dest='num_workers',
+                        action='store',
+                        type=int,
+                        default=4,
+                        help='Number of multiprocessing workers used to download videos')
+
     parser.add_argument('train_data_dir',
                         action='store',
                         type=str,
@@ -735,6 +743,5 @@ if __name__ == '__main__':
     train_mux_rate = args.train_mux_rate
     output_dir = args.output_dir
 
-    number_proc = 2
-    map_iterate_in_parallel(range(number_proc), sample_and_save,
-                            processes=number_proc)
+    map_iterate_in_parallel(range(args.num_workers), sample_and_save,
+                            processes=args.num_workers)
