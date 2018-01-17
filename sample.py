@@ -674,7 +674,7 @@ def sample_and_save(index):
         rate=train_mux_rate)
 
     for sub_index, batch in enumerate(train_gen):
-        write_to_h5('{}_{}_{}.h5'.format(output_dir, index, sub_index), batch)
+        write_to_h5('{}/{}_{}.h5'.format(output_dir, index, sub_index), batch)
 
 
 def map_iterate_in_parallel(iterable, function, processes=8):
