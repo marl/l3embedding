@@ -1,0 +1,111 @@
+filter_type,accept_reject,string
+label,accept,Accordion
+label,accept,Acoustic guitar
+label,accept,Alto saxophone
+label,accept,Bagpipes
+label,accept,Banjo
+label,accept,Bass (instrument role)
+label,accept,Bass drum
+label,accept,Bass guitar
+label,accept,Bassoon
+label,accept,Bell
+label,accept,Bicycle bell
+label,accept,Bowed string instrument
+label,accept,Brass instrument
+label,accept,Bugle
+label,accept,Cello
+label,accept,Change ringing (campanology)
+label,accept,Chant
+label,accept,Child singing
+label,accept,Chime
+label,accept,Choir
+label,accept,Church bell
+label,accept,Clarinet
+label,accept,Clavinet
+label,accept,Cornet
+label,accept,Cowbell
+label,accept,Crash cymbal
+label,accept,Cymbal
+label,accept,"Dental drill, dentist's drill"
+label,accept,Didgeridoo
+label,accept,Double bass
+label,accept,Drill
+label,accept,Drum
+label,accept,Drum kit
+label,accept,Drum machine
+label,accept,Drum roll
+label,accept,Electric guitar
+label,accept,Electric piano
+label,accept,Electronic organ
+label,accept,Female singing
+label,accept,Filing (rasp)
+label,accept,Flute
+label,accept,French horn
+label,accept,Glockenspiel
+label,accept,Gong
+label,accept,Guitar
+label,accept,Hammer
+label,accept,Hammond organ
+label,accept,Harmonica
+label,accept,Harp
+label,accept,Harpsichord
+label,accept,Hi-hat
+label,accept,Jackhammer
+label,accept,Jingle bell
+label,accept,Keyboard (musical)
+label,accept,Male singing
+label,accept,Mallet percussion
+label,accept,Mandolin
+label,accept,Mantra
+label,accept,Maraca
+label,accept,"Marimba, xylophone"
+label,accept,Mellotron
+label,accept,Musical ensemble
+label,accept,Musical instrument
+label,accept,Oboe
+label,accept,Orchestra
+label,accept,Organ
+label,accept,Percussion
+label,accept,Piano
+label,accept,Pizzicato
+label,accept,Plucked string instrument
+label,accept,Power tool
+label,accept,Rapping
+label,accept,Rattle (instrument)
+label,accept,Rhodes piano
+label,accept,Rimshot
+label,accept,Sampler
+label,accept,Sanding
+label,accept,Sawing
+label,accept,Saxophone
+label,accept,Scratching (performance technique)
+label,accept,Shofar
+label,accept,Singing
+label,accept,Singing bowl
+label,accept,Sitar
+label,accept,Snare drum
+label,accept,Soprano saxophone
+label,accept,"Steel guitar, slide guitar"
+label,accept,Steelpan
+label,accept,String section
+label,accept,Strum
+label,accept,Synthesizer
+label,accept,Synthetic singing
+label,accept,Tabla
+label,accept,Tambourine
+label,accept,Tapping (guitar technique)
+label,accept,Theremin
+label,accept,Timpani
+label,accept,Tools
+label,accept,Trombone
+label,accept,Trumpet
+label,accept,Tubular bells
+label,accept,Tuning fork
+label,accept,Ukulele
+label,accept,Vibraphone
+label,accept,"Violin, fiddle"
+label,accept,Wind chime
+label,accept,"Wind instrument, woodwind instrument"
+label,accept,Wood block
+label,accept,Yodeling
+label,accept,Zither
