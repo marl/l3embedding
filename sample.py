@@ -13,6 +13,7 @@ import warnings
 
 import h5py
 import numpy as np
+import pandas as pd
 import pescador
 import scipy.misc
 import skimage
@@ -86,6 +87,12 @@ def get_filename(path):
     return os.path.splitext(os.path.basename(path))[0]
 
 
+def get_filter_video_list(filter_file):
+    df = pd.read_csv(filter_file)
+    filter_video_list = list(df['video_filepath'])
+    return set([get_filename(video) for video in filter_video_list])
+
+
 def load_metadata(metadata_path):
     metadata = {}
     for path in glob.glob(metadata_path):
@@ -127,7 +134,7 @@ def get_ytid_from_filename(filename):
     return filename[:second_us_idx]
 
 
-def get_file_list(data_dir, metadata_path=None, filter_path=None, ontology_path=None):
+def get_file_list(data_dir, metadata_path=None, filter_path=None, ontology_path=None, filter_file=None):
     """Return audio and video file list.
 
     Args:
@@ -154,6 +161,10 @@ def get_file_list(data_dir, metadata_path=None, filter_path=None, ontology_path=
     # Make sure that audio files and video files correspond to each other
     audio_filenames = set([get_filename(path) for path in audio_files])
     video_filenames = set([get_filename(path) for path in video_files])
+
+    if filter_file:
+        filter_video_list = get_filter_video_list(filter_file)
+        video_filenames = video_filenames & filter_video_list
 
     valid_filenames = audio_filenames & video_filenames
 
@@ -598,7 +609,7 @@ def sampler(video_file_1, video_file_2, rate=32, augment=False, precompute=False
 
 def data_generator(data_dir, metadata_path=None, filter_path=None, ontology_path=None,
                    k=32, batch_size=64, random_state=20171021, precompute=False,
-                   num_distractors=1, augment=False, rate=32, max_videos=None):
+                   num_distractors=1, augment=False, rate=32, max_videos=None, filter_file=None):
     """Sample video and audio from data_dir, returns a streamer that yield samples infinitely.
 
     Args:
@@ -620,7 +631,9 @@ def data_generator(data_dir, metadata_path=None, filter_path=None, ontology_path
 
     LOGGER.info("Getting file list...")
     _, video_files = get_file_list(data_dir, metadata_path=metadata_path,
-                                             filter_path=filter_path, ontology_path=ontology_path)
+                                             filter_path=filter_path,
+                                             ontology_path=ontology_path,
+                                             filter_file=filter_file)
 
     LOGGER.info("Creating streamers...")
     if max_videos is not None and max_videos < len(video_files):
@@ -717,6 +730,13 @@ if __name__ == '__main__':
                         default=4,
                         help='Number of multiprocessing workers used to download videos')
 
+    parser.add_argument('-tff',
+                        '--train-filter-file',
+                        dest='train_filter_file',
+                        action='store',
+                        type=str,
+                        default=None)
+
     parser.add_argument('train_data_dir',
                         action='store',
                         type=str,
@@ -730,13 +750,15 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # train_data_dir = '/beegfs/work/AudioSet/data'
-    # train_batch_size = 64
+    # train_filter_file = '/scratch/jtc440/audioset_subsets/audioset_filtered_train.csv'
+    # train_batch_size = 512
     # train_num_streamers = 64
     # train_mux_rate = 2
     # output_dir = '/scratch/hhw230/train'
-    # num_workers = 2
+    # num_workers = 16
 
     train_data_dir = args.train_data_dir
+    train_filter_file = args.train_filter_file
     train_batch_size = args.train_batch_size
     train_num_streamers = args.train_num_streamers
     train_mux_rate = args.train_mux_rate
