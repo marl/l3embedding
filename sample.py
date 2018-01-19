@@ -684,7 +684,8 @@ def sample_and_save(index):
         num_distractors=1,
         max_videos=None,
         precompute=False,
-        rate=train_mux_rate)
+        rate=train_mux_rate,
+        filter_file=train_filter_file)
 
     for sub_index, batch in enumerate(train_gen):
         write_to_h5('{}/{}_{}.h5'.format(output_dir, index, sub_index), batch)
