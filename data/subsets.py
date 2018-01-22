@@ -5,6 +5,7 @@ import logging
 import random
 from audioset.ontology import ASOntology
 from collections import OrderedDict
+from .utils import read_csv_as_dicts
 
 LOGGER = logging.getLogger('data')
 LOGGER.setLevel(logging.DEBUG)
@@ -18,17 +19,6 @@ def get_filename(path):
         filename: name of file (without extension)
     """
     return os.path.splitext(os.path.basename(path))[0]
-
-
-def load_filters(filter_path):
-    filters = []
-
-    with open(filter_path, 'r') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            filters.append(row)
-
-    return filters
 
 
 def get_ytid_from_filename(filename):
@@ -132,7 +122,7 @@ def get_file_list(data_dir, metadata_path=None, filter_path=None, ontology_path=
 
     if metadata_path and filter_path:
         LOGGER.info('Filtering examples...')
-        filters = load_filters(filter_path)
+        filters = read_csv_as_dicts(filter_path)
 
         filtered_file_list = []
 
@@ -141,10 +131,14 @@ def get_file_list(data_dir, metadata_path=None, filter_path=None, ontology_path=
             label_list = item['labels']
 
             accept = None
+            has_accept_filter = False
             for _filter in filters:
                 filter_type = _filter['filter_type']
                 filter_accept = _filter['accept_reject'] == 'accept'
                 string = _filter['string']
+
+                if filter_accept:
+                    has_accept_filter = True
 
                 if filter_type == 'ytid':
                     match = ytid == string
@@ -162,6 +156,9 @@ def get_file_list(data_dir, metadata_path=None, filter_path=None, ontology_path=
                     # If a reject filter gets a match, do not accept file and break from the loop
                     accept = False
                     break
+
+            if accept is None:
+                accept = not has_accept_filter
 
             if accept:
                 #LOGGER.debug('Using video: "{}"'.format(filename))
