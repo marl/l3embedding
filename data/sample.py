@@ -499,7 +499,7 @@ def sampler(video_1, video_2, rate=32, augment=False, precompute=False, include_
 
 def data_generator(subset_path, k=32, batch_size=64, random_state=20171021,
                    precompute=False, num_distractors=1, augment=False, rate=32,
-                   max_videos=None, include_metadata=False):
+                   max_videos=None, include_metadata=False, cycle=False):
     """Sample video and audio from data_dir, returns a streamer that yield samples infinitely.
 
     Args:
@@ -543,6 +543,9 @@ def data_generator(subset_path, k=32, batch_size=64, random_state=20171021,
     random.shuffle(seeds)
 
     mux = pescador.Mux(seeds, k, rate=rate)
+    if cycle:
+        mux = mux.cycle()
+
     if batch_size == 1:
         return mux
     else:
@@ -555,9 +558,10 @@ def write_to_h5(path, batch):
             f.create_dataset(key, data=batch[key], compression='gzip')
 
 
-def sample_and_save(index, subset_path, output_dir, num_streamers=32, batch_size=64,
-                    random_state=20171021, precompute=False, num_distractors=1,
-                    augment=False, rate=32, max_videos=None, include_metadata=False):
+def sample_and_save(index, subset_path, num_batches, output_dir,
+                    num_streamers=32, batch_size=64, random_state=20171021,
+                    precompute=False, num_distractors=1, augment=False, rate=32,
+                    max_videos=None, include_metadata=False):
     data_gen = data_generator(
         subset_path,
         batch_size=batch_size,
@@ -576,3 +580,6 @@ def sample_and_save(index, subset_path, output_dir, num_streamers=32, batch_size
     for sub_index, batch in enumerate(data_gen):
         batch_path = os.path.join(output_dir, '{}_{}.h5'.format(index, sub_index))
         write_to_h5(batch_path, batch)
+
+        if sub_index == (num_batches - 1):
+            break
