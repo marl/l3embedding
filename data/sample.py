@@ -272,7 +272,8 @@ def sample_one_frame(video_data, start=None, fps=30, augment=False):
             'brightness_delta': brightness_delta
         })
 
-    frame_data = skimage.img_as_float32(frame_data)
+    # Make in range [-1,1]
+    frame_data = skimage.img_as_float32(frame_data) * 2 - 1
 
 
     return frame_data, frame / fps, video_aug_params
@@ -578,7 +579,7 @@ def sample_and_save(index, subset_path, num_batches, output_dir,
         os.makedirs(output_dir)
 
     for sub_index, batch in enumerate(data_gen):
-        batch_path = os.path.join(output_dir, '{}_{}.h5'.format(index, sub_index))
+        batch_path = os.path.join(output_dir, '{}_{}_{}.h5'.format(random_state, index, sub_index))
         write_to_h5(batch_path, batch)
 
         if sub_index == (num_batches - 1):
