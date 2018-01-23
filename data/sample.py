@@ -272,10 +272,6 @@ def sample_one_frame(video_data, start=None, fps=30, augment=False):
             'brightness_delta': brightness_delta
         })
 
-    # Make in range [-1,1]
-    frame_data = skimage.img_as_float32(frame_data) * 2 - 1
-
-
     return frame_data, frame / fps, video_aug_params
 
 
@@ -373,12 +369,12 @@ def generate_sample(audio_file_1, audio_data_1, audio_file_2, audio_data_2,
     }
 
     if include_metadata:
-        sample['audio_file'] = audio_file
-        sample['video_file'] = video_file
-        sample['audio_start'] = audio_start
-        sample['video_start'] = video_start
-        sample.update(flatten_dict(audio_aug_params))
-        sample.update(flatten_dict(video_aug_params))
+        sample['audio_file'] = audio_file.encode('utf-8')
+        sample['video_file'] = video_file.encode('utf-8')
+        sample['audio_start_ts'] = audio_start
+        sample['video_start_ts'] = video_start
+        sample.update(flatten_dict(audio_aug_params, 'audio'))
+        sample.update(flatten_dict(video_aug_params, 'video'))
 
     return sample
 
@@ -500,7 +496,7 @@ def sampler(video_1, video_2, rate=32, augment=False, precompute=False, include_
 
 def data_generator(subset_path, k=32, batch_size=64, random_state=20171021,
                    precompute=False, num_distractors=1, augment=False, rate=32,
-                   max_videos=None, include_metadata=False, cycle=False):
+                   max_videos=None, include_metadata=False, cycle=True):
     """Sample video and audio from data_dir, returns a streamer that yield samples infinitely.
 
     Args:
@@ -521,7 +517,7 @@ def data_generator(subset_path, k=32, batch_size=64, random_state=20171021,
     file_list = read_csv_as_dicts(subset_path)
 
     LOGGER.info("Creating streamers...")
-    if max_videos is not None and max_videos < len(video_files):
+    if max_videos is not None and max_videos < len(file_list):
         LOGGER.info("Using a subset of {} videos".format(max_videos))
         random.shuffle(file_list)
         file_list = file_list[:max_videos]
@@ -579,7 +575,7 @@ def sample_and_save(index, subset_path, num_batches, output_dir,
         os.makedirs(output_dir)
 
     for sub_index, batch in enumerate(data_gen):
-        batch_path = os.path.join(output_dir, '{}_{}_{}.h5'.format(random_state, random_state + index, sub_index))
+        batch_path = os.path.join(output_dir, '{}_{}.h5'.format(random_state + index, index, sub_index))
         write_to_h5(batch_path, batch)
 
         if sub_index == (num_batches - 1):
