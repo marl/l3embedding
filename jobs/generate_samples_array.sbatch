@@ -2,7 +2,7 @@
 
 #SBATCH --job-name=generate-samples-audioset
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=16
+#SBATCH --cpus-per-task=8
 #SBATCH --mem=64GB
 #SBATCH --time=1-0
 #SBATCH --mail-type=ALL
@@ -18,7 +18,9 @@ source activate l3embedding
 SRCDIR=''
 OUTPUT_DIR=''
 SUBSET_PATH=''
-OFFSET=0
+USER_IDX=0
+NUM_WORKERS=16
+NUM_TASKS=20
 BASE_RANDOM_STATE=20180118
 
 module purge
@@ -29,9 +31,9 @@ python $SRCDIR/02_generate_samples.py \
     --mux-rate 2 \
     --augment \
     --precompute \
-    --num-workers 2 \
+    --num-workers $NUM_WORKERS \
     --num-distractors 1 \
-    --random-state $(($BASE_RANDOM_STATE + $OFFSET + $SLURM_ARRAY_TASK_ID)) \
+    --random-state $[$BASE_RANDOM_STATE + $NUM_WORKERS * ($SLURM_ARRAY_TASK_ID  + $NUM_TASKS * $USER_IDX)] \
     --include-metadata \
     $SUBSET_PATH \
     1000 \
