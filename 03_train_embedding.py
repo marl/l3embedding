@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os.path
 from l3embedding.train import *
 
@@ -54,54 +55,6 @@ def parse_arguments():
                         default=64,
                         help='Number of examples per  batch')
 
-    parser.add_argument('-tns',
-                        '--train-num-streamers',
-                        dest='train_num_streamers',
-                        action='store',
-                        type=int,
-                        default=32,
-                        help='Number of training pescador streamers that can be open concurrently')
-
-    parser.add_argument('-vns',
-                        '--validation-num-streamers',
-                        dest='validation_num_streamers',
-                        action='store',
-                        type=int,
-                        default=32,
-                        help='Number of validation pescador streamers that can be open concurrently')
-
-    parser.add_argument('-tnd',
-                        '--train-num-distractors',
-                        dest='train_num_distractors',
-                        action='store',
-                        type=int,
-                        default=1,
-                        help='Number of distractors for generating training examples')
-
-    parser.add_argument('-vnd',
-                        '--validation-num-distractors',
-                        dest='validation_num_distractors',
-                        action='store',
-                        type=int,
-                        default=2,
-                        help='Number of distractors for generating validation examples')
-
-    parser.add_argument('-tmr',
-                        '--train-mux-rate',
-                        dest='train_mux_rate',
-                        action='store',
-                        type=float,
-                        default=16.0,
-                        help='Poisson distribution parameter for determining number of training samples to take from a streamer')
-
-    parser.add_argument('-vmr',
-                        '--validation-mux-rate',
-                        dest='validation_mux_rate',
-                        action='store',
-                        type=float,
-                        default=16.0,
-                        help='Poisson distribution parameter for determining number of validation samples to take from a streamer')
-
     parser.add_argument('-lr',
                         '--learning-rate',
                         dest='learning_rate',
@@ -126,28 +79,6 @@ def parse_arguments():
                         default=10,
                         help='The number of epochs between model checkpoints')
 
-    parser.add_argument('-o',
-                        '--ontology-path',
-                        dest='ontology_path',
-                        action='store',
-                        type=str,
-                        default=os.path.join(os.path.dirname(__file__), 'resources/ontology.json'),
-                        help='Path to AudioSet ontology')
-
-    parser.add_argument('-tmv',
-                        '--train-max-videos',
-                        dest='train_max_videos',
-                        action='store',
-                        type=int,
-                        help='Maximum number of videos to use for training. If not specified, all videos will be used')
-
-    parser.add_argument('-vmv',
-                        '--validation-max-videos',
-                        dest='validation_max_videos',
-                        action='store',
-                        type=int,
-                        help='Maximum number of videos to use for validation. If not specified, all videos will be used')
-
     parser.add_argument('-r',
                         '--random-state',
                         dest='random_state',
@@ -155,20 +86,6 @@ def parse_arguments():
                         type=int,
                         default=20171021,
                         help='Random seed used to set the RNG state')
-
-    parser.add_argument('-a',
-                        '--augment',
-                        dest='augment',
-                        action='store_true',
-                        default=False,
-                        help='If True, performs data augmentation on audio and images')
-
-    parser.add_argument('-pc',
-                        '--precompute',
-                        dest='precompute',
-                        action='store_true',
-                        default=False,
-                        help='If True, streamer precompute samples')
 
     parser.add_argument('--gpus',
                         dest='gpus',
@@ -183,33 +100,12 @@ def parse_arguments():
                         default=False,
                         help='If True, print detailed messages')
 
-    parser.add_argument('-tmp',
-                        '--train-metadata-path',
-                        dest='train_metadata_path',
+    parser.add_argument('-cmd',
+                        '--continue-model-dir',
+                        dest='continue_model_dir',
                         action='store',
                         type=str,
-                        help='Path to training csv file(s). Accepts a glob string.')
-
-    parser.add_argument('-vmp',
-                        '--validation-metadata-path',
-                        dest='validation_metadata_path',
-                        action='store',
-                        type=str,
-                        help='Path to validation csv file. Accepts a glob string.')
-
-    parser.add_argument('-tfp',
-                        '--train-filter-path',
-                        dest='train_filter_path',
-                        action='store',
-                        type=str,
-                        help='Path to training csv file(s). Accepts a glob string.')
-
-    parser.add_argument('-vfp',
-                        '--validation-filter-path',
-                        dest='validation_filter_path',
-                        action='store',
-                        type=str,
-                        help='Path to validationing csv file(s). Accepts a glob string.')
+                        help='Path to directory containing a model with which to resume training')
 
     parser.add_argument('-lp',
                         '--log-path',
