@@ -7,8 +7,8 @@
 #SBATCH --time=1-0
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=name@email.com
-#SBATCH --output="generate-samples-audioset-%j.out"
-#SBATCH --err="generate-samples-audioset-%j.err"
+#SBATCH --output="generate-samples-audioset-%A-%a.out"
+#SBATCH --err="generate-samples-audioset-%A-%a.err"
 
 
 source ~/.bashrc
@@ -18,6 +18,7 @@ source activate l3embedding
 SRCDIR=''
 OUTPUT_DIR=''
 SUBSET_PATH=''
+OFFSET=0
 BASE_RANDOM_STATE=20180118
 
 module purge
@@ -30,7 +31,7 @@ python $SRCDIR/02_generate_samples.py \
     --precompute \
     --num-workers 2 \
     --num-distractors 1 \
-    --random-state $BASE_RANDOM_STATE \
+    --random-state $(($BASE_RANDOM_STATE + $OFFSET + $SLURM_ARRAY_TASK_ID)) \
     --include-metadata \
     $SUBSET_PATH \
     1000 \
