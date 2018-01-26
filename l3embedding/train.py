@@ -110,7 +110,6 @@ def data_generator(data_dir, batch_size=512, random_state=20180123,
         while blob_start_idx < blob_size:
             blob_end_idx = min(blob_start_idx + batch_size - curr_batch_size, blob_size)
 
-            print(batch_path, blob_start_idx, blob_end_idx, curr_batch_size)
             # If we are starting from a particular batch, skip computing all of
             # the prior batches
             if start_batch_idx is None or batch_idx >= start_batch_idx:
@@ -282,6 +281,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
     val_gen = single_epoch_data_generator(
         validation_data_dir,
         validation_epoch_size,
+        batch_size=validation_batch_size,
         random_state=random_state)
 
     val_gen = pescador.maps.keras_tuples(val_gen,
