@@ -185,6 +185,8 @@ def sample_cropped_frame(frame_data):
     with LogTimer(LOGGER, 'Cropping frame'):
         frame_data = frame_data[start_x:end_x, start_y:end_y, :]
 
+    frame_data = skimage.img_as_float(frame_data).astype('float32')
+
     return frame_data, bbox
 
 
@@ -575,7 +577,7 @@ def sample_and_save(index, subset_path, num_batches, output_dir,
         os.makedirs(output_dir)
 
     for sub_index, batch in enumerate(data_gen):
-        batch_path = os.path.join(output_dir, '{}_{}.h5'.format(random_state + index, index, sub_index))
+        batch_path = os.path.join(output_dir, '{}_{}_{}.h5'.format(random_state + index, index, sub_index))
         write_to_h5(batch_path, batch)
 
         if sub_index == (num_batches - 1):
