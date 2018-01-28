@@ -18,7 +18,7 @@ from skvideo.io import FFmpegReader, ffprobe
 import soundfile as sf
 from tqdm import tqdm
 
-from .model import MODELS
+from .model import MODELS, load_model
 from .training_utils import multi_gpu_model
 from log import *
 import h5py
@@ -232,7 +232,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
                                               verbose=1,
                                               monitor='val_acc')
     if continue_model_dir is not None:
-        best_val_acc_cb.best = val_acc
+        best_val_acc_cb.best = last_val_acc
     cb.append(best_val_acc_cb)
 
     best_val_loss_cb = keras.callbacks.ModelCheckpoint(best_valid_loss_weight_path,
@@ -241,7 +241,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
                                               verbose=1,
                                               monitor='val_loss')
     if continue_model_dir is not None:
-        best_val_loss_cb.best = val_loss
+        best_val_loss_cb.best = last_val_loss
     cb.append(best_val_loss_cb)
 
     checkpoint_cb = keras.callbacks.ModelCheckpoint(checkpoint_weight_path,
