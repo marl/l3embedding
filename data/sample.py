@@ -141,7 +141,10 @@ def sample_one_second(audio_data, sampling_frequency, augment=False):
             audio_data = np.pad(audio_data,
                                 ((0, sampling_frequency - audio_data.shape[0]), (0,0)),
                                 mode='constant')
+
     if augment:
+        orig_dtype = audio_data.dtype
+        audio_data = audio_data.astype(float)
         # Make sure we don't clip
         if np.abs(audio_data).max():
             max_gain = min(0.1, 1.0/np.abs(audio_data).max() - 1)
@@ -152,11 +155,13 @@ def sample_one_second(audio_data, sampling_frequency, augment=False):
         gain = 1 + random.uniform(-0.1, max_gain)
         with LogTimer(LOGGER, 'Applying gain to audio'):
             audio_data *= gain
+
+        audio_data = audio_data.astype(orig_dtype)
         audio_aug_params = {'gain': gain}
     else:
         audio_aug_params = {}
 
-    return audio_data, start / sampling_frequency, audio_aug_params
+    return audio_data, start, audio_aug_params
 
 
 def sample_cropped_frame(frame_data):
@@ -193,7 +198,7 @@ def sample_one_frame(video_data, start=None, fps=30, augment=False):
         video_data: video data to sample from
 
     Keyword Args:
-        start: start time of a one second window from which to sample
+        start: start frame of a one second window from which to sample
         fps: frame per second
         augment: if True, perturb the data in some fashion
 
@@ -273,7 +278,7 @@ def sample_one_frame(video_data, start=None, fps=30, augment=False):
 
     frame_data = skimage.img_as_ubyte(frame_data)
 
-    return frame_data, frame / fps, video_aug_params
+    return frame_data, frame, video_aug_params
 
 
 def read_video(video_path):
@@ -361,7 +366,7 @@ def generate_sample(audio_file_1, audio_data_1, audio_file_2, audio_data_2,
     sample_video_data, video_start, video_aug_params \
         = sample_one_frame(video_data, start=audio_start, augment=augment)
 
-    sample_audio_data = sample_audio_data.mean(axis=-1).reshape((1, sample_audio_data.shape[0]))
+    sample_audio_data = sample_audio_data.reshape((1, sample_audio_data.shape[0]))
 
     sample = {
         'video': np.ascontiguousarray(sample_video_data),
@@ -370,10 +375,10 @@ def generate_sample(audio_file_1, audio_data_1, audio_file_2, audio_data_2,
     }
 
     if include_metadata:
-        sample['audio_file'] = audio_file.encode('utf-8')
-        sample['video_file'] = video_file.encode('utf-8')
-        sample['audio_start_ts'] = audio_start
-        sample['video_start_ts'] = video_start
+        sample['audio_file'] = os.path.basename(audio_file).encode('utf-8')
+        sample['video_file'] = os.path.basename(video_file).encode('utf-8')
+        sample['audio_start_sample_idx'] = audio_start
+        sample['video_start_frame_idx'] = video_start
         sample.update(flatten_dict(audio_aug_params, 'audio'))
         sample.update(flatten_dict(video_aug_params, 'video'))
 
@@ -436,8 +441,10 @@ def sampler(video_1, video_2, rate=32, augment=False, precompute=False, include_
     try:
         with LogTimer(LOGGER, 'Reading audio'):
             audio_data_1, sampling_frequency = sf.read(audio_file_1,
-                                                       dtype='float32',
+                                                       dtype='int16',
                                                        always_2d=True)
+            audio_data_1 = audio_data_1.mean(axis=-1).astype('int16')
+
     except Exception as e:
         warn_msg = 'Could not open audio file {} - {}: {}; Skipping...'
         warn_msg = warn_msg.format(audio_file_1, type(e), e)
@@ -448,8 +455,9 @@ def sampler(video_1, video_2, rate=32, augment=False, precompute=False, include_
     try:
         with LogTimer(LOGGER, 'Reading audio'):
             audio_data_2, sampling_frequency = sf.read(audio_file_2,
-                                                       dtype='float32',
+                                                       dtype='int16',
                                                        always_2d=True)
+            audio_data_2 = audio_data_2.mean(axis=-1).astype('int16')
     except Exception as e:
         warn_msg = 'Could not open audio file {} - {}: {}; Skipping...'
         warn_msg = warn_msg.format(audio_file_2, type(e), e)
