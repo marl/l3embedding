@@ -178,14 +178,10 @@ def sample_cropped_frame(frame_data):
     bbox = {
         'start_x': start_x,
         'start_y': start_y,
-        'end_x': end_x,
-        'end_y': end_y
     }
 
     with LogTimer(LOGGER, 'Cropping frame'):
         frame_data = frame_data[start_x:end_x, start_y:end_y, :]
-
-    frame_data = skimage.img_as_float(frame_data).astype('float32')
 
     return frame_data, bbox
 
@@ -231,6 +227,8 @@ def sample_one_frame(video_data, start=None, fps=30, augment=False):
     frame_data = video_data[frame]
     frame_data, bbox = sample_cropped_frame(frame_data)
 
+    frame_data = skimage.img_as_float(frame_data)
+
     video_aug_params = {'bounding_box': bbox}
 
     if augment:
@@ -240,7 +238,6 @@ def sample_one_frame(video_data, start=None, fps=30, augment=False):
             with LogTimer(LOGGER, 'Flipping frame'):
                 frame_data = horiz_flip(frame_data)
             horizontal_flip = True
-
 
         # Ranges taken from https://github.com/tensorflow/models/blob/master/research/slim/preprocessing/inception_preprocessing.py
 
@@ -273,6 +270,8 @@ def sample_one_frame(video_data, start=None, fps=30, augment=False):
             'saturation_factor': saturation_factor,
             'brightness_delta': brightness_delta
         })
+
+    frame_data = skimage.img_as_ubyte(frame_data)
 
     return frame_data, frame / fps, video_aug_params
 
