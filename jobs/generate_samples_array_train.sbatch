@@ -16,11 +16,11 @@ cd /home/$USER/dev
 source activate l3embedding
 
 SRCDIR=$HOME/dev/l3embedding
-OUTPUT_DIR=/scratch/jtc440/audioset_subsets_data/filtered_train
+OUTPUT_DIR=/beegfs/work/AudioSetSamples/filtered_train
 SUBSET_PATH=/scratch/jtc440/audioset_subsets/audioset_filtered_train.csv
 USER_IDX=0
 NUM_WORKERS=8
-NUM_TASKS=16
+NUM_TASKS=12
 BASE_RANDOM_STATE=20180118
 
 module purge
