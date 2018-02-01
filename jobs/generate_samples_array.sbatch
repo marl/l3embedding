@@ -34,7 +34,7 @@ python $SRCDIR/02_generate_samples.py \
     --precompute \
     --num-workers $NUM_WORKERS \
     --num-distractors 1 \
-    --random-state $[$BASE_RANDOM_STATE + $NUM_WORKERS * ($SLURM_ARRAY_TASK_ID  + $NUM_TASKS * $USER_IDX)] \
+    --random-state $[$BASE_RANDOM_STATE + $NUM_WORKERS * ($SLURM_ARRAY_TASK_ID - 1 + $NUM_TASKS * $USER_IDX)] \
     --include-metadata \
     $SUBSET_PATH \
     $[1000 / $NUM_TASKS] \
