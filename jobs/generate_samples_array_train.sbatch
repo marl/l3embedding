@@ -19,9 +19,9 @@ SRCDIR=$HOME/dev/l3embedding
 OUTPUT_DIR=/beegfs/work/AudioSetSamples/filtered_train
 SUBSET_PATH=/scratch/jtc440/audioset_subsets/audioset_filtered_train.csv
 USER_IDX=0
-NUM_WORKERS=8
+NUM_WORKERS=4
 NUM_TASKS=12
-BASE_RANDOM_STATE=20180118
+BASE_RANDOM_STATE=20183000
 
 module purge
 module load ffmpeg/intel/3.2.2
@@ -34,7 +34,7 @@ python $SRCDIR/02_generate_samples.py \
     --precompute \
     --num-workers $NUM_WORKERS \
     --num-distractors 2 \
-    --random-state $[$BASE_RANDOM_STATE + $NUM_WORKERS * ($SLURM_ARRAY_TASK_ID  + $NUM_TASKS * $USER_IDX)] \
+    --random-state $[$BASE_RANDOM_STATE + $NUM_WORKERS * ($SLURM_ARRAY_TASK_ID - 1  + $NUM_TASKS * $USER_IDX)] \
     --include-metadata \
     $SUBSET_PATH \
     $[30000000 / $NUM_TASKS] \
