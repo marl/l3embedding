@@ -15,11 +15,13 @@ from keras.optimizers import Adam
 import pescador
 import scipy.misc
 from skvideo.io import FFmpegReader, ffprobe
+from skimage import img_as_float
 import soundfile as sf
 from tqdm import tqdm
 
 from .model import MODELS, load_model
 from .training_utils import multi_gpu_model
+from .audio import pcm2float
 from log import *
 import h5py
 
@@ -132,7 +134,10 @@ def data_generator(data_dir, batch_size=512, random_state=20180123,
                 # of the prior batches
                 if start_batch_idx is None or batch_idx >= start_batch_idx:
                     # Preprocess video so samples are in [-1,1]
-                    batch['video'] = 2 * batch['video'] - 1
+                    batch['video'] = 2 * img_as_float(batch['video']).astype('float32') - 1
+
+                    # Convert audio to float
+                    batch['audio'] = pcm2float(batch['audio'], dtype='float32')
 
                     yield batch
 
