@@ -139,7 +139,7 @@ def sample_one_second(audio_data, sampling_frequency, augment=False):
         warnings.warn('Got audio that is less than one second', UserWarning)
         with LogTimer(LOGGER, 'Slicing audio'):
             audio_data = np.pad(audio_data,
-                                ((0, sampling_frequency - audio_data.shape[0]), (0,0)),
+                                ((0, sampling_frequency - audio_data.shape[0]),),
                                 mode='constant')
 
     if augment:
