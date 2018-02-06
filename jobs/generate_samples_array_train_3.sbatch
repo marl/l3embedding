@@ -15,27 +15,27 @@ source ~/.bashrc
 cd /home/$USER/dev
 source activate l3embedding
 
-SRCDIR=''
-OUTPUT_DIR=''
-SUBSET_PATH=''
+SRCDIR=$HOME/dev/l3embedding
+OUTPUT_DIR=/beegfs/work/AudioSetSamples/filtered_train
+SUBSET_PATH=/scratch/jtc440/audioset_subsets/audioset_filtered_train.csv
 USER_IDX=0
-NUM_WORKERS=16
-NUM_TASKS=20
-BASE_RANDOM_STATE=20180118
+NUM_WORKERS=4
+NUM_TASKS=12
+BASE_RANDOM_STATE=20185000
 
 module purge
 module load ffmpeg/intel/3.2.2
 
 python $SRCDIR/02_generate_samples.py \
-    --batch-size 16 \
-    --num-streamers 64 \
-    --mux-rate 2 \
+    --batch-size 1024 \
+    --num-streamers 20 \
+    --mux-rate 20 \
     --augment \
     --precompute \
     --num-workers $NUM_WORKERS \
-    --num-distractors 1 \
-    --random-state $[$BASE_RANDOM_STATE + $NUM_WORKERS * ($SLURM_ARRAY_TASK_ID - 1 + $NUM_TASKS * $USER_IDX)] \
+    --num-distractors 2 \
+    --random-state $[$BASE_RANDOM_STATE + $NUM_WORKERS * ($SLURM_ARRAY_TASK_ID - 1  + $NUM_TASKS * $USER_IDX)] \
     --include-metadata \
     $SUBSET_PATH \
-    $[1000 / $NUM_TASKS] \
+    $[5834624 / $NUM_TASKS] \
     $OUTPUT_DIR

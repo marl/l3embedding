@@ -139,7 +139,7 @@ def sample_one_second(audio_data, sampling_frequency, augment=False):
         warnings.warn('Got audio that is less than one second', UserWarning)
         with LogTimer(LOGGER, 'Slicing audio'):
             audio_data = np.pad(audio_data,
-                                ((0, sampling_frequency - audio_data.shape[0]), (0,0)),
+                                ((0, sampling_frequency - audio_data.shape[0]),),
                                 mode='constant')
 
     if augment:
@@ -521,6 +521,8 @@ def data_generator(subset_path, k=32, batch_size=64, random_state=20171021,
     """
 
     random.seed(random_state)
+    np.random.seed(random_state)
+
 
     LOGGER.info("Loading subset list")
     file_list = read_csv_as_dicts(subset_path)
@@ -548,7 +550,7 @@ def data_generator(subset_path, k=32, batch_size=64, random_state=20171021,
     # Randomly shuffle the seeds
     random.shuffle(seeds)
 
-    mux = pescador.Mux(seeds, k, rate=rate)
+    mux = pescador.Mux(seeds, k, rate=rate, random_state=random_state)
     if cycle:
         mux = mux.cycle()
 
