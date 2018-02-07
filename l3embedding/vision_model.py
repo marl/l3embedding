@@ -20,7 +20,7 @@ def construct_cnn_L3_orig_vision_model():
     outputs: Model outputs
             (Type: keras.layers.Layer)
     """
-    weight_decay = 1e-8
+    weight_decay = 1e-5
     ####
     # Image subnetwork
     ####
