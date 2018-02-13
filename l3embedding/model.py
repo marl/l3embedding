@@ -131,6 +131,27 @@ def construct_cnn_L3_orig():
     m = L3_merge_audio_vision_models(vision_model, x_i, audio_model, x_a, 'cnn_L3_orig')
     return m
 
+def construct_cnn_L3_kapredbinputbn():
+    """
+    Constructs a model that replicates that used in Look, Listen and Learn
+
+    Relja Arandjelovic and (2017). Look, Listen and Learn. CoRR, abs/1705.08168, .
+
+    Returns
+    -------
+    model:  L3 CNN model
+            (Type: keras.models.Model)
+    inputs: Model inputs
+            (Type: list[keras.layers.Input])
+    outputs: Model outputs
+            (Type: keras.layers.Layer)
+    """
+    vision_model, x_i, y_i = construct_cnn_L3_orig_inputbn_vision_model()
+    audio_model, x_a, y_a = construct_cnn_L3_kapredbinputbn_audio_model()
+
+    m = L3_merge_audio_vision_models(vision_model, x_i, audio_model, x_a, 'cnn_L3_kapredbinputbn')
+    return m
+
 def construct_tiny_L3():
     """
     Constructs a model that implements a small L3 model for validation purposes
@@ -153,5 +174,6 @@ def construct_tiny_L3():
 
 MODELS = {
     'cnn_L3_orig': construct_cnn_L3_orig,
-    'tiny_L3': construct_tiny_L3
+    'tiny_L3': construct_tiny_L3,
+    'cnn_L3_kapredbinputbn': construct_cnn_L3_kapredbinputbn
 }
