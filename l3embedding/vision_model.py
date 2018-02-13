@@ -32,10 +32,12 @@ def construct_cnn_L3_orig_vision_model():
     filt_size_i_1 = (3, 3)
     pool_size_i_1 = (2, 2)
     y_i = Conv2D(n_filter_i_1, filt_size_i_1, padding='same',
+                 kernel_initializer='he_normal',
                  kernel_regularizer=regularizers.l2(weight_decay))(x_i)
     y_i = BatchNormalization()(y_i)
     y_i = Activation('relu')(y_i)
     y_i = Conv2D(n_filter_i_1, filt_size_i_1, padding='same',
+                 kernel_initializer='he_normal',
                  kernel_regularizer=regularizers.l2(weight_decay))(y_i)
     y_i = Activation('relu')(y_i)
     y_i = BatchNormalization()(y_i)
@@ -46,10 +48,12 @@ def construct_cnn_L3_orig_vision_model():
     filt_size_i_2 = (3, 3)
     pool_size_i_2 = (2, 2)
     y_i = Conv2D(n_filter_i_2, filt_size_i_2, padding='same',
+                 kernel_initializer='he_normal',
                  kernel_regularizer=regularizers.l2(weight_decay))(y_i)
     y_i = BatchNormalization()(y_i)
     y_i = Activation('relu')(y_i)
     y_i = Conv2D(n_filter_i_2, filt_size_i_2, padding='same',
+                 kernel_initializer='he_normal',
                  kernel_regularizer=regularizers.l2(weight_decay))(y_i)
     y_i = BatchNormalization()(y_i)
     y_i = Activation('relu')(y_i)
@@ -60,10 +64,12 @@ def construct_cnn_L3_orig_vision_model():
     filt_size_i_3 = (3, 3)
     pool_size_i_3 = (2, 2)
     y_i = Conv2D(n_filter_i_3, filt_size_i_3, padding='same',
+                 kernel_initializer='he_normal',
                  kernel_regularizer=regularizers.l2(weight_decay))(y_i)
     y_i = BatchNormalization()(y_i)
     y_i = Activation('relu')(y_i)
     y_i = Conv2D(n_filter_i_3, filt_size_i_3, padding='same',
+                 kernel_initializer='he_normal',
                  kernel_regularizer=regularizers.l2(weight_decay))(y_i)
     y_i = BatchNormalization()(y_i)
     y_i = Activation('relu')(y_i)
@@ -74,11 +80,13 @@ def construct_cnn_L3_orig_vision_model():
     filt_size_i_4 = (3, 3)
     pool_size_i_4 = (28, 28)
     y_i = Conv2D(n_filter_i_4, filt_size_i_4, padding='same',
+                 kernel_initializer='he_normal',
                  kernel_regularizer=regularizers.l2(weight_decay))(y_i)
     y_i = BatchNormalization()(y_i)
     y_i = Activation('relu')(y_i)
     y_i = Conv2D(n_filter_i_4, filt_size_i_4,
                  name='vision_embedding_layer', padding='same',
+                 kernel_initializer='he_normal',
                  kernel_regularizer=regularizers.l2(weight_decay))(y_i)
     y_i = BatchNormalization()(y_i)
     y_i = Activation('relu')(y_i)
@@ -137,16 +145,19 @@ def construct_tiny_L3_vision_model():
     x_i = Input(shape=(224, 224, 3), dtype='float32')
 
     y_i = Conv2D(10, (5,5), padding='valid', strides=(1,1),
+                 kernel_initializer='he_normal',
                  kernel_regularizer=regularizers.l2(weight_decay))(x_i)
     y_i = BatchNormalization()(y_i)
     y_i = Activation('relu')(y_i)
     y_i = MaxPooling2D(pool_size=(3,3), strides=3)(y_i)
     y_i = Conv2D(10, (5,5), padding='valid', strides=(1,1),
+                 kernel_initializer='he_normal',
                  kernel_regularizer=regularizers.l2(weight_decay))(y_i)
     y_i = BatchNormalization()(y_i)
     y_i = Activation('relu')(y_i)
     y_i = MaxPooling2D(pool_size=(3,3), strides=3)(y_i)
     y_i = Conv2D(10, (5,5), padding='valid', strides=(1,1),
+                 kernel_initializer='he_normal',
                  kernel_regularizer=regularizers.l2(weight_decay))(y_i)
     y_i = BatchNormalization()(y_i)
     y_i = Activation('relu')(y_i)

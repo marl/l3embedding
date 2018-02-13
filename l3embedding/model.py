@@ -24,8 +24,10 @@ def L3_merge_audio_vision_models(vision_model, x_i, audio_model, x_a, model_name
     weight_decay = 1e-5
     y = concatenate([vision_model(x_i), audio_model(x_a)])
     y = Dense(layer_size, activation='relu',
+              kernel_initializer='he_normal',
               kernel_regularizer=regularizers.l2(weight_decay))(y)
     y = Dense(2, activation='softmax',
+              kernel_initializer='he_normal',
               kernel_regularizer=regularizers.l2(weight_decay))(y)
     m = Model(inputs=[x_i, x_a], outputs=y)
     m.name = model_name

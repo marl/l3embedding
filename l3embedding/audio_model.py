@@ -47,10 +47,12 @@ def construct_cnn_L3_orig_audio_model():
     filt_size_a_1 = (3, 3)
     pool_size_a_1 = (2, 2)
     y_a = Conv2D(n_filter_a_1, filt_size_a_1, padding='same',
+                 kernel_initializer='he_normal',
                  kernel_regularizer=regularizers.l2(weight_decay))(y_a)
     y_a = BatchNormalization()(y_a)
     y_a = Activation('relu')(y_a)
     y_a = Conv2D(n_filter_a_1, filt_size_a_1, padding='same',
+                 kernel_initializer='he_normal',
                  kernel_regularizer=regularizers.l2(weight_decay))(y_a)
     y_a = BatchNormalization()(y_a)
     y_a = Activation('relu')(y_a)
@@ -61,10 +63,12 @@ def construct_cnn_L3_orig_audio_model():
     filt_size_a_2 = (3, 3)
     pool_size_a_2 = (2, 2)
     y_a = Conv2D(n_filter_a_2, filt_size_a_2, padding='same',
+                 kernel_initializer='he_normal',
                  kernel_regularizer=regularizers.l2(weight_decay))(y_a)
     y_a = BatchNormalization()(y_a)
     y_a = Activation('relu')(y_a)
     y_a = Conv2D(n_filter_a_2, filt_size_a_2, padding='same',
+                 kernel_initializer='he_normal',
                  kernel_regularizer=regularizers.l2(weight_decay))(y_a)
     y_a = BatchNormalization()(y_a)
     y_a = Activation('relu')(y_a)
@@ -75,10 +79,12 @@ def construct_cnn_L3_orig_audio_model():
     filt_size_a_3 = (3, 3)
     pool_size_a_3 = (2, 2)
     y_a = Conv2D(n_filter_a_3, filt_size_a_3, padding='same',
+                 kernel_initializer='he_normal',
                  kernel_regularizer=regularizers.l2(weight_decay))(y_a)
     y_a = BatchNormalization()(y_a)
     y_a = Activation('relu')(y_a)
     y_a = Conv2D(n_filter_a_3, filt_size_a_3, padding='same',
+                 kernel_initializer='he_normal',
                  kernel_regularizer=regularizers.l2(weight_decay))(y_a)
     y_a = BatchNormalization()(y_a)
     y_a = Activation('relu')(y_a)
@@ -89,10 +95,12 @@ def construct_cnn_L3_orig_audio_model():
     filt_size_a_4 = (3, 3)
     pool_size_a_4 = (32, 24)
     y_a = Conv2D(n_filter_a_4, filt_size_a_4, padding='same',
+                 kernel_initializer='he_normal',
                  kernel_regularizer=regularizers.l2(weight_decay))(y_a)
     y_a = BatchNormalization()(y_a)
     y_a = Activation('relu')(y_a)
     y_a = Conv2D(n_filter_a_4, filt_size_a_4,
+                 kernel_initializer='he_normal',
                  name='audio_embedding_layer', padding='same',
                  kernel_regularizer=regularizers.l2(weight_decay))(y_a)
     y_a = BatchNormalization()(y_a)
@@ -160,16 +168,19 @@ def construct_tiny_L3_audio_model():
                       return_decibel_spectrogram=True, padding='valid')(x_a)
 
     y_a = Conv2D(10, (5,5), padding='valid', strides=(1,1),
+                 kernel_initializer='he_normal',
                          kernel_regularizer=regularizers.l2(weight_decay))(y_a)
     y_a = BatchNormalization()(y_a)
     y_a = Activation('relu')(y_a)
     y_a = MaxPooling2D(pool_size=(3,3), strides=3)(y_a)
     y_a = Conv2D(10, (5,5), padding='valid', strides=(1,1),
+                 kernel_initializer='he_normal',
                          kernel_regularizer=regularizers.l2(weight_decay))(y_a)
     y_a = BatchNormalization()(y_a)
     y_a = Activation('relu')(y_a)
     y_a = MaxPooling2D(pool_size=(3,3), strides=3)(y_a)
     y_a = Conv2D(10, (5,5), padding='valid', strides=(1,1),
+                 kernel_initializer='he_normal',
                          kernel_regularizer=regularizers.l2(weight_decay))(y_a)
     y_a = BatchNormalization()(y_a)
     y_a = Activation('relu')(y_a)
