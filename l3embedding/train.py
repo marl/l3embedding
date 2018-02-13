@@ -179,6 +179,28 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
         init_file_logger(LOGGER, log_path=log_path)
     LOGGER.debug('Initialized logging.')
 
+    # TODO: Maybe refactor so this logging can be done more robustly
+    LOGGER.info('Training with the following arguments: {}'.format({
+          'train_data_dir': train_data_dir,
+          'validation_data_dir': validation_data_dir,
+          'model_id': model_id,
+          'output_dir': output_dir,
+          'num_epochs': num_epochs,
+          'train_epoch_size': train_epoch_size,
+          'validation_epoch_size': validation_epoch_size,
+          'train_batch_size': train_batch_size,
+          'validation_batch_size': validation_batch_size,
+          'model_type': model_type,
+          'random_state': random_state,
+          'learning_rate': learning_rate,
+          'verbose': verbose,
+          'checkpoint_interval': checkpoint_interval,
+          'log_path': log_path,
+          'disable_logging': disable_logging,
+          'gpus': gpus,
+          'continue_model_dir': continue_model_dir
+    }))
+
     if continue_model_dir:
         latest_model_path = os.path.join(continue_model_dir, 'model_latest.h5')
         m, inputs, outputs = load_model(latest_model_path, model_type, return_io=True)
@@ -187,7 +209,7 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
         if gpus > 1:
             m = multi_gpu_model(m, gpus=gpus)
 
-    loss = 'categorical_crossentropy'
+    loss = 'binary_crossentropy'
     metrics = ['accuracy']
 
     # Make sure the directories we need exist
