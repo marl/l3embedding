@@ -93,6 +93,18 @@ def parse_arguments():
                         default=1,
                         help='Number of gpus used for data parallelism.')
 
+    parser.add_argument('-gsid',
+                        '--gsheet-id',
+                        dest='gsheet_id',
+                        type=str,
+                        help='Google Spreadsheet ID for centralized logging of experiments')
+
+    parser.add_argument('-gdan',
+                        '--google-dev-app-name',
+                        dest='google_dev_app_name',
+                        type=str,
+                        help='Google Developer Application Name for using API')
+
     parser.add_argument('-v',
                         '--verbose',
                         dest='verbose',

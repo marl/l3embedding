@@ -1,3 +1,5 @@
+import getpass
+import git
 import json
 import math
 import datetime
@@ -19,11 +21,15 @@ from skimage import img_as_float
 import soundfile as sf
 from tqdm import tqdm
 
+from gsheets import get_credentials, append_row, update_experiment, get_row
 from .model import MODELS, load_model
 from .training_utils import multi_gpu_model
 from .audio import pcm2float
 from log import *
 import h5py
+import copy
+
+from googleapiclient import discovery
 
 LOGGER = logging.getLogger('l3embedding')
 LOGGER.setLevel(logging.DEBUG)
@@ -54,6 +60,58 @@ class LossHistory(keras.callbacks.Callback):
         loss_dict = {'loss': self.loss, 'val_loss': self.val_loss}
         with open(self.outfile, 'wb') as fp:
             pickle.dump(loss_dict, fp)
+
+class GSheetLogger(keras.callbacks.Callback):
+    """
+    Keras callback to update Google Sheets Spreadsheet
+    """
+
+    def __init__(self, google_dev_app_name, spreadsheet_id, param_dict):
+        super().__init__()
+        self.google_dev_app_name = google_dev_app_name
+        self.spreadsheet_id = spreadsheet_id
+        self.credentials = get_credentials(google_dev_app_name)
+        self.service = discovery.build('sheets', 'v4', credentials=self.credentials)
+        self.param_dict = copy.deepcopy(param_dict)
+
+        row_num = get_row(self.service, self.spreadsheet_id, self.param_dict)
+        if row_num is None:
+            append_row(self.service, self.spreadsheet_id, self.param_dict)
+
+    def on_train_begin(self, logs=None):
+        if logs is None:
+            logs = {}
+        self.best_train_loss = float('inf')
+        self.best_valid_loss = float('inf')
+        self.best_train_acc = float('-inf')
+        self.best_valid_acc = float('-inf')
+
+    # def on_batch_end(self, batch, logs={}):
+    def on_epoch_end(self, epoch, logs=None):
+        if logs is None:
+            logs = {}
+        latest_epoch = epoch
+        latest_train_loss = logs.get('loss')
+        latest_valid_loss = logs.get('val_loss')
+        latest_train_acc = logs.get('acc')
+        latest_valid_acc = logs.get('val_acc')
+
+        if latest_train_loss < self.best_train_loss:
+            self.best_train_loss = latest_train_loss
+        if latest_valid_loss < self.best_valid_loss:
+            self.best_valid_loss = latest_valid_loss
+        if latest_train_acc > self.best_train_acc:
+            self.best_train_acc = latest_train_acc
+        if latest_valid_acc > self.best_valid_acc:
+            self.best_valid_acc = latest_valid_acc
+
+        values = [
+            latest_epoch, latest_train_loss, latest_valid_loss,
+            latest_train_acc, latest_valid_acc, self.best_train_loss,
+            self.best_valid_loss, self.best_train_acc, self.best_valid_acc]
+
+        update_experiment(self.service, self.spreadsheet_id, self.param_dict,
+                          'R', 'AA', values)
 
 
 class TimeHistory(keras.callbacks.Callback):
@@ -170,17 +228,17 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
           num_epochs=150, train_epoch_size=512, validation_epoch_size=1024,
           train_batch_size=64, validation_batch_size=64,
           model_type='cnn_L3_orig', random_state=20180123,
-          learning_rate=1e-4, verbose=False,
-          checkpoint_interval=10, log_path=None,
-          disable_logging=False, gpus=1, continue_model_dir=None):
+          learning_rate=1e-4, verbose=False, checkpoint_interval=10,
+          log_path=None, disable_logging=False, gpus=1, continue_model_dir=None,
+          gsheet_id=None, google_dev_app_name=None):
 
     init_console_logger(LOGGER, verbose=verbose)
     if not disable_logging:
         init_file_logger(LOGGER, log_path=log_path)
     LOGGER.debug('Initialized logging.')
 
-    # TODO: Maybe refactor so this logging can be done more robustly
-    LOGGER.info('Training with the following arguments: {}'.format({
+    param_dict = {
+          'username': getpass.getuser(),
           'train_data_dir': train_data_dir,
           'validation_data_dir': validation_data_dir,
           'model_id': model_id,
@@ -198,8 +256,13 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
           'log_path': log_path,
           'disable_logging': disable_logging,
           'gpus': gpus,
-          'continue_model_dir': continue_model_dir
-    }))
+          'continue_model_dir': continue_model_dir,
+          'git_commit': git.Repo(os.path.dirname(os.path.abspath(__file__)),
+                                 search_parent_directories=True).head.object.hexsha,
+          'gsheet_id': gsheet_id,
+          'google_dev_app_name': google_dev_app_name
+    }
+    LOGGER.info('Training with the following arguments: {}'.format(param_dict))
 
     if continue_model_dir:
         latest_model_path = os.path.join(continue_model_dir, 'model_latest.h5')
@@ -226,6 +289,19 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
               metrics=metrics)
 
     LOGGER.info('Model files can be found in "{}"'.format(model_dir))
+
+    param_dict.update({
+          'latest_epoch': '-',
+          'latest_train_loss': '-',
+          'latest_validation_loss': '-',
+          'latest_train_acc': '-',
+          'latest_validation_acc': '-',
+          'best_train_loss': '-',
+          'best_validation_loss': '-',
+          'best_train_acc': '-',
+          'best_validation_acc': '-',
+          'model_dir': model_dir,
+    })
 
     # Save the model
     model_spec_path = os.path.join(model_dir, 'model_spec.pkl')
@@ -287,6 +363,9 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
     history_csvlog = os.path.join(model_dir, 'history_csvlog.csv')
     cb.append(keras.callbacks.CSVLogger(history_csvlog, append=True,
                                         separator=','))
+
+    if gsheet_id:
+        cb.append(GSheetLogger(google_dev_app_name, gsheet_id, param_dict))
 
     LOGGER.info('Setting up train data generator...')
     if continue_model_dir is not None:
