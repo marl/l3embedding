@@ -43,7 +43,7 @@ FIELD_NAMES = [
 SCOPES = 'https://www.googleapis.com/auth/spreadsheets'
 
 
-def get_credentials(application_name):
+def get_credentials(application_name, client_secret_file=None, flags=None):
     """Gets valid user credentials from storage.
 
     If nothing has been stored, or if the stored credentials are invalid,
@@ -62,7 +62,9 @@ def get_credentials(application_name):
     store = Storage(credential_path)
     credentials = store.get()
     if not credentials or credentials.invalid:
-        flow = client.flow_from_clientsecrets(CLIENT_SECRET_FILE, SCOPES)
+        if not client_secret_file:
+            raise ValueError('Must provide client secret file if credentials do not exist')
+        flow = client.flow_from_clientsecrets(client_secret_file, SCOPES)
         flow.user_agent = application_name
         if flags:
             credentials = tools.run_flow(flow, store, flags)
@@ -131,10 +133,16 @@ def update_experiment(service, spreadsheet_id, param_dict, start_col, end_col, v
     response = request.execute()
 
 if __name__ == '__main__':
-    try:
-        import argparse
-        flags = argparse.ArgumentParser(parents=[tools.argparser]).parse_args()
-    except ImportError:
-        flags = None
+    import argparse
+    parser = argparse.ArgumentParser(parents=[tools.argparser])
+    parser.add_argument('application_name', type=str, help='Name of Google Developer Application')
+    parser.add_argument('client_secret_file', type=str, help='Path to application client secret file')
+    flags = parser.parse_args()
 
-    get_credentials()
+    # TODO: Fix this hack
+    application_name = flags.application_name
+    client_secret_file = flags.client_secret_file
+    del flags.application_name
+    del flags.client_secret_file
+
+    get_credentials(application_name, client_secret_file=client_secret_file, flags=flags)
