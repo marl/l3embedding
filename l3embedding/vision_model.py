@@ -121,7 +121,7 @@ def construct_cnn_L3_orig_inputbn_vision_model():
     ####
     # INPUT
     x_i = Input(shape=(224, 224, 3), dtype='float32')
-    x_i = BatchNormalization()(x_i)
+    y_i = BatchNormalization()(x_i)
 
     # CONV BLOCK 1
     n_filter_i_1 = 64
@@ -129,7 +129,7 @@ def construct_cnn_L3_orig_inputbn_vision_model():
     pool_size_i_1 = (2, 2)
     y_i = Conv2D(n_filter_i_1, filt_size_i_1, padding='same',
                  kernel_initializer='he_normal',
-                 kernel_regularizer=regularizers.l2(weight_decay))(x_i)
+                 kernel_regularizer=regularizers.l2(weight_decay))(y_i)
     y_i = BatchNormalization()(y_i)
     y_i = Activation('relu')(y_i)
     y_i = Conv2D(n_filter_i_1, filt_size_i_1, padding='same',
