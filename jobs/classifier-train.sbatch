@@ -22,20 +22,23 @@ DATA_DIR=''
 OUTPUT_DIR=''
 MODEL_PATH=''
 MODEL_ID='mycls'
+DATASET_NAME='us8k'
 
 module purge
 #module load cuda/8.0.44
 #module load cudnn/8.0v6.0
 
-python $SRCDIR/train_classifier.py \
+python $SRCDIR/05_train_classifier.py \
     --random-state 20171021 \
-    --features l3_stats \
+    --features l3_frames_uniform \
     --label-format int \
     --model-type svm \
     --l3embedding-model-path $MODEL_PATH \
     --l3embedding-model-type cnn_L3_orig \
+    --hop-size 0.25 \
     --verbose \
     $METADATA_PATH \
+    $DATASET_NAME \
     $DATA_DIR \
     $MODEL_ID \
     $OUTPUT_DIR
