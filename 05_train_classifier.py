@@ -121,6 +121,21 @@ def parse_arguments():
                         default='cnn_L3_orig',
                         help='Type of L3 embedding model')
 
+    parser.add_argument('-hs',
+                        '--hop-size',
+                        dest='hop_size',
+                        action='store',
+                        type=float,
+                        default=0.25,
+                        help='Hop size as a fraction of the window')
+
+    parser.add_argument('-nrs',
+                        '--num-random-samples',
+                        dest='num_random_samples',
+                        action='store',
+                        type=int,
+                        help='Number of random samples for randomized sampling methods')
+
     parser.add_argument('-nl',
                         '--no-logging',
                         dest='disable_logging',
@@ -140,6 +155,11 @@ def parse_arguments():
                         action='store',
                         type=str,
                         help='Path to UrbanSound8K metadata file')
+
+    parser.add_argument('dataset_name',
+                        action='store',
+                        type=str,
+                        help='Name of dataset')
 
     parser.add_argument('data_dir',
                         action='store',
