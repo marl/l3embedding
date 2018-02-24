@@ -1,6 +1,8 @@
+import logging
 import numpy as np
 
-from classifier.train import LOGGER
+LOGGER = logging.getLogger('classifier-metrics')
+LOGGER.setLevel(logging.DEBUG)
 
 
 def compute_metrics(y, pred):

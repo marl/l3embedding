@@ -4,7 +4,7 @@ import librosa
 import numpy as np
 import scipy as sp
 
-LOGGER = logging.getLogger('us8k')
+LOGGER = logging.getLogger('classifier-features')
 LOGGER.setLevel(logging.DEBUG)
 
 
