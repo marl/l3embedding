@@ -456,7 +456,7 @@ def construct_cnn_l3_orig_audio_embedding_model(audio_model, x_a):
     """
     pool_size = (8, 8)
     embed_layer = audio_model.get_layer('audio_embedding_layer')
-    y_a = MaxPooling2D(pool_size=pool_size, padding='same')(embed_layer)
+    y_a = MaxPooling2D(pool_size=pool_size, padding='same')(embed_layer.output)
     y_a = Flatten()(y_a)
 
     m = Model(inputs=x_a, outputs=y_a)
@@ -515,7 +515,6 @@ def construct_tiny_L3_audio_model():
     m.name = 'audio_model'
 
     return m, x_a, y_a
-
 
 EMBEDDING_MODELS = {
     'cnn_L3_orig': construct_cnn_l3_orig_audio_embedding_model
