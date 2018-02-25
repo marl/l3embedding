@@ -118,30 +118,30 @@ def get_us8k_fold_data(metadata, data_dir, fold_idx, l3embedding_model=None,
 
         if features == 'l3_stack':
             hop_size = feature_args.get('hop_size', 0.25)
-            features = cls_features.get_l3_stack_features(path, l3embedding_model,
+            file_features = cls_features.get_l3_stack_features(path, l3embedding_model,
                                                           hop_size=hop_size)
         elif features == 'l3_stats':
             hop_size = feature_args.get('hop_size', 0.25)
-            features = cls_features.get_l3_stats_features(path, l3embedding_model,
+            file_features = cls_features.get_l3_stats_features(path, l3embedding_model,
                                                           hop_size=hop_size)
         elif features == 'l3_frames_uniform':
             hop_size = feature_args.get('hop_size', 0.25)
-            features = cls_features.get_l3_frames_uniform(path, l3embedding_model,
+            file_features = cls_features.get_l3_frames_uniform(path, l3embedding_model,
                                                           hop_size=hop_size)
         elif features == 'l3_frames_random':
             num_samples = feature_args.get('num_random_samples')
             if not num_samples:
                 raise ValueError('Must specify "num_samples" for "l3_frame_random" features')
-            features = cls_features.get_l3_frames_random(path, l3embedding_model,
+            file_features = cls_features.get_l3_frames_random(path, l3embedding_model,
                                                          num_samples)
         else:
             raise ValueError('Invalid feature type: {}'.format(features))
 
         # If we were not able to compute the features, skip this file
-        if features is None:
+        if file_features is None:
             continue
 
-        X.append(features)
+        X.append(file_features)
 
         class_label = example_metadata['classID']
         if label_format == 'int':
