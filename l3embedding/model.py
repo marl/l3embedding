@@ -129,7 +129,8 @@ def load_model(weights_path, model_type, num_gpus=0, target_num_gpus=None, retur
         return m
 
 
-def load_embedding(weights_path, model_type, embedding_type, return_io=False):
+def load_embedding(weights_path, model_type, embedding_type,
+                   num_gpus=0, target_num_gpus=None, return_io=False):
     """
     Loads an embedding model
 
@@ -142,6 +143,12 @@ def load_embedding(weights_path, model_type, embedding_type, return_io=False):
                          (Type: str)
 
     Keyword Args:
+        num_gpus:   Number of GPUs the saved model uses
+                    (Type: int)
+
+        target_num_gpus:   Number of GPUs the loaded model will use
+                           (Type: int)
+
         return_io:  If True, return input and output tensors
                     (Type: bool)
 
@@ -153,7 +160,8 @@ def load_embedding(weights_path, model_type, embedding_type, return_io=False):
         y_i:    Embedding output Tensor/Layer. Not returned if return_io is False.
                 (Type: keras.layers.Layer)
     """
-    m, inputs, output = load_model(weights_path, model_type, return_io=True)
+    m, inputs, output = load_model(weights_path, model_type, num_gpus=num_gpus,
+                                   target_num_gpus=target_num_gpus, return_io=True)
     x_i, x_a = inputs
     if embedding_type == 'vision':
         m_embed_model = m.get_layer('vision_model')
