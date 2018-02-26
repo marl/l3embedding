@@ -95,7 +95,22 @@ def append_row(service, spreadsheet_id, param_dict):
         valueInputOption=value_input_option,
         insertDataOption=insert_data_option,
         body=value_range_body)
-    response = request.execute()
+    response = request_with_retry(request)
+
+
+def request_with_retry(request, num_retries=50):
+    exc = None
+    for _ in range(num_retries):
+        try:
+            response = request.execute()
+            break
+        except Exception as e:
+            exc = e
+            continue
+    else:
+        raise exc
+
+    return response
 
 
 def get_row(service, spreadsheet_id, param_dict):
@@ -106,7 +121,7 @@ def get_row(service, spreadsheet_id, param_dict):
         spreadsheetId=spreadsheet_id,
         range=range_,
         majorDimension=major_dimension)
-    response = request.execute()
+    response = request_with_retry(request)
 
     try:
         row_idx = response['values'][0].index(param_dict['model_dir'])
@@ -130,7 +145,7 @@ def update_experiment(service, spreadsheet_id, param_dict, start_col, end_col, v
         range=range_,
         valueInputOption=value_input_option,
         body=value_range_body)
-    response = request.execute()
+    response = request_with_retry(request)
 
 if __name__ == '__main__':
     import argparse
