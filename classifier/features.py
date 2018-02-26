@@ -302,12 +302,22 @@ def flatten_file_frames(X, y):
                      (Type: np.ndarray)
 
     """
-    num_frames_per_file = []
-    X_flatten = []
-    for X_file in X:
-        num_frames_per_file.append(len(X_file))
-        X_flatten += X_file
-    X_flatten = np.array(X_flatten)
+    if X.ndim == 1:
+        # In this case the number of frames per file varies, which makes the
+        # numpy array store lists for each file
+        num_frames_per_file = []
+        X_flatten = []
+        for X_file in X:
+            num_frames_per_file.append(len(X_file))
+            X_flatten += X_file
+        X_flatten = np.array(X_flatten)
+    else:
+        # In this case the number of frames per file is the same, which means
+        # all of the data is in a unified numpy array
+        X_shape = X.shape
+        num_files, num_frames_per_file = X_shape[0], X_shape[1]
+        new_shape = (num_files * num_frames_per_file,) + X_shape[2:]
+        X_flatten = X.reshape(new_shape)
 
     # Repeat the labels for each frame
     y_flatten = np.repeat(y, num_frames_per_file)
