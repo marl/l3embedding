@@ -211,7 +211,7 @@ def construct_cnn_l3_orig_vision_embedding_model(vision_model, x_i):
     """
     pool_size = (7, 7)
     embed_layer = vision_model.get_layer('vision_embedding_layer')
-    y_i = MaxPooling2D(pool_size=pool_size, padding='same')(embed_layer)
+    y_i = MaxPooling2D(pool_size=pool_size, padding='same')(embed_layer.output)
     y_i = Flatten()(y_i)
 
     m = Model(inputs=x_i, outputs=y_i)

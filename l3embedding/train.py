@@ -266,11 +266,9 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
 
     if continue_model_dir:
         latest_model_path = os.path.join(continue_model_dir, 'model_latest.h5')
-        m, inputs, outputs = load_model(latest_model_path, model_type, return_io=True)
+        m, inputs, outputs = load_model(latest_model_path, model_type, return_io=True, num_gpus=gpus)
     else:
-        m, inputs, outputs = MODELS[model_type]()
-        if gpus > 1:
-            m = multi_gpu_model(m, gpus=gpus)
+        m, inputs, outputs = MODELS[model_type](num_gpus=gpus)
 
     loss = 'binary_crossentropy'
     metrics = ['accuracy']
