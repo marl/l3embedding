@@ -165,11 +165,11 @@ def load_embedding(weights_path, model_type, embedding_type,
     x_i, x_a = inputs
     if embedding_type == 'vision':
         m_embed_model = m.get_layer('vision_model')
-        m_embed, x_embed, y_embed = EMBEDDING_MODELS[model_type](m_embed_model, x_i)
+        m_embed, x_embed, y_embed = VISION_EMBEDDING_MODELS[model_type](m_embed_model, x_i)
 
     elif embedding_type == 'audio':
         m_embed_model = m.get_layer('audio_model')
-        m_embed, x_embed, y_embed = EMBEDDING_MODELS[model_type](m_embed_model, x_a)
+        m_embed, x_embed, y_embed = AUDIO_EMBEDDING_MODELS[model_type](m_embed_model, x_a)
     else:
         raise ValueError('Invalid embedding type: "{}"'.format(embedding_type))
 

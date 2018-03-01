@@ -516,6 +516,6 @@ def construct_tiny_L3_audio_model():
 
     return m, x_a, y_a
 
-EMBEDDING_MODELS = {
+AUDIO_EMBEDDING_MODELS = {
     'cnn_L3_orig': construct_cnn_l3_orig_audio_embedding_model
 }

@@ -265,6 +265,6 @@ def construct_tiny_L3_vision_model():
     return m, x_i, y_i
 
 
-EMBEDDING_MODELS = {
+VISION_EMBEDDING_MODELS = {
     'cnn_L3_orig': construct_cnn_l3_orig_vision_embedding_model
 }
