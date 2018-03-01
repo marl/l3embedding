@@ -1,12 +1,13 @@
 import argparse
 import logging
-import multiprocessing_logging
 import math
 from functools import partial
-from log import init_console_logger
-from data.sample import sample_and_save
-from data.utils import map_iterate_in_parallel
 
+import multiprocessing_logging
+
+from data.avc.sample import sample_and_save
+from data.utils import map_iterate_in_parallel
+from log import init_console_logger
 
 LOGGER = logging.getLogger('sampling')
 LOGGER.setLevel(logging.DEBUG)

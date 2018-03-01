@@ -1,9 +1,10 @@
 import argparse
 import logging
 import os
-from log import init_console_logger
-from data.subsets import get_subset_split
 from csv import DictWriter
+
+from data.avc.subsets import get_subset_split
+from log import init_console_logger
 
 LOGGER = logging.getLogger('data')
 LOGGER.setLevel(logging.DEBUG)

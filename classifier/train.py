@@ -1,21 +1,20 @@
 import json
 import os
+import random
 
 import keras
 import keras.regularizers as regularizers
 import numpy as np
-import random
 from keras.layers import Input, Dense
 from keras.models import Model
 from keras.optimizers import Adam
+from scipy.stats import mode
 from sklearn.externals import joblib
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
-from scipy.stats import mode
 
-from classifier.features import flatten_file_frames
 from classifier.metrics import compute_metrics, aggregate_metrics, print_metrics
-from classifier.us8k import load_us8k_metadata, get_us8k_folds, \
+from data.usc.us8k import get_us8k_folds, \
     get_us8k_fold_split
 from l3embedding.model import load_embedding
 from l3embedding.train import LossHistory

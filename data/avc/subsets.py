@@ -5,7 +5,7 @@ import logging
 import random
 from audioset.ontology import ASOntology
 from collections import OrderedDict
-from .utils import read_csv_as_dicts
+from data.utils import read_csv_as_dicts
 
 LOGGER = logging.getLogger('data')
 LOGGER.setLevel(logging.DEBUG)

@@ -1,20 +1,12 @@
-import argparse
-import csv
-import datetime
 import glob
-import json
 import math
 import logging
-from multiprocessing import Pool
 import os
-import pickle
 import random
-import time
 import warnings
 
 import h5py
 import numpy as np
-import pandas as pd
 import pescador
 import scipy.misc
 import skimage
@@ -22,7 +14,7 @@ import skimage.color
 from skvideo.io import FFmpegReader, ffprobe
 import soundfile as sf
 from tqdm import tqdm
-from .utils import read_csv_as_dicts, flatten_dict
+from data.utils import read_csv_as_dicts, flatten_dict
 from log import LogTimer
 
 LOGGER = logging.getLogger('sampling')

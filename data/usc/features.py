@@ -219,7 +219,7 @@ def get_l3_frames_uniform(audio_path, l3embedding_model, hop_size=0.25):
 
     return list(l3embedding)
 
-def get_l3_frames_random(audio, l3embedding_model, num_samples):
+def get_l3_frames_random(audio, l3embedding_model, num_samples, sr=48000):
     """
     Get L3 embedding stats features, i.e. compute statistics for each of the
     embedding features across 1 second (overlapping) window of the given audio
@@ -238,12 +238,10 @@ def get_l3_frames_random(audio, l3embedding_model, num_samples):
         features:  List of embedding vectors
                    (Type: list[np.ndarray])
     """
-    sr = 48000
-
     if type(audio) == str:
         audio, _ = librosa.load(audio, sr=sr, mono=True)
 
-    frame_length = 48000 * 1
+    frame_length = sr * 1
 
     audio_length = len(audio)
     pad_length = frame_length - audio_length

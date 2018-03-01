@@ -1,8 +1,10 @@
 import csv
 import logging
 import os
+
 import numpy as np
-import classifier.features as cls_features
+
+import data.usc.features as cls_features
 
 LOGGER = logging.getLogger('us8k')
 LOGGER.setLevel(logging.DEBUG)
