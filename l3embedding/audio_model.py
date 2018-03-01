@@ -446,15 +446,46 @@ def construct_cnn_l3_orig_audio_embedding_model(audio_model, x_a):
 
     Args:
         audio_model: audio subnetwork
-        x_a: Image data input Tensor
+        x_a: audio data input Tensor
 
     Returns:
         m:   Model object
-        x_a: Image data input Tensor
+        x_a: audio data input Tensor
         y_a: Embedding output Tensor
 
     """
     pool_size = (8, 8)
+    embed_layer = audio_model.get_layer('audio_embedding_layer')
+    y_a = MaxPooling2D(pool_size=pool_size, padding='same')(embed_layer.output)
+    y_a = Flatten()(y_a)
+
+    m = Model(inputs=x_a, outputs=y_a)
+    return m, x_a, y_a
+
+
+def convert_audio_model_to_embedding(audio_model, x_a, model_type):
+    """
+    Given and audio subnetwork, return a model that produces the learned
+    embedding
+
+    Args:
+        audio_model: audio subnetwork
+        x_a: audio data input Tensor
+        model_type: the model type string
+
+    Returns:
+        m: Model object
+        x_a : audio data input Tensor
+        y_a: embedding output Tensor
+    """
+
+    pooling = {'cnn_L3_orig': (8, 8),
+               'cnn_L3_kapredbinputbn': (8, 8),
+               'cnn_L3_melspec1': (4, 8),
+               'cnn_L3_melspec2': (8, 8)}
+
+    pool_size = pooling[model_type]
+
     embed_layer = audio_model.get_layer('audio_embedding_layer')
     y_a = MaxPooling2D(pool_size=pool_size, padding='same')(embed_layer.output)
     y_a = Flatten()(y_a)
@@ -517,5 +548,6 @@ def construct_tiny_L3_audio_model():
     return m, x_a, y_a
 
 AUDIO_EMBEDDING_MODELS = {
-    'cnn_L3_orig': construct_cnn_l3_orig_audio_embedding_model
+    'cnn_L3_orig': construct_cnn_l3_orig_audio_embedding_model,
+    'cnn_L3_melspec1': construct_cnn_l3_orig_audio_embedding_model
 }

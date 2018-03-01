@@ -169,7 +169,8 @@ def load_embedding(weights_path, model_type, embedding_type,
 
     elif embedding_type == 'audio':
         m_embed_model = m.get_layer('audio_model')
-        m_embed, x_embed, y_embed = AUDIO_EMBEDDING_MODELS[model_type](m_embed_model, x_a)
+        # m_embed, x_embed, y_embed = AUDIO_EMBEDDING_MODELS[model_type](m_embed_model, x_a)
+        m_embed, x_embed, y_embed = convert_audio_model_to_embedding(m_embed_model, x_a, model_type)
     else:
         raise ValueError('Invalid embedding type: "{}"'.format(embedding_type))
 
