@@ -165,11 +165,12 @@ def load_embedding(weights_path, model_type, embedding_type,
     x_i, x_a = inputs
     if embedding_type == 'vision':
         m_embed_model = m.get_layer('vision_model')
-        m_embed, x_embed, y_embed = EMBEDDING_MODELS[model_type](m_embed_model, x_i)
+        m_embed, x_embed, y_embed = VISION_EMBEDDING_MODELS[model_type](m_embed_model, x_i)
 
     elif embedding_type == 'audio':
         m_embed_model = m.get_layer('audio_model')
-        m_embed, x_embed, y_embed = EMBEDDING_MODELS[model_type](m_embed_model, x_a)
+        # m_embed, x_embed, y_embed = AUDIO_EMBEDDING_MODELS[model_type](m_embed_model, x_a)
+        m_embed, x_embed, y_embed = convert_audio_model_to_embedding(m_embed_model, x_a, model_type)
     else:
         raise ValueError('Invalid embedding type: "{}"'.format(embedding_type))
 
@@ -183,7 +184,7 @@ def gpu_wrapper(model_f):
     """
     Decorator for creating multi-gpu models
     """
-    def wrapped(*args, num_gpus=0, **kwargs):
+    def wrapped(num_gpus=0, *args, **kwargs):
         m, inp, out = model_f(*args, **kwargs)
         if num_gpus > 1:
             m = multi_gpu_model(m, gpus=num_gpus)
