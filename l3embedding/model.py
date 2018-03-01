@@ -183,7 +183,7 @@ def gpu_wrapper(model_f):
     """
     Decorator for creating multi-gpu models
     """
-    def wrapped(*args, num_gpus=0, **kwargs):
+    def wrapped(num_gpus=0, *args, **kwargs):
         m, inp, out = model_f(*args, **kwargs)
         if num_gpus > 1:
             m = multi_gpu_model(m, gpus=num_gpus)
