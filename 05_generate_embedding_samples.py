@@ -148,6 +148,8 @@ if __name__ == '__main__':
     dataset_output_dir = os.path.join(output_dir, args['model_id'],
                                       model_type, pooling_type)
 
+    if not os.path.isdir(dataset_output_dir):
+        os.makedirs(dataset_output_dir)
     # Write configurations to a file for reproducibility/posterity
     with open(os.path.join(dataset_output_dir, 'config.json')) as f:
         json.dump(args, f)
