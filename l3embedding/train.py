@@ -1,29 +1,20 @@
 import getpass
 import git
 import json
-import math
 import datetime
-import time
 import os
 import pickle
 import random
-import warnings
-import itertools
 import csv
 
 import numpy as np
 import keras
 from keras.optimizers import Adam
 import pescador
-import scipy.misc
-from skvideo.io import FFmpegReader, ffprobe
 from skimage import img_as_float
-import soundfile as sf
-from tqdm import tqdm
 
 from gsheets import get_credentials, append_row, update_experiment, get_row
 from .model import MODELS, load_model
-from .training_utils import multi_gpu_model
 from .audio import pcm2float
 from log import *
 import h5py

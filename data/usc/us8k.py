@@ -1,6 +1,8 @@
 import csv
 import logging
 import os
+import random
+import pescador
 
 import numpy as np
 
@@ -64,17 +66,7 @@ def get_us8k_folds(metadata_path, data_dir, l3embedding_model=None,
                    (Type: list[tuple[np.ndarray, np.ndarray]])
 
     """
-    metadata = load_us8k_metadata(metadata_path)
-
-    fold_data = []
-    for fold_idx in range(10):
-        LOGGER.info("Loading fold {}...".format(fold_idx+1))
-        fold_data.append(get_us8k_fold_data(metadata, data_dir, fold_idx,
-                                            l3embedding_model=l3embedding_model,
-                                            features=features, label_format=label_format,
-                                            **feature_args))
-
-    return fold_data
+    raise NotImplementedError()
 
 
 def get_us8k_fold_data(metadata, data_dir, fold_idx, l3embedding_model=None,
@@ -112,48 +104,7 @@ def get_us8k_fold_data(metadata, data_dir, fold_idx, l3embedding_model=None,
     X = []
     y = []
 
-    for idx, (fname, example_metadata) in enumerate(metadata[fold_idx].items()):
-        path = os.path.join(data_dir, "fold{}".format(fold_idx+1), fname)
-
-        if features.startswith('l3') and not l3embedding_model:
-            raise ValueError('Must provide L3 embedding model to use {} features'.format(features))
-
-        if features == 'l3_stack':
-            hop_size = feature_args.get('hop_size', 0.25)
-            file_features = cls_features.get_l3_stack_features(path, l3embedding_model,
-                                                          hop_size=hop_size)
-        elif features == 'l3_stats':
-            hop_size = feature_args.get('hop_size', 0.25)
-            file_features = cls_features.get_l3_stats_features(path, l3embedding_model,
-                                                          hop_size=hop_size)
-        elif features == 'l3_frames_uniform':
-            hop_size = feature_args.get('hop_size', 0.25)
-            file_features = cls_features.get_l3_frames_uniform(path, l3embedding_model,
-                                                          hop_size=hop_size)
-        elif features == 'l3_frames_random':
-            num_samples = feature_args.get('num_random_samples')
-            if not num_samples:
-                raise ValueError('Must specify "num_samples" for "l3_frame_random" features')
-            file_features = cls_features.get_l3_frames_random(path, l3embedding_model,
-                                                         num_samples)
-        else:
-            raise ValueError('Invalid feature type: {}'.format(features))
-
-        # If we were not able to compute the features, skip this file
-        if file_features is None:
-            continue
-
-        X.append(file_features)
-
-        class_label = example_metadata['classID']
-        if label_format == 'int':
-            y.append(class_label)
-        elif label_format == 'one_hot':
-            y.append(cls_features.one_hot(class_label))
-        else:
-            raise ValueError('Invalid label format: {}'.format(label_format))
-
-    return np.array(X), np.array(y)
+    raise NotImplementedError()
 
 
 def get_us8k_fold_split(fold_data, fold_idx, frame_features, shuffle=True):
@@ -200,3 +151,107 @@ def get_us8k_fold_split(fold_data, fold_idx, frame_features, shuffle=True):
         y_train = y_train[train_idxs]
 
     return X_train, y_train, X_test, y_test
+
+
+def generate_us8k_folds(metadata_path, data_dir, output_dir, l3embedding_model=None,
+                        features='l3_stack', label_format='int',
+                        random_state=12345678, **feature_args):
+    """
+    Generate all of the data for each fold
+
+    Args:
+        metadata_path: Path to metadata file
+                       (Type: str)
+
+        data_dir: Path to data directory
+                  (Type: str)
+
+        output_dir: Path to output directory where fold data will be stored
+                    (Type: str)
+
+    Keyword Args:
+        l3embedding_model: L3 embedding model, used if L3 features are used
+                           (Type: keras.engine.training.Model or None)
+
+        features: Type of features to be computed
+                  (Type: str)
+
+        label_format: Type of format used for encoding outputs
+                      (Type: str)
+    """
+    metadata = load_us8k_metadata(metadata_path)
+
+    for fold_idx in range(10):
+        LOGGER.info("Loading fold {}...".format(fold_idx+1))
+        generate_us8k_fold_data(metadata, data_dir, fold_idx, output_dir,
+                                l3embedding_model=l3embedding_model,
+                                features=features, label_format=label_format,
+                                random_state=random_state, **feature_args)
+
+
+def generate_us8k_fold_data(metadata, data_dir, fold_idx, output_dir, l3embedding_model=None,
+                            features='l3_stack', label_format='int',
+                            random_state=12345678, **feature_args):
+    """
+    Generate all of the data for a specific fold
+
+    Args:
+        metadata: List of metadata dictionaries, or a path to a metadata file to be loaded
+                  (Type: list[dict[str,*]] or str)
+
+        data_dir: Path to data directory
+                  (Type: str)
+
+        fold_idx: Index of fold to load
+                  (Type: int)
+
+        output_dir: Path to output directory where fold data will be stored
+                    (Type: str)
+
+    Keyword Args:
+        l3embedding_model: L3 embedding model, used if L3 features are used
+                           (Type: keras.engine.training.Model or None)
+
+        features: Type of features to be computed
+                  (Type: str)
+
+        label_format: Type of format used for encoding outputs
+                      (Type: str)
+    """
+    if type(metadata) == str:
+        metadata = load_us8k_metadata(metadata)
+
+    # Set random seed
+    random_state = random_state + fold_idx
+    random.seed(random_state)
+    np.random.seed(random_state)
+
+    # Create fold directory if it does not exist
+    fold_dir = os.path.join(data_dir, "fold{}".format(fold_idx+1))
+    if not os.path.isdir(fold_dir):
+        os.makedirs(fold_dir)
+
+    for idx, (fname, example_metadata) in enumerate(metadata[fold_idx].items()):
+        path = os.path.join(data_dir, "fold{}".format(fold_idx+1), fname)
+        basename, _ = os.path.splitext(fname)
+        output_path = os.path.join(fold_dir, fname)
+
+        if os.path.exists(output_path):
+            LOGGER.debug('Already found output file at {}. Skipping.'.format(output_path))
+            continue
+
+        X = cls_features.compute_file_features(path, features, l3embedding_model=l3embedding_model, **feature_args)
+
+        # If we were not able to compute the features, skip this file
+        if X is None:
+            continue
+
+        class_label = example_metadata['classID']
+        if label_format == 'int':
+            y = class_label
+        elif label_format == 'one_hot':
+            y = cls_features.one_hot(class_label)
+        else:
+            raise ValueError('Invalid label format: {}'.format(label_format))
+
+        np.savez_compressed(output_path, X=X, y=y)

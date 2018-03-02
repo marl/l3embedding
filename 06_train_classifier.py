@@ -11,7 +11,7 @@ def parse_arguments():
         args:  Argument dictionary
                (Type: dict[str, *])
     """
-    parser = argparse.ArgumentParser(description='Train an urban sound classification model')
+    parser = argparse.ArgumentParser(description='Generate embedding data for training an urban sound classification model')
 
     parser.add_argument('-e',
                         '--num-epochs',

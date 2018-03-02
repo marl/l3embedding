@@ -1,5 +1,4 @@
-from keras.models import Model
-from keras.layers import concatenate, Dense, MaxPooling2D, Flatten
+from keras.layers import concatenate, Dense
 from .vision_model import *
 from .audio_model import *
 from .training_utils import multi_gpu_model
@@ -49,8 +48,8 @@ def convert_num_gpus(model, inputs, outputs, model_type, src_num_gpus, tgt_num_g
         inputs: Input Tensor.
                 (Type: keras.layers.Input)
 
-        ouputs: Embedding output Tensor/Layer.
-                (Type: keras.layers.Layer)
+        outputs: Embedding output Tensor/Layer.
+                 (Type: keras.layers.Layer)
 
         model_type: Name of model type
                     (Type: str)
@@ -83,7 +82,7 @@ def convert_num_gpus(model, inputs, outputs, model_type, src_num_gpus, tgt_num_g
     return m_new, inputs_new, output_new
 
 
-def load_model(weights_path, model_type, num_gpus=0, target_num_gpus=None, return_io=False):
+def load_model(weights_path, model_type, src_num_gpus=0, tgt_num_gpus=None, return_io=False):
     """
     Loads an audio-visual correspondence model
 
@@ -94,11 +93,11 @@ def load_model(weights_path, model_type, num_gpus=0, target_num_gpus=None, retur
                        (Type: str)
 
     Keyword Args:
-        num_gpus:   Number of GPUs the saved model uses
-                    (Type: int)
+        src_num_gpus:   Number of GPUs the saved model uses
+                        (Type: int)
 
-        target_num_gpus:   Number of GPUs the loaded model will use
-                           (Type: int)
+        tgt_num_gpus:   Number of GPUs the loaded model will use
+                        (Type: int)
 
         return_io:  If True, return input and output tensors
                     (Type: bool)
@@ -115,13 +114,13 @@ def load_model(weights_path, model_type, num_gpus=0, target_num_gpus=None, retur
         raise ValueError('Invalid model type: "{}"'.format(model_type))
 
     m, inputs, output = MODELS[model_type]()
-    if num_gpus > 1:
-        m = multi_gpu_model(m, gpus=num_gpus)
+    if src_num_gpus > 1:
+        m = multi_gpu_model(m, gpus=src_num_gpus)
     m.load_weights(weights_path)
 
-    if target_num_gpus is not None and num_gpus != target_num_gpus:
+    if tgt_num_gpus is not None and src_num_gpus != tgt_num_gpus:
         m, inputs, output = convert_num_gpus(m, inputs, output, model_type,
-                                             num_gpus, target_num_gpus)
+                                             src_num_gpus, tgt_num_gpus)
 
     if return_io:
         return m, inputs, output
@@ -129,8 +128,8 @@ def load_model(weights_path, model_type, num_gpus=0, target_num_gpus=None, retur
         return m
 
 
-def load_embedding(weights_path, model_type, embedding_type,
-                   num_gpus=0, target_num_gpus=None, return_io=False):
+def load_embedding(weights_path, model_type, embedding_type, pooling_type,
+                   src_num_gpus=0, tgt_num_gpus=None, return_io=False):
     """
     Loads an embedding model
 
@@ -141,13 +140,15 @@ def load_embedding(weights_path, model_type, embedding_type,
                          (Type: str)
         embedding_type:  Type of embedding to load ('audio' or 'vision')
                          (Type: str)
+        pooling_type:    Type of pooling applied to final convolutional layer
+                         (Type: str)
 
     Keyword Args:
-        num_gpus:   Number of GPUs the saved model uses
-                    (Type: int)
+        src_num_gpus:   Number of GPUs the saved model uses
+                        (Type: int)
 
-        target_num_gpus:   Number of GPUs the loaded model will use
-                           (Type: int)
+        tgt_num_gpus:   Number of GPUs the loaded model will use
+                        (Type: int)
 
         return_io:  If True, return input and output tensors
                     (Type: bool)
@@ -160,8 +161,8 @@ def load_embedding(weights_path, model_type, embedding_type,
         y_i:    Embedding output Tensor/Layer. Not returned if return_io is False.
                 (Type: keras.layers.Layer)
     """
-    m, inputs, output = load_model(weights_path, model_type, num_gpus=num_gpus,
-                                   target_num_gpus=target_num_gpus, return_io=True)
+    m, inputs, output = load_model(weights_path, model_type, src_num_gpus=src_num_gpus,
+                                   tgt_num_gpus=tgt_num_gpus, return_io=True)
     x_i, x_a = inputs
     if embedding_type == 'vision':
         m_embed_model = m.get_layer('vision_model')
@@ -170,7 +171,7 @@ def load_embedding(weights_path, model_type, embedding_type,
     elif embedding_type == 'audio':
         m_embed_model = m.get_layer('audio_model')
         # m_embed, x_embed, y_embed = AUDIO_EMBEDDING_MODELS[model_type](m_embed_model, x_a)
-        m_embed, x_embed, y_embed = convert_audio_model_to_embedding(m_embed_model, x_a, model_type)
+        m_embed, x_embed, y_embed = convert_audio_model_to_embedding(m_embed_model, x_a, model_type, pooling_type)
     else:
         raise ValueError('Invalid embedding type: "{}"'.format(embedding_type))
 

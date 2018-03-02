@@ -463,7 +463,7 @@ def construct_cnn_l3_orig_audio_embedding_model(audio_model, x_a):
     return m, x_a, y_a
 
 
-def convert_audio_model_to_embedding(audio_model, x_a, model_type):
+def convert_audio_model_to_embedding(audio_model, x_a, model_type, pooling_type='original'):
     """
     Given and audio subnetwork, return a model that produces the learned
     embedding
@@ -479,12 +479,22 @@ def convert_audio_model_to_embedding(audio_model, x_a, model_type):
         y_a: embedding output Tensor
     """
 
-    pooling = {'cnn_L3_orig': (8, 8),
-               'cnn_L3_kapredbinputbn': (8, 8),
-               'cnn_L3_melspec1': (4, 8),
-               'cnn_L3_melspec2': (8, 8)}
+    pooling = {
+        'cnn_L3_orig': {
+            'original': (8, 8),
+        },
+        'cnn_L3_kapredbinputbn': {
+            'original': (8, 8),
+        },
+        'cnn_L3_melspec1': {
+            'original': (4, 8),
+        },
+        'cnn_L3_melspec2': {
+            'original': (8, 8)
+        }
+    }
 
-    pool_size = pooling[model_type]
+    pool_size = pooling[model_type][pooling_type]
 
     embed_layer = audio_model.get_layer('audio_embedding_layer')
     y_a = MaxPooling2D(pool_size=pool_size, padding='same')(embed_layer.output)

@@ -166,7 +166,7 @@ def get_l3_stats_features(audio_path, l3embedding_model, hop_size=0.25):
                            d1_mean, d1_var, d2_mean, d2_var))
 
 
-def get_l3_frames_uniform(audio_path, l3embedding_model, hop_size=0.25):
+def get_l3_frames_uniform(audio_path, l3embedding_model, hop_size=0.25, sr=48000):
     """
     Get L3 embedding stats features, i.e. compute statistics for each of the
     embedding features across 1 second (overlapping) window of the given audio
@@ -186,12 +186,12 @@ def get_l3_frames_uniform(audio_path, l3embedding_model, hop_size=0.25):
         features:  List of embedding vectors
                    (Type: list[np.ndarray])
     """
-    sr = 48000
-    audio, _ = librosa.load(audio_path, sr=sr, mono=True)
+    if type(audio) == str:
+        audio, _ = librosa.load(audio, sr=sr, mono=True)
 
     hop_size = 0.25 # REVISIT
     hop_length = int(hop_size * sr)
-    frame_length = 48000 * 1
+    frame_length = sr * 1
 
     audio_length = len(audio)
     if audio_length < frame_length:
@@ -217,7 +217,7 @@ def get_l3_frames_uniform(audio_path, l3embedding_model, hop_size=0.25):
     # Get the L3 embedding for each frame
     l3embedding = l3embedding_model.predict(x).T
 
-    return list(l3embedding)
+    return l3embedding
 
 def get_l3_frames_random(audio, l3embedding_model, num_samples, sr=48000):
     """
@@ -225,8 +225,8 @@ def get_l3_frames_random(audio, l3embedding_model, num_samples, sr=48000):
     embedding features across 1 second (overlapping) window of the given audio
 
     Args:
-        audio_path: numpy array or ath to audio file
-                    (Type: np.ndarray or str)
+        audio: numpy array or ath to audio file
+               (Type: np.ndarray or str)
 
         l3embedding_model:  Audio embedding model
                             (Type: keras.engine.training.Model)
@@ -278,7 +278,36 @@ def get_l3_frames_random(audio, l3embedding_model, num_samples, sr=48000):
 
         l3embedding = np.tile(frame_l3embedding, (num_samples, 1))
 
-    return list(l3embedding)
+    return l3embedding
+
+
+def compute_file_features(path, feature_type, l3embedding_model=None, **feature_args):
+    if feature_type.startswith('l3') and not l3embedding_model:
+        err_msg = 'Must provide L3 embedding model to use {} features'
+        raise ValueError(err_msg.format(feature_type))
+
+    if feature_type == 'l3_stack':
+        hop_size = feature_args.get('hop_size', 0.25)
+        file_features = get_l3_stack_features(path, l3embedding_model,
+                                              hop_size=hop_size)
+    elif feature_type == 'l3_stats':
+        hop_size = feature_args.get('hop_size', 0.25)
+        file_features = get_l3_stats_features(path, l3embedding_model,
+                                              hop_size=hop_size)
+    elif feature_type == 'l3_frames_uniform':
+        hop_size = feature_args.get('hop_size', 0.25)
+        file_features = get_l3_frames_uniform(path, l3embedding_model,
+                                              hop_size=hop_size)
+    elif feature_type == 'l3_frames_random':
+        num_samples = feature_args.get('num_random_samples')
+        if not num_samples:
+            raise ValueError('Must specify "num_samples" for "l3_frame_random" features')
+        file_features = get_l3_frames_random(path, l3embedding_model,
+                                             num_samples)
+    else:
+        raise ValueError('Invalid feature type: {}'.format(feature_type))
+
+    return file_features
 
 
 def flatten_file_frames(X, y):
