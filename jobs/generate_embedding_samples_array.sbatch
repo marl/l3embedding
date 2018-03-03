@@ -2,8 +2,8 @@
 
 #SBATCH --job-name=generate-l3embedding-samples
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=120GB
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=64GB
 #SBATCH --time=7-0
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=name@email.com
@@ -13,7 +13,7 @@
 
 source ~/.bashrc
 cd /home/$USER/dev
-source activate l3embedding
+source activate l3embedding-cpu
 
 SRCDIR=$HOME/dev/l3embedding
 L3_MODEL_PATH=''
@@ -23,9 +23,12 @@ US8K_PATH=/scratch/jtc440/UrbanSound8K
 METADATA_PATH=$US8K_PATH/metadata/UrbanSound8K.csv
 DATA_DIR=$US8K_PATH/audio
 OUTPUT_DIR=/scratch/jtc440/l3_features
-MODEL_ID='melspec1'
+MODEL_ID='test'
 
 module purge
+#module load cuda/8.0.44
+#module load cudnn/8.0v6.0
+module load ffmpeg/intel/3.2.2
 
 python $SRCDIR/05_generate_embedding_samples.py \
     --random-state 20180302 \

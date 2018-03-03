@@ -7,8 +7,9 @@ import pescador
 import numpy as np
 
 import data.usc.features as cls_features
+from log import LogTimer
 
-LOGGER = logging.getLogger('us8k')
+LOGGER = logging.getLogger('cls-data-generation')
 LOGGER.setLevel(logging.DEBUG)
 
 
@@ -178,11 +179,12 @@ def generate_us8k_folds(metadata_path, data_dir, output_dir, l3embedding_model=N
 
         label_format: Type of format used for encoding outputs
                       (Type: str)
+
     """
+    LOGGER.info('Generating all folds.')
     metadata = load_us8k_metadata(metadata_path)
 
     for fold_idx in range(10):
-        LOGGER.info("Loading fold {}...".format(fold_idx+1))
         generate_us8k_fold_data(metadata, data_dir, fold_idx, output_dir,
                                 l3embedding_model=l3embedding_model,
                                 features=features, label_format=label_format,
@@ -217,7 +219,9 @@ def generate_us8k_fold_data(metadata, data_dir, fold_idx, output_dir, l3embeddin
 
         label_format: Type of format used for encoding outputs
                       (Type: str)
+
     """
+
     if type(metadata) == str:
         metadata = load_us8k_metadata(metadata)
 
@@ -226,32 +230,54 @@ def generate_us8k_fold_data(metadata, data_dir, fold_idx, output_dir, l3embeddin
     random.seed(random_state)
     np.random.seed(random_state)
 
+    audio_fold_dir = os.path.join(data_dir, "fold{}".format(fold_idx+1))
+
     # Create fold directory if it does not exist
-    fold_dir = os.path.join(data_dir, "fold{}".format(fold_idx+1))
-    if not os.path.isdir(fold_dir):
-        os.makedirs(fold_dir)
+    output_fold_dir = os.path.join(output_dir, "fold{}".format(fold_idx+1))
+    if not os.path.isdir(output_fold_dir):
+        os.makedirs(output_fold_dir)
+
+    LOGGER.info('Generating fold {} in {}'.format(fold_idx+1, output_fold_dir))
+
+    num_files = len(metadata[fold_idx])
 
     for idx, (fname, example_metadata) in enumerate(metadata[fold_idx].items()):
-        path = os.path.join(data_dir, "fold{}".format(fold_idx+1), fname)
-        basename, _ = os.path.splitext(fname)
-        output_path = os.path.join(fold_dir, fname)
+        desc = '({}/{}) Processed {} -'.format(idx+1, num_files, fname)
+        with LogTimer(LOGGER, desc, log_level=logging.DEBUG):
+            generate_us8k_file_data(fname, example_metadata, audio_fold_dir,
+                                    output_fold_dir, features, label_format,
+                                    l3embedding_model, **feature_args)
 
-        if os.path.exists(output_path):
-            LOGGER.debug('Already found output file at {}. Skipping.'.format(output_path))
-            continue
 
-        X = cls_features.compute_file_features(path, features, l3embedding_model=l3embedding_model, **feature_args)
+def generate_us8k_file_data(fname, example_metadata, audio_fold_dir,
+                            output_fold_dir, features, label_format,
+                            l3embedding_model, **feature_args):
+    audio_path = os.path.join(audio_fold_dir, fname)
 
-        # If we were not able to compute the features, skip this file
-        if X is None:
-            continue
+    basename, _ = os.path.splitext(fname)
+    output_path = os.path.join(output_fold_dir, basename + '.npz')
 
-        class_label = example_metadata['classID']
-        if label_format == 'int':
-            y = class_label
-        elif label_format == 'one_hot':
-            y = cls_features.one_hot(class_label)
-        else:
-            raise ValueError('Invalid label format: {}'.format(label_format))
+    if os.path.exists(output_path):
+        LOGGER.info('File {} already exists'.format(output_path))
+        return
 
-        np.savez_compressed(output_path, X=X, y=y)
+    X = cls_features.compute_file_features(audio_path, features, l3embedding_model=l3embedding_model, **feature_args)
+
+    # If we were not able to compute the features, skip this file
+    if X is None:
+        LOGGER.error('Could not generate data for {}'.format(audio_path))
+        return
+
+    class_label = example_metadata['classID']
+    if label_format == 'int':
+        y = class_label
+    elif label_format == 'one_hot':
+        y = cls_features.one_hot(class_label)
+    else:
+        raise ValueError('Invalid label format: {}'.format(label_format))
+
+    np.savez_compressed(output_path, X=X, y=y)
+
+    return output_path, 'success'
+
+

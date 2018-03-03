@@ -3,9 +3,24 @@ import warnings
 import librosa
 import numpy as np
 import scipy as sp
+import soundfile as sf
+import resampy
 
-LOGGER = logging.getLogger('classifier-features')
+LOGGER = logging.getLogger('cls-data-generation')
 LOGGER.setLevel(logging.DEBUG)
+
+
+def load_audio(path, sr):
+    """
+    Load audio file
+    """
+    data, sr_orig = sf.read(path, dtype='float32', always_2d=True)
+    data = data.mean(axis=-1)
+
+    if sr_orig != sr:
+        data = resampy.resample(data, sr_orig, sr)
+
+    return data
 
 
 def one_hot(idx, n_classes=10):
@@ -52,7 +67,7 @@ def get_l3_stack_features(audio_path, l3embedding_model, hop_size=0.25):
                    (Type: np.ndarray)
     """
     sr = 48000
-    audio, _ = librosa.load(audio_path, sr=sr, mono=True)
+    audio = load_audio(audio_path, sr)
     audio_length = len(audio)
     frame_length = sr
     hop_length = int(sr * hop_size)
@@ -110,7 +125,7 @@ def get_l3_stats_features(audio_path, l3embedding_model, hop_size=0.25):
                    (Type: np.ndarray)
     """
     sr = 48000
-    audio, _ = librosa.load(audio_path, sr=sr, mono=True)
+    audio = load_audio(audio_path, sr)
 
     hop_length = int(hop_size * sr)
     frame_length = 48000 * 1
@@ -166,14 +181,14 @@ def get_l3_stats_features(audio_path, l3embedding_model, hop_size=0.25):
                            d1_mean, d1_var, d2_mean, d2_var))
 
 
-def get_l3_frames_uniform(audio_path, l3embedding_model, hop_size=0.25, sr=48000):
+def get_l3_frames_uniform(audio, l3embedding_model, hop_size=0.25, sr=48000):
     """
     Get L3 embedding stats features, i.e. compute statistics for each of the
     embedding features across 1 second (overlapping) window of the given audio
 
     Args:
-        audio_path: Path to audio file
-                    (Type: str)
+        audio: Audio data or path to audio file
+               (Type: np.ndarray or str)
 
         l3embedding_model:  Audio embedding model
                             (keras.engine.training.Model)
@@ -187,7 +202,7 @@ def get_l3_frames_uniform(audio_path, l3embedding_model, hop_size=0.25, sr=48000
                    (Type: list[np.ndarray])
     """
     if type(audio) == str:
-        audio, _ = librosa.load(audio, sr=sr, mono=True)
+        audio = load_audio(audio, sr)
 
     hop_size = 0.25 # REVISIT
     hop_length = int(hop_size * sr)
@@ -225,7 +240,7 @@ def get_l3_frames_random(audio, l3embedding_model, num_samples, sr=48000):
     embedding features across 1 second (overlapping) window of the given audio
 
     Args:
-        audio: numpy array or ath to audio file
+        audio: Numpy array or path to audio file
                (Type: np.ndarray or str)
 
         l3embedding_model:  Audio embedding model
@@ -239,7 +254,7 @@ def get_l3_frames_random(audio, l3embedding_model, num_samples, sr=48000):
                    (Type: list[np.ndarray])
     """
     if type(audio) == str:
-        audio, _ = librosa.load(audio, sr=sr, mono=True)
+        audio = load_audio(audio, sr)
 
     frame_length = sr * 1
 
