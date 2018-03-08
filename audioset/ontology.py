@@ -57,6 +57,7 @@ class ASOntologyNode(object):
 class ASOntology(object):
     def __init__(self, ontology_path):
         self._nodes = {}
+        self._node_name_to_id = {}
 
         # Make sure the path to the ontology file exists
         if not os.path.exists(ontology_path):
@@ -91,6 +92,9 @@ class ASOntology(object):
             for child in node.children:
                 child.parent_id = node.id
 
+            # (Also use this loop to reate a mapping from node name to ID)
+            self._node_name_to_id[node.name] = node.id
+
         # Do another pass to find the top level nodes, which have not
         # been assigned a parent
         self.top_level_node_ids = []
@@ -123,5 +127,13 @@ class ASOntology(object):
         if node_id not in self._nodes:
             raise ValueError('No node with ID {}'.format(node_id))
         return self._nodes[node_id]
+
+    def get_node_by_name(self, node_name):
+        """
+        Get a node with the given name
+        """
+        if node_name not in self._node_name_to_id:
+            raise ValueError('No node with name {}'.format(node_name))
+        return self.get_node(self._node_name_to_id[node_name])
 
 

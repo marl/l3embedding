@@ -134,8 +134,9 @@ def get_file_list(data_dir, metadata_path=None, filter_path=None, ontology_path=
             has_accept_filter = False
             for _filter in filters:
                 filter_type = _filter['filter_type']
-                filter_accept = _filter['accept_reject'] == 'accept'
+                filter_accept = _filter['accept_reject'].lower() == 'accept'
                 string = _filter['string']
+                include_children = _filter['include_children'].lower() == 'true'
 
                 if filter_accept:
                     has_accept_filter = True
@@ -145,6 +146,17 @@ def get_file_list(data_dir, metadata_path=None, filter_path=None, ontology_path=
 
                 elif filter_type == 'label':
                     match = string.lower() in label_list
+
+                    if include_children and not match:
+                        # If this filter includes children classes,
+                        # check each label to see if it is a descendent of the
+                        # filter label
+                        filter_node = ontology.get_node_by_name(string)
+                        for label in label_list:
+                            label_node = ontology.get_node_by_name(string)
+                            if filter_node.is_child(label_node):
+                                match = True
+                                break
 
                 if filter_accept:
                     # If "accept" has not been set, and there is a match with an accept filter, set "accept" to True
