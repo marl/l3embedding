@@ -279,6 +279,12 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
 
     LOGGER.info('Model files can be found in "{}"'.format(model_dir))
 
+    param_dict['model_dir'] = model_dir
+    train_config_path = os.path.join(model_dir, 'config.json')
+    with open(train_config_path, 'w') as fd:
+        json.dump(param_dict, fd, indent=2)
+
+
     param_dict.update({
           'latest_epoch': '-',
           'latest_train_loss': '-',
@@ -289,7 +295,6 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
           'best_validation_loss': '-',
           'best_train_acc': '-',
           'best_validation_acc': '-',
-          'model_dir': model_dir,
     })
 
     # Save the model
