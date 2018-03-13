@@ -7,9 +7,9 @@ import scipy as sp
 import soundfile as sf
 import resampy
 import tensorflow as tf
-import .vggish.vggish_input as vggish_input
-import .vggish.vggish_postprocess as vggish_postprocess
-import .vggish.vggish_slim as vggish_slim
+from .vggish import vggish_input
+from .vggish import vggish_postprocess
+from .vggish import vggish_slim
 
 LOGGER = logging.getLogger('cls-data-generation')
 LOGGER.setLevel(logging.DEBUG)

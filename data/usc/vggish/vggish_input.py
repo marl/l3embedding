@@ -19,7 +19,7 @@ import numpy as np
 import resampy
 from scipy.io import wavfile
 
-import .mel_features
+from . import mel_features
 
 
 def waveform_to_examples(data, sample_rate, target_sample_rate=16000,
