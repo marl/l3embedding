@@ -18,4 +18,11 @@ There is also a module `classifier/` which contains code to train a classifier u
 You can train an urban sound classification model using `train_classifier.py`. Run `python train_classifier.py -h` to read the help message regarding how to use the script.
 
 
+## Download VGGish models:
+* `cd ./resources/vggish`
+* `curl -O https://storage.googleapis.com/audioset/vggish_model.ckpt`
+* `curl -O https://storage.googleapis.com/audioset/vggish_pca_params.npz`
+* `cd ../..`
+
+
 If you use a SLURM environment, `sbatch` scripts are available in `jobs/`.

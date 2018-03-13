@@ -1,10 +1,15 @@
 import logging
+import os
 import warnings
 import librosa
 import numpy as np
 import scipy as sp
 import soundfile as sf
 import resampy
+import tensorflow as tf
+import .vggish.vggish_input as vggish_input
+import .vggish.vggish_postprocess as vggish_postprocess
+import .vggish.vggish_slim as vggish_slim
 
 LOGGER = logging.getLogger('cls-data-generation')
 LOGGER.setLevel(logging.DEBUG)
@@ -44,7 +49,73 @@ def one_hot(idx, n_classes=10):
     return y
 
 
-def get_l3_stack_features(audio_path, l3embedding_model, hop_size=0.25):
+def extract_vggish_embedding(audio_path, input_op_name='vggish/input_features',
+                             output_op_name='vggish/embedding',
+                             resources_dir=None, **params):
+    fs = params.get('target_sample_rate', 16000)
+    audio_data = load_audio(audio_path, fs)
+
+    if not resources_dir:
+        resources_dir = os.path.join(os.path.dirname(__file__), '../../resources/vggish')
+
+    pca_params_path = os.path.join(resources_dir, 'vggish_pca_params.npz')
+    model_path = os.path.join(resources_dir, 'vggish_model.ckpt')
+
+
+    examples_batch = vggish_input.waveform_to_examples(audio_data, fs, **params)
+
+    # Prepare a postprocessor to munge the model embeddings.
+    pproc = vggish_postprocess.Postprocessor(pca_params_path)
+
+    # If needed, prepare a record writer to store the postprocessed embeddings.
+    #writer = tf.python_io.TFRecordWriter(
+    #    FLAGS.tfrecord_file) if FLAGS.tfrecord_file else None
+
+    input_tensor_name = input_op_name + ':0'
+    output_tensor_name = output_op_name + ':0'
+
+    with tf.Graph().as_default(), tf.Session() as sess:
+      # Define the model in inference mode, load the checkpoint, and
+      # locate input and output tensors.
+      vggish_slim.define_vggish_slim(training=False)
+      vggish_slim.load_vggish_slim_checkpoint(sess, model_path)
+      features_tensor = sess.graph.get_tensor_by_name(input_tensor_name)
+      embedding_tensor = sess.graph.get_tensor_by_name(output_tensor_name)
+
+      # Run inference and postprocessing.
+      [embedding_batch] = sess.run([embedding_tensor],
+                                   feed_dict={features_tensor: examples_batch})
+      postprocessed_batch = pproc.postprocess(embedding_batch)
+
+      # Write the postprocessed embeddings as a SequenceExample, in a similar
+      # format as the features released in AudioSet. Each row of the batch of
+      # embeddings corresponds to roughly a second of audio (96 10ms frames), and
+      # the rows are written as a sequence of bytes-valued features, where each
+      # feature value contains the 128 bytes of the whitened quantized embedding.
+
+    return postprocessed_batch
+
+
+def get_vggish_frames_uniform(audio_path, hop_size=0.1):
+    """
+    Get vggish embedding features for each frame in the given audio file
+
+    Args:
+        audio: Audio data or path to audio file
+               (Type: np.ndarray or str)
+
+    Keyword Args:
+        hop_size: Hop size in seconds
+                  (Type: float)
+
+    Returns:
+        features:  Array of embedding vectors
+                   (Type: np.ndarray)
+    """
+    return extract_vggish_embedding(audio_path, frame_hop_sec=hop_size)
+
+
+def get_l3_stack_features(audio_path, l3embedding_model, hop_size=0.1):
     """
     Get stacked L3 embedding features, i.e. stack embedding features for each
     1 second (overlapping) window of the given audio
@@ -59,7 +130,7 @@ def get_l3_stack_features(audio_path, l3embedding_model, hop_size=0.25):
                             (keras.engine.training.Model)
 
     Keyword Args:
-        hop_size: Hop size as a fraction of the window
+        hop_size: Hop size in seconds
                   (Type: float)
 
     Returns:
@@ -101,7 +172,7 @@ def get_l3_stack_features(audio_path, l3embedding_model, hop_size=0.25):
     return l3embedding.flatten()
 
 
-def get_l3_stats_features(audio_path, l3embedding_model, hop_size=0.25):
+def get_l3_stats_features(audio_path, l3embedding_model, hop_size=0.1):
     """
     Get L3 embedding stats features, i.e. compute statistics for each of the
     embedding features across 1 second (overlapping) window of the given audio
@@ -117,7 +188,7 @@ def get_l3_stats_features(audio_path, l3embedding_model, hop_size=0.25):
                             (keras.engine.training.Model)
 
     Keyword Args:
-        hop_size: Hop size as a fraction of the window
+        hop_size: Hop size in seconds
                   (Type: float)
 
     Returns:
@@ -181,10 +252,9 @@ def get_l3_stats_features(audio_path, l3embedding_model, hop_size=0.25):
                            d1_mean, d1_var, d2_mean, d2_var))
 
 
-def get_l3_frames_uniform(audio, l3embedding_model, hop_size=0.25, sr=48000):
+def get_l3_frames_uniform(audio, l3embedding_model, hop_size=0.1, sr=48000):
     """
-    Get L3 embedding stats features, i.e. compute statistics for each of the
-    embedding features across 1 second (overlapping) window of the given audio
+    Get L3 embedding for each frame in the given audio file
 
     Args:
         audio: Audio data or path to audio file
@@ -194,12 +264,12 @@ def get_l3_frames_uniform(audio, l3embedding_model, hop_size=0.25, sr=48000):
                             (keras.engine.training.Model)
 
     Keyword Args:
-        hop_size: Hop size as a fraction of the window
+        hop_size: Hop size in seconds
                   (Type: float)
 
     Returns:
-        features:  List of embedding vectors
-                   (Type: list[np.ndarray])
+        features:  Array of embedding vectors
+                   (Type: np.ndarray)
     """
     if type(audio) == str:
         audio = load_audio(audio, sr)
@@ -236,8 +306,7 @@ def get_l3_frames_uniform(audio, l3embedding_model, hop_size=0.25, sr=48000):
 
 def get_l3_frames_random(audio, l3embedding_model, num_samples, sr=48000):
     """
-    Get L3 embedding stats features, i.e. compute statistics for each of the
-    embedding features across 1 second (overlapping) window of the given audio
+    Get L3 embedding for random frames in the given audio file
 
     Args:
         audio: Numpy array or path to audio file
@@ -250,8 +319,8 @@ def get_l3_frames_random(audio, l3embedding_model, num_samples, sr=48000):
                      (Type: int)
 
     Returns:
-        features:  List of embedding vectors
-                   (Type: list[np.ndarray])
+        features:  Array of embedding vectors
+                   (Type: np.ndarray)
     """
     if type(audio) == str:
         audio = load_audio(audio, sr)
@@ -302,15 +371,15 @@ def compute_file_features(path, feature_type, l3embedding_model=None, **feature_
         raise ValueError(err_msg.format(feature_type))
 
     if feature_type == 'l3_stack':
-        hop_size = feature_args.get('hop_size', 0.25)
+        hop_size = feature_args.get('hop_size', 0.1)
         file_features = get_l3_stack_features(path, l3embedding_model,
                                               hop_size=hop_size)
     elif feature_type == 'l3_stats':
-        hop_size = feature_args.get('hop_size', 0.25)
+        hop_size = feature_args.get('hop_size', 0.1)
         file_features = get_l3_stats_features(path, l3embedding_model,
                                               hop_size=hop_size)
     elif feature_type == 'l3_frames_uniform':
-        hop_size = feature_args.get('hop_size', 0.25)
+        hop_size = feature_args.get('hop_size', 0.1)
         file_features = get_l3_frames_uniform(path, l3embedding_model,
                                               hop_size=hop_size)
     elif feature_type == 'l3_frames_random':
@@ -319,6 +388,9 @@ def compute_file_features(path, feature_type, l3embedding_model=None, **feature_
             raise ValueError('Must specify "num_samples" for "l3_frame_random" features')
         file_features = get_l3_frames_random(path, l3embedding_model,
                                              num_samples)
+    elif feature_type == 'vggish_frames_uniform':
+        hop_size = feature_args.get('hop_size', 0.1)
+        file_features = get_vggish_frames_uniform(path, hop_size=hop_size)
     else:
         raise ValueError('Invalid feature type: {}'.format(feature_type))
 

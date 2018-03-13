@@ -152,15 +152,18 @@ if __name__ == '__main__':
     dataset_name = args['dataset_name']
     fold_num = args['fold']
 
-    LOGGER.info('Loading embedding model...')
-    l3embedding_model = load_embedding(model_path,
-                                       model_type,
-                                       'audio', pooling_type,
-                                       tgt_num_gpus=num_gpus)
+    if model_path:
+        LOGGER.info('Loading embedding model...')
+        l3embedding_model = load_embedding(model_path,
+                                           model_type,
+                                           'audio', pooling_type,
+                                           tgt_num_gpus=num_gpus)
+    else:
+        l3embedding_model = None
 
 
     dataset_output_dir = os.path.join(output_dir, model_id,
-                                      model_type, pooling_type)
+                                      model_type, pooling_type, features)
 
     if not os.path.isdir(dataset_output_dir):
         os.makedirs(dataset_output_dir)
