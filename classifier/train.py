@@ -110,6 +110,7 @@ def train_svm(train_gen, valid_data, test_data, model_dir, C=1e-4, reg_penalty='
     valid_metric_history = []
 
     model_output_path = os.path.join(model_dir, "model.pkl")
+    stdizer_output_path = os.path.join(model_dir, "stdizer.pkl")
 
     # Create classifier
     clf = SGDClassifier(alpha=C, penalty=reg_penalty, n_jobs=-1, verbose=verbose)
@@ -135,6 +136,7 @@ def train_svm(train_gen, valid_data, test_data, model_dir, C=1e-4, reg_penalty='
         # Save the model for this iteration
         LOGGER.info('Saving model...')
         joblib.dump(clf, model_output_path)
+        joblib.dump(stdizer, stdizer_output_path)
 
         if verbose:
             train_msg = 'Train - loss: {}, acc: {}'
@@ -170,7 +172,7 @@ def train_svm(train_gen, valid_data, test_data, model_dir, C=1e-4, reg_penalty='
     y_test_pred = np.array(y_test_pred)
     test_metrics = compute_metrics(test_data['labels'], y_test_pred)
 
-    return clf, train_metrics, valid_metrics, test_metrics
+    return (stdizer, clf), train_metrics, valid_metrics, test_metrics
 
 
 def construct_mlp_model(input_shape, weight_decay=1e-5):
@@ -303,8 +305,9 @@ def train_mlp(train_gen, valid_data, test_data, model_dir,
 
 
 def train(features_dir, output_dir, model_id, fold_num, model_type='svm',
-          num_streamers=None, batch_size=64, mux_rate=None, random_state=20171021,
-          verbose=False, **model_args):
+          train_num_streamers=None, train_batch_size=64, train_mux_rate=None,
+          valid_num_streamers=None, valid_batch_size=64, valid_mux_rate=None,
+          random_state=20171021, verbose=False, **model_args):
     init_console_logger(LOGGER, verbose=verbose)
     LOGGER.debug('Initialized logging.')
 
@@ -329,9 +332,12 @@ def train(features_dir, output_dir, model_id, fold_num, model_type='svm',
             'model_id': model_id,
             'fold_num': fold_num,
             'model_type': model_type,
-            'num_streamers': num_streamers,
-            'batch_size': batch_size,
-            'mux_rate': mux_rate,
+            'train_num_streamers': train_num_streamers,
+            'train_batch_size': train_batch_size,
+            'train_mux_rate': train_mux_rate,
+            'valid_num_streamers': valid_num_streamers,
+            'valid_batch_size': valid_batch_size,
+            'valid_mux_rate': valid_mux_rate,
             'random_state': random_state,
             'verbose': verbose
         }
@@ -342,15 +348,17 @@ def train(features_dir, output_dir, model_id, fold_num, model_type='svm',
     LOGGER.info('Loading data...')
 
     fold_idx = fold_num - 1
-    LOGGER.info('Preparing data for fold {}'.format(fold_num))
+    LOGGER.info('Preparing training data for fold {}'.format(fold_num))
     train_gen = get_us8k_batch_generator(features_dir, fold_idx,
-                         valid=False, num_streamers=num_streamers,
-                         batch_size=batch_size, random_state=random_state,
-                         rate=mux_rate)
+                         valid=False, num_streamers=train_num_streamers,
+                         batch_size=train_batch_size, random_state=random_state,
+                         rate=train_mux_rate)
+    LOGGER.info('Preparing validation data for fold {}'.format(fold_num))
     valid_data = get_us8k_batch(features_dir, fold_idx,
-                         valid=True, num_streamers=num_streamers,
-                         batch_size=batch_size, random_state=random_state,
-                         rate=mux_rate)
+                         valid=True, num_streamers=valid_num_streamers,
+                         batch_size=valid_batch_size, random_state=random_state,
+                         rate=valid_mux_rate)
+    LOGGER.info('Preparing test data for fold {}'.format(fold_num))
     test_data = load_test_fold(features_dir, fold_idx)
 
     LOGGER.info('Training {} with fold {} held out'.format(model_type, fold_num))
@@ -363,7 +371,7 @@ def train(features_dir, output_dir, model_id, fold_num, model_type='svm',
     elif model_type == 'mlp':
         model, train_metrics, valid_metrics, test_metrics \
                 = train_mlp(train_gen, valid_data, test_data, model_dir,
-                batch_size=batch_size, verbose=verbose, **model_args)
+                batch_size=train_batch_size, verbose=verbose, **model_args)
 
     else:
         raise ValueError('Invalid model type: {}'.format(model_type))
