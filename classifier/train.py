@@ -67,7 +67,7 @@ class MetricCallback(keras.callbacks.Callback):
 
 
 def train_svm(train_gen, valid_data, test_data, model_dir, C=1e-4, reg_penalty='l2',
-              num_workers=1, tol=1e-3, max_iterations=1000000, verbose=False, **kwargs):
+              tol=1e-3, max_iterations=1000000, verbose=False, **kwargs):
     """
     Train a Support Vector Machine model on the given data
 
@@ -112,7 +112,7 @@ def train_svm(train_gen, valid_data, test_data, model_dir, C=1e-4, reg_penalty='
     model_output_path = os.path.join(model_dir, "model.pkl")
 
     # Create classifier
-    clf = SGDClassifier(alpha=C, penalty=reg_penalty, n_jobs=num_workers, verbose=verbose)
+    clf = SGDClassifier(alpha=C, penalty=reg_penalty, n_jobs=-1, verbose=verbose)
 
     LOGGER.debug('Fitting model to data...')
     for iter_idx, train_data in enumerate(train_gen):
