@@ -42,6 +42,8 @@ def load_us8k_metadata(path):
 def load_feature_file(feature_filepath):
     data = np.load(feature_filepath)
     X, y = data['X'], data['y']
+    if type(y) == np.ndarray and y.ndim == 0:
+        y = int(y)
     return X, y
 
 
@@ -58,7 +60,7 @@ def us8k_file_sampler(feature_filepath, shuffle=True):
     for idx in frame_idxs:
         yield {
             'features': X[idx],
-            'label': y[idx],
+            'label': y,
             'filepath': feature_filepath,
             'frame_idx': idx
         }
@@ -81,6 +83,11 @@ def get_us8k_batch_generator(features_dir, test_fold_idx, valid=False, num_strea
     valid_fold_idx = (test_fold_idx - 1) % 10
 
     for fold_dirname in os.listdir(features_dir):
+        fold_dir = os.path.join(features_dir, fold_dirname)
+
+        if not os.path.isdir(fold_dir):
+            continue
+
         fold_idx = int(fold_dirname.replace('fold', '')) - 1
         if fold_idx == test_fold_idx:
             continue
@@ -103,7 +110,7 @@ def get_us8k_batch_generator(features_dir, test_fold_idx, valid=False, num_strea
     if num_streamers is None:
         num_streamers = len(seeds)
 
-    mux = pescador.StochasticMux(seeds, num_streamers, rate=rate, random_state=random_state)
+    mux = pescador.Mux(seeds, num_streamers, rate=rate, random_state=random_state)
     if cycle:
         mux = mux.cycle()
 
