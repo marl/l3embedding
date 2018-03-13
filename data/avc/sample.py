@@ -302,7 +302,7 @@ def read_video(video_path):
     frames = []
     for frame in reader.nextFrame():
         frames.append(frame)
-
+    reader.close()
     return frames
 
 
