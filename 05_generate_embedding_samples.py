@@ -152,7 +152,10 @@ if __name__ == '__main__':
     dataset_name = args['dataset_name']
     fold_num = args['fold']
 
-    if model_path:
+    is_l3_feature = features.startswith('l3')
+
+    if is_l3_feature and model_path:
+        # Load L3 embedding model if using L3 features
         LOGGER.info('Loading embedding model...')
         l3embedding_model = load_embedding(model_path,
                                            model_type,
@@ -161,10 +164,15 @@ if __name__ == '__main__':
     else:
         l3embedding_model = None
 
+    if is_l3_feature:
+        # If using an L3 model, make model arch. type and pooling type to path
+        dataset_output_dir = os.path.join(output_dir, dataset_name, features,
+                                          model_id, model_type, pooling_type)
+    else:
+        dataset_output_dir = os.path.join(output_dir, dataset_name, features,
+                                          model_id)
 
-    dataset_output_dir = os.path.join(output_dir, model_id,
-                                      model_type, pooling_type, features)
-
+    # Make sure output directory exists
     if not os.path.isdir(dataset_output_dir):
         os.makedirs(dataset_output_dir)
 
