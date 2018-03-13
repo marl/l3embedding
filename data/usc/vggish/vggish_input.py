@@ -74,7 +74,7 @@ def waveform_to_examples(data, sample_rate, target_sample_rate=16000,
   return log_mel_examples
 
 
-def wavfile_to_examples(wav_file):
+def wavfile_to_examples(wav_file, **params):
   """Convenience wrapper around waveform_to_examples() for a common WAV format.
 
   Args:
@@ -87,4 +87,4 @@ def wavfile_to_examples(wav_file):
   sr, wav_data = wavfile.read(wav_file)
   assert wav_data.dtype == np.int16, 'Bad sample type: %r' % wav_data.dtype
   samples = wav_data / 32768.0  # Convert to [-1.0, +1.0]
-  return waveform_to_examples(samples, sr)
+  return waveform_to_examples(samples, sr, **params)

@@ -36,7 +36,7 @@ slim = tf.contrib.slim
 
 
 def define_vggish_slim(training=False, init_stddev=0.01, num_frames=96,
-                       num_bands=64, embedding_size=128):
+                       num_bands=64, embedding_size=128, **params):
   """Defines the VGGish TensorFlow model.
 
   All ops are created in the current default graph, under the scope 'vggish/'.
@@ -99,7 +99,7 @@ def define_vggish_slim(training=False, init_stddev=0.01, num_frames=96,
     return tf.identity(net, name='embedding')
 
 
-def load_vggish_slim_checkpoint(session, checkpoint_path):
+def load_vggish_slim_checkpoint(session, checkpoint_path, **params):
   """Loads a pre-trained VGGish-compatible checkpoint.
 
   This function can be used as an initialization function (referred to as
@@ -116,7 +116,7 @@ def load_vggish_slim_checkpoint(session, checkpoint_path):
   # Get the list of names of all VGGish variables that exist in
   # the checkpoint (i.e., all inference-mode VGGish variables).
   with tf.Graph().as_default():
-    define_vggish_slim(training=False)
+    define_vggish_slim(training=False, **params)
     vggish_var_names = [v.name for v in tf.global_variables()]
 
   # Get the list of all currently existing variables that match

@@ -31,8 +31,7 @@ class Postprocessor(object):
   """
 
   def __init__(self, pca_params_npz_path, pca_eigen_vectors_name='pca_eigen_vectors',
-          pca_means_name='pca_means', embedding_size=128,
-          quantize_min_val=-2.0, quantize_max_val=+2.0):
+          pca_means_name='pca_means', embedding_size=128, **params):
     """Constructs a postprocessor.
 
     Args:
@@ -49,7 +48,8 @@ class Postprocessor(object):
     assert self._pca_means.shape == (embedding_size, 1), (
         'Bad PCA means shape: %r' % (self._pca_means.shape,))
 
-  def postprocess(self, embeddings_batch):
+  def postprocess(self, embeddings_batch, embedding_size=128,
+                  quantize_min_val=-2.0, quantize_max_val=+2.0, **params):
     """Applies postprocessing to a batch of embeddings.
 
     Args:

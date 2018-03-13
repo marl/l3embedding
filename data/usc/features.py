@@ -65,7 +65,7 @@ def extract_vggish_embedding(audio_path, input_op_name='vggish/input_features',
     examples_batch = vggish_input.waveform_to_examples(audio_data, fs, **params)
 
     # Prepare a postprocessor to munge the model embeddings.
-    pproc = vggish_postprocess.Postprocessor(pca_params_path)
+    pproc = vggish_postprocess.Postprocessor(pca_params_path, **params)
 
     # If needed, prepare a record writer to store the postprocessed embeddings.
     #writer = tf.python_io.TFRecordWriter(
@@ -77,15 +77,15 @@ def extract_vggish_embedding(audio_path, input_op_name='vggish/input_features',
     with tf.Graph().as_default(), tf.Session() as sess:
       # Define the model in inference mode, load the checkpoint, and
       # locate input and output tensors.
-      vggish_slim.define_vggish_slim(training=False)
-      vggish_slim.load_vggish_slim_checkpoint(sess, model_path)
+      vggish_slim.define_vggish_slim(training=False, **params)
+      vggish_slim.load_vggish_slim_checkpoint(sess, model_path, **params)
       features_tensor = sess.graph.get_tensor_by_name(input_tensor_name)
       embedding_tensor = sess.graph.get_tensor_by_name(output_tensor_name)
 
       # Run inference and postprocessing.
       [embedding_batch] = sess.run([embedding_tensor],
                                    feed_dict={features_tensor: examples_batch})
-      postprocessed_batch = pproc.postprocess(embedding_batch)
+      postprocessed_batch = pproc.postprocess(embedding_batch, **params)
 
       # Write the postprocessed embeddings as a SequenceExample, in a similar
       # format as the features released in AudioSet. Each row of the batch of
