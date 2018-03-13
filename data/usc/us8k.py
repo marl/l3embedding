@@ -16,11 +16,9 @@ LOGGER.setLevel(logging.DEBUG)
 def load_us8k_metadata(path):
     """
     Load UrbanSound8K metadata
-
     Args:
         path: Path to metadata csv file
               (Type: str)
-
     Returns:
         metadata: List of metadata dictionaries
                   (Type: list[dict[str, *]])
@@ -40,118 +38,122 @@ def load_us8k_metadata(path):
     return metadata
 
 
-def get_us8k_folds(metadata_path, data_dir, l3embedding_model=None,
-                   features='l3_stack', label_format='int', **feature_args):
-    """
-    Load all of the data for each fold
 
-    Args:
-        metadata_path: Path to metadata file
-                       (Type: str)
-
-        data_dir: Path to data directory
-                  (Type: str)
-
-    Keyword Args:
-        l3embedding_model: L3 embedding model, used if L3 features are used
-                           (Type: keras.engine.training.Model or None)
-
-        features: Type of features to be computed
-                  (Type: str)
-
-        label_format: Type of format used for encoding outputs
-                      (Type: str)
-
-    Returns:
-        fold_data: List of data for each fold
-                   (Type: list[tuple[np.ndarray, np.ndarray]])
-
-    """
-    raise NotImplementedError()
+def load_feature_file(feature_filepath):
+    data = np.load(feature_filepath)
+    X, y = data['X'], data['y']
+    return X, y
 
 
-def get_us8k_fold_data(metadata, data_dir, fold_idx, l3embedding_model=None,
-                       features='l3_stack', label_format='int', **feature_args):
-    """
-    Load all of the data for a specific fold
+def us8k_file_sampler(feature_filepath, shuffle=True):
+    X, y = load_feature_file(feature_filepath)
 
-    Args:
-        metadata: List of metadata dictionaries
-                  (Type: list[dict[str,*]])
-
-        data_dir: Path to data directory
-                  (Type: str)
-
-        fold_idx: Index of fold to load
-                  (Type: int)
-
-    Keyword Args:
-        l3embedding_model: L3 embedding model, used if L3 features are used
-                           (Type: keras.engine.training.Model or None)
-
-        features: Type of features to be computed
-                  (Type: str)
-
-        label_format: Type of format used for encoding outputs
-                      (Type: str)
-
-    Returns:
-        X: Feature data
-           (Type: np.ndarray)
-        y: Label data
-           (Type: np.ndarray)
-
-    """
-    X = []
-    y = []
-
-    raise NotImplementedError()
-
-
-def get_us8k_fold_split(fold_data, fold_idx, frame_features, shuffle=True):
-    """
-    Given the fold to use as held out, return the data split between training
-    and testing
-
-    Args:
-        fold_data: List of data for each fold
-                   (Type: list[tuple[np.ndarray, np.ndarray]])
-
-        fold_idx: Fold to use as held out data
-                  (Type: int)
-
-        frame_features: If True, training frame features organized by file are
-                        flattened and labels are replicated accordingly
-                        (Type: bool)
-
-    Returns:
-        X_train: Training feature data
-                 (Type: np.ndarray)
-        y_train: Training label data
-                 (Type: np.ndarray)
-        X_test: Testing feature data
-                (Type: np.ndarray)
-        y_test: Testing label data
-                (Type: np.ndarray)
-    """
-    X_test, y_test = fold_data[fold_idx]
-    train = fold_data[:fold_idx] + fold_data[fold_idx+1:]
-
-    X_train, y_train = zip(*train)
-    X_train = np.concatenate(X_train, axis=0)
-    y_train = np.concatenate(y_train, axis=0)
-
-    # If features are computed framewise flatten the audio file dimension
-    if frame_features:
-        X_train, y_train = cls_features.flatten_file_frames(X_train, y_train)
+    num_frames = X.shape[0]
 
     if shuffle:
-        train_idxs = np.arange(X_train.shape[0])
-        np.random.shuffle(train_idxs)
-        X_train = X_train[train_idxs]
-        y_train = y_train[train_idxs]
+        frame_idxs = np.random.permutation(num_frames)
+    else:
+        frame_idxs = range(num_frames)
 
-    return X_train, y_train, X_test, y_test
+    for idx in frame_idxs:
+        yield {
+            'features': X[idx],
+            'label': y[idx],
+            'filepath': feature_filepath,
+            'frame_idx': idx
+        }
+
+
+
+def get_us8k_batch_generator(features_dir, test_fold_idx, valid=False, num_streamers=None,
+                             batch_size=64, random_state=20171021,
+                             rate=None, cycle=True):
+
+    random.seed(random_state)
+    np.random.seed(random_state)
+
+
+    LOGGER.info("Loading subset list")
+
+    LOGGER.info("Creating streamers...")
+    seeds = []
+
+    valid_fold_idx = (test_fold_idx - 1) % 10
+
+    for fold_dirname in os.listdir(features_dir):
+        fold_idx = int(fold_dirname.replace('fold', '')) - 1
+        if fold_idx == test_fold_idx:
+            continue
+
+        if valid and fold_idx != valid_fold_idx:
+            continue
+
+        fold_dir = os.path.join(features_dir, fold_dirname)
+        for feature_filename in os.listdir(fold_dir):
+            feature_filepath = os.path.join(fold_dir, feature_filename)
+            streamer = pescador.Streamer(us8k_file_sampler, feature_filepath)
+            seeds.append(streamer)
+
+        if valid:
+            break
+
+    # Randomly shuffle the seeds
+    random.shuffle(seeds)
+
+    if num_streamers is None:
+        num_streamers = len(seeds)
+
+    mux = pescador.StochasticMux(seeds, num_streamers, rate=rate, random_state=random_state)
+    if cycle:
+        mux = mux.cycle()
+
+    if batch_size == 1:
+        return mux
+    else:
+        return pescador.maps.buffer_stream(mux, batch_size)
+
+
+def get_us8k_batch(features_dir, test_fold_idx, valid=False, num_streamers=None,
+                   batch_size=64, random_state=20171021,
+                   rate=None, cycle=True):
+    gen = iter(get_us8k_batch_generator(features_dir, test_fold_idx, valid=valid,
+                                   num_streamers=num_streamers, batch_size=batch_size,
+                                   random_state=random_state, rate=rate, cycle=cycle))
+    return next(gen)
+
+
+def load_test_fold(feature_dir, fold_idx):
+    X = []
+    y = []
+    file_idxs = []
+    fold_dir = os.path.join(feature_dir, 'fold{}'.format(fold_idx + 1))
+
+    filenames = os.listdir(fold_dir)
+
+    start_idx = 0
+    for feature_filename in filenames:
+        feature_filepath = os.path.join(fold_dir, feature_filename)
+        file_X, file_y = load_feature_file(feature_filepath)
+
+        if file_X.ndim > 1:
+            end_idx = start_idx + file_X.shape[0]
+        else:
+            end_idx = start_idx + 1
+
+        X.append(X)
+        y.append(file_y)
+        file_idxs.append((start_idx, end_idx))
+
+        start_idx = end_idx
+
+    X = np.vstack(X)
+
+    if y[0].ndim == 0:
+        y = np.array(y)
+    else:
+        y = np.concatenate(y)
+
+    return {'features': X, 'labels': y, 'file_idxs': file_idxs, 'filenames': filenames}
 
 
 def generate_us8k_folds(metadata_path, data_dir, output_dir, l3embedding_model=None,

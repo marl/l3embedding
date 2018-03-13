@@ -28,15 +28,16 @@ def compute_metrics(y, pred):
 
     acc = (y == pred).mean()
 
-    sum_class_acc = 0.0
+    class_acc = []
     for class_idx in range(10):
         idxs = (y == class_idx)
-        sum_class_acc += (y[idxs] == pred[idxs]).mean()
+        class_acc.append((y[idxs] == pred[idxs]).mean())
 
-    ave_class_acc = sum_class_acc / 10
+    ave_class_acc = np.mean(class_acc)
 
     return {
         'accuracy': acc,
+        'class_accuracy': class_acc,
         'average_class_accuracy': ave_class_acc
     }
 
@@ -71,6 +72,24 @@ def aggregate_metrics(fold_metrics):
         }
 
     return aggr_metrics
+
+
+def collapse_metrics(metrics_list):
+    """
+    Collapse a list of metrics into a dict of lists for each metric
+
+    Args:
+        metrics_list: List of metrics dictionaries
+                      (Type: list[dict[str, *]])
+
+    Returns:
+        collapsed_metrics: Collapsed metrics
+                           (Type: dict[str, list])
+    """
+    metric_keys = list(metrics_list[0].keys())
+    collapsed_metrics_list = {k: [step[k] for step in metrics_list]
+                               for k in metric_keys}
+    return collapsed_metrics_list
 
 
 def print_metrics(metrics, subset_name):
