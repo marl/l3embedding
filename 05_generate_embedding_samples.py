@@ -177,7 +177,7 @@ if __name__ == '__main__':
         os.makedirs(dataset_output_dir)
 
     # Write configurations to a file for reproducibility/posterity
-    config_path = os.path.join(dataset_output_dir, 'config.json')
+    config_path = os.path.join(dataset_output_dir, 'config_{}.json'.format(fold_num))
     with open(config_path, 'w') as f:
         json.dump(args, f)
     LOGGER.info('Saved configuration to {}'.format(config_path))
