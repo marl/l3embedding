@@ -58,7 +58,7 @@ class GSheetLogger(keras.callbacks.Callback):
     """
 
     def __init__(self, google_dev_app_name, spreadsheet_id, param_dict):
-        super().__init__()
+        super(GSheetLogger).__init__()
         self.google_dev_app_name = google_dev_app_name
         self.spreadsheet_id = spreadsheet_id
         self.credentials = get_credentials(google_dev_app_name)
