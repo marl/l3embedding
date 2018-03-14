@@ -23,7 +23,7 @@ from . import mel_features
 
 
 def waveform_to_examples(data, sample_rate, target_sample_rate=16000,
-                         log_offset=0.1, stft_win_len_sec=0.025,
+                         log_offset=0.01, stft_win_len_sec=0.025,
                          stft_hop_len_sec=0.010, num_mel_bins=64,
                          mel_min_hz=125, mel_max_hz=7500, frame_win_sec=0.96,
                          frame_hop_sec=0.96, **params):
@@ -67,10 +67,19 @@ def waveform_to_examples(data, sample_rate, target_sample_rate=16000,
       frame_win_sec * features_sample_rate))
   example_hop_length = int(round(
       frame_hop_sec * features_sample_rate))
-  log_mel_examples = mel_features.frame(
-      log_mel,
-      window_length=example_window_length,
-      hop_length=example_hop_length)
+  try:
+      log_mel_examples = mel_features.frame(
+          log_mel,
+          window_length=example_window_length,
+          hop_length=example_hop_length)
+  except ValueError:
+      msg = "data shape: {}; mel_shape: {}; target_sample_rate: {}; log_offset: {}; stft_win_len_sec: {}; stft_hop_len_sec: {}; num_mel_bins: {}, mel_min_hz: {}; mel_max_hz: {}; frame_win_sec: {}; frame_hop_sec: {}"
+      msg = msg.format(data.shape, log_mel.shape, target_sample_rate,
+                         log_offset, stft_win_len_sec,
+                         stft_hop_len_sec, num_mel_bins,
+                         mel_min_hz, mel_max_hz, frame_win_sec,
+                         frame_hop_sec)
+      raise ValueError(msg)
   return log_mel_examples
 
 

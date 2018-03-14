@@ -147,7 +147,7 @@ def load_test_fold(feature_dir, fold_idx):
         else:
             end_idx = start_idx + 1
 
-        X.append(X)
+        X.append(file_X)
         y.append(file_y)
         file_idxs.append((start_idx, end_idx))
 

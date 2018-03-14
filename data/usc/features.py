@@ -52,6 +52,7 @@ def one_hot(idx, n_classes=10):
 def extract_vggish_embedding(audio_path, input_op_name='vggish/input_features',
                              output_op_name='vggish/embedding',
                              resources_dir=None, **params):
+    # TODO: Make more efficient so we're not loading model every time we extract features
     fs = params.get('target_sample_rate', 16000)
     audio_data = load_audio(audio_path, fs)
 
@@ -300,7 +301,7 @@ def get_l3_frames_uniform(audio, l3embedding_model, hop_size=0.1, sr=48000):
     x = x.reshape((x.shape[0], 1, x.shape[-1]))
 
     # Get the L3 embedding for each frame
-    l3embedding = l3embedding_model.predict(x).T
+    l3embedding = l3embedding_model.predict(x)
 
     return l3embedding
 
@@ -358,7 +359,7 @@ def get_l3_frames_random(audio, l3embedding_model, num_samples, sr=48000):
 
         x = audio.reshape((1,1,audio.shape[0]))
         x = x.reshape((x.shape[0], 1, x.shape[-1]))
-        frame_l3embedding = l3embedding_model.predict(x).T.flatten()
+        frame_l3embedding = l3embedding_model.predict(x).flatten()
 
         l3embedding = np.tile(frame_l3embedding, (num_samples, 1))
 
