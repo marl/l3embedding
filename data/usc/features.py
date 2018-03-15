@@ -54,7 +54,17 @@ def extract_vggish_embedding(audio_path, input_op_name='vggish/input_features',
                              resources_dir=None, **params):
     # TODO: Make more efficient so we're not loading model every time we extract features
     fs = params.get('target_sample_rate', 16000)
+    frame_win_sec = params.get('frame_win_sec', 0.96)
     audio_data = load_audio(audio_path, fs)
+
+    # For some reason 0.96 doesn't work, padding to 0.975 empirically works
+    frame_samples = int(np.ceil(fs * max(frame_win_sec, 0.975)))
+    if audio_data.shape[0] < frame_samples:
+        pad_length = frame_samples - audio_data.shape[0]
+        # Use (roughly) symmetric padding
+        left_pad = pad_length // 2
+        right_pad= pad_length - left_pad
+        audio_data = np.pad(audio_data, (left_pad, right_pad), mode='constant')
 
     if not resources_dir:
         resources_dir = os.path.join(os.path.dirname(__file__), '../../resources/vggish')
@@ -94,7 +104,7 @@ def extract_vggish_embedding(audio_path, input_op_name='vggish/input_features',
       # the rows are written as a sequence of bytes-valued features, where each
       # feature value contains the 128 bytes of the whitened quantized embedding.
 
-    return postprocessed_batch
+    return postprocessed_batch.astype(np.float32)
 
 
 def get_vggish_frames_uniform(audio_path, hop_size=0.1):

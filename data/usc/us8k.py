@@ -155,7 +155,7 @@ def load_test_fold(feature_dir, fold_idx):
 
     X = np.vstack(X)
 
-    if y[0].ndim == 0:
+    if type(y[0]) == int or y[0].ndim == 0:
         y = np.array(y)
     else:
         y = np.concatenate(y)

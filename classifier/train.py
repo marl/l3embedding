@@ -11,8 +11,9 @@ from keras.layers import Input, Dense
 from keras.models import Model
 from keras.optimizers import Adam
 from scipy.stats import mode
+from sklearn.metrics import hinge_loss
 from sklearn.externals import joblib
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.linear_model import SGDClassifier
 import pescador
 
@@ -67,7 +68,7 @@ class MetricCallback(keras.callbacks.Callback):
 
 
 def train_svm(train_gen, valid_data, test_data, model_dir, C=1e-4, reg_penalty='l2',
-              tol=1e-3, max_iterations=1000000, verbose=False, **kwargs):
+              num_classes=10, tol=1e-3, max_iterations=1000000, verbose=False, **kwargs):
     """
     Train a Support Vector Machine model on the given data
 
@@ -102,7 +103,7 @@ def train_svm(train_gen, valid_data, test_data, model_dir, C=1e-4, reg_penalty='
     stdizer = StandardScaler()
 
     X_valid = valid_data['features']
-    y_valid = valid_data['labels']
+    y_valid = valid_data['label']
 
     train_loss_history = []
     valid_loss_history = []
@@ -115,21 +116,27 @@ def train_svm(train_gen, valid_data, test_data, model_dir, C=1e-4, reg_penalty='
     # Create classifier
     clf = SGDClassifier(alpha=C, penalty=reg_penalty, n_jobs=-1, verbose=verbose)
 
+    classes = np.arange(num_classes)
+
     LOGGER.debug('Fitting model to data...')
     for iter_idx, train_data in enumerate(train_gen):
         X_train = train_data['features']
-        y_train = train_data['labels']
+        y_train = train_data['label']
         stdizer.partial_fit(X_train)
 
         # Fit data and get output for train and valid batches
-        clf.partial_fit(X_train, y_train)
-        y_train_pred = clf.predict(stdizer.transform(X_train))
-        y_valid_pred = clf.predict(stdizer.transform(X_valid))
+        clf.partial_fit(X_train, y_train, classes=classes)
+        X_train_std = stdizer.transform(X_train)
+        X_valid_std = stdizer.transform(X_valid)
+        y_train_pred = clf.predict(X_train_std)
+        y_valid_pred = clf.predict(X_valid_std)
 
         # Compute new metrics
         valid_loss_history.append(list(y_valid_pred))
-        train_loss_history.append(clf.loss_function_(y_train, y_train_pred))
-        valid_loss_history.append(clf.loss_function_(y_valid, y_valid_pred))
+        train_loss_history.append(hinge_loss(y_train, clf.decision_function(X_train_std),
+                                             labels=classes))
+        valid_loss_history.append(hinge_loss(y_valid, clf.decision_function(X_valid_std),
+                                             labels=classes))
         train_metric_history.append(compute_metrics(y_train, y_train_pred))
         valid_metric_history.append(compute_metrics(y_valid, y_valid_pred))
 
@@ -175,7 +182,7 @@ def train_svm(train_gen, valid_data, test_data, model_dir, C=1e-4, reg_penalty='
     return (stdizer, clf), train_metrics, valid_metrics, test_metrics
 
 
-def construct_mlp_model(input_shape, weight_decay=1e-5):
+def construct_mlp_model(input_shape, weight_decay=1e-5, num_classes=10):
     """
     Constructs a multi-layer perceptron model
 
@@ -194,10 +201,11 @@ def construct_mlp_model(input_shape, weight_decay=1e-5):
                 (Type: keras.layers.Layer)
     """
     l2_weight_decay = regularizers.l2(weight_decay)
+    LOGGER.info(str(input_shape))
     inp = Input(shape=input_shape, dtype='float32')
     y = Dense(512, activation='relu', kernel_regularizer=l2_weight_decay)(inp)
     y = Dense(128, activation='relu', kernel_regularizer=l2_weight_decay)(y)
-    y = Dense(10, activation='softmax', kernel_regularizer=l2_weight_decay)(y)
+    y = Dense(num_classes, activation='softmax', kernel_regularizer=l2_weight_decay)(y)
     m = Model(inputs=inp, outputs=y)
     m.name = 'urban_sound_classifier'
 
@@ -206,7 +214,7 @@ def construct_mlp_model(input_shape, weight_decay=1e-5):
 
 def train_mlp(train_gen, valid_data, test_data, model_dir,
               batch_size=64, num_epochs=100, train_epoch_size=None,
-              learning_rate=1e-4, weight_decay=1e-5,
+              learning_rate=1e-4, weight_decay=1e-5, num_classes=10,
               verbose=False, **kwargs):
     """
     Train a Multi-layer perceptron model on the given data
@@ -248,12 +256,19 @@ def train_mlp(train_gen, valid_data, test_data, model_dir,
 
     # Set up data inputs
     train_gen = pescador.maps.keras_tuples(train_gen, 'features', 'label')
-    valid_data_keras = (valid_data['features'], valid_data['label'])
+    enc = OneHotEncoder(n_values=num_classes, sparse=False)
+    # Transform int targets to produce one hot targets
+    train_gen = ((X, enc.fit_transform(y.reshape(-1, 1))) for X, y in train_gen)
+    valid_data_keras = (valid_data['features'],
+                        enc.fit_transform(valid_data['label'].reshape(-1,1)))
+
     train_iter = iter(train_gen)
     train_batch = next(train_iter)
 
     # Set up model
-    m, inp, out = construct_mlp_model(train_batch['features'].shape[1:], weight_decay=weight_decay)
+    m, inp, out = construct_mlp_model(train_batch[0].shape[1:],
+                                      weight_decay=weight_decay,
+                                      num_classes=num_classes)
 
     # Set up callbacks
     cb = []
@@ -274,7 +289,7 @@ def train_mlp(train_gen, valid_data, test_data, model_dir,
     LOGGER.debug('Compiling model...')
     m.compile(Adam(lr=learning_rate), loss=loss, metrics=metrics)
     LOGGER.debug('Fitting model to data...')
-    m.fit_generator(train_gen, batch_size=batch_size,
+    m.fit_generator(train_gen,
           epochs=num_epochs, steps_per_epoch=train_epoch_size,
           validation_data=valid_data_keras, callbacks=cb)
 
@@ -299,7 +314,8 @@ def train_mlp(train_gen, valid_data, test_data, model_dir,
         class_pred = mode(y_test_pred_frame[start_idx:end_idx])[0][0]
         y_test_pred.append(class_pred)
     y_test_pred = np.array(y_test_pred)
-    test_metrics = compute_metrics(test_data['labels'], y_test_pred)
+    test_metrics = compute_metrics(enc.fit_transform(test_data['labels'].reshape(-1,1)),
+                                   y_test_pred)
 
     return m, train_metrics, valid_metrics, test_metrics
 
@@ -387,7 +403,7 @@ def train(features_dir, output_dir, model_id, fold_num, model_type='svm',
 
     # Save results to disk
     results_file = os.path.join(model_dir, 'results.pkl')
-    with open(results_file, 'w') as fp:
+    with open(results_file, 'wb') as fp:
         pk.dump(results, fp, protocol=pk.HIGHEST_PROTOCOL)
 
     LOGGER.info('Done!')

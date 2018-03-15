@@ -48,7 +48,7 @@ class Postprocessor(object):
     assert self._pca_means.shape == (embedding_size, 1), (
         'Bad PCA means shape: %r' % (self._pca_means.shape,))
 
-  def postprocess(self, embeddings_batch, embedding_size=128,
+  def postprocess(self, embeddings_batch, embedding_size=128, quantize=False,
                   quantize_min_val=-2.0, quantize_max_val=+2.0, **params):
     """Applies postprocessing to a batch of embeddings.
 
@@ -80,11 +80,15 @@ class Postprocessor(object):
     clipped_embeddings = np.clip(
         pca_applied, quantize_min_val,
         quantize_max_val)
-    # - convert to 8-bit in range [0.0, 255.0]
-    quantized_embeddings = (
-        (clipped_embeddings - quantize_min_val) *
-        (255.0 / (quantize_max_val - quantize_min_val)))
-    # - cast 8-bit float to uint8
-    quantized_embeddings = quantized_embeddings.astype(np.uint8)
 
-    return quantized_embeddings
+    if quantize:
+        # - convert to 8-bit in range [0.0, 255.0]
+        quantized_embeddings = (
+            (clipped_embeddings - quantize_min_val) *
+            (255.0 / (quantize_max_val - quantize_min_val)))
+        # - cast 8-bit float to uint8
+        quantized_embeddings = quantized_embeddings.astype(np.uint8)
+
+        return quantized_embeddings
+    else:
+        return clipped_embeddings

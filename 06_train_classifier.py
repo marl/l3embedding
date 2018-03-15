@@ -90,6 +90,39 @@ def parse_arguments():
                         default=1e-5,
                         help='(MLP) L2 regularization penalty factor')
 
+    parser.add_argument('-npf',
+                        '--norm-penalty-factor',
+                        dest='C',
+                        action='store',
+                        type=float,
+                        default=1e-4,
+                        help='(SVM) norm penalization factor')
+
+    parser.add_argument('-sct',
+                        '--svm-conv-tolerance',
+                        dest='tol',
+                        action='store',
+                        type=float,
+                        default=1e-3,
+                        help='(SVM) convergence tolerance threshold')
+
+    parser.add_argument('-smi',
+                        '--svm-max-iterations',
+                        dest='max_iterations',
+                        action='store',
+                        type=int,
+                        default=1000000,
+                        help='(SVM) maximum iterations')
+
+    parser.add_argument('-srpt',
+                        '--svm-reg-penalty-type',
+                        dest='reg_penalty',
+                        action='store',
+                        type=str,
+                        default='l2',
+                        choices=['l1', 'l2', 'elasticnet', 'none'],
+                        help='(SVM) maximum iterations')
+
     parser.add_argument('-r',
                         '--random-state',
                         dest='random_state',
