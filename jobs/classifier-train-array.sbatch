@@ -19,6 +19,8 @@ FEATURES_DIR=/scratch/jtc440/l3_features/us8k/l3_frames_uniform/l3embedding/cnn_
 OUTPUT_DIR=/scratch/jtc440/cls_output
 MODEL_ID='mycls'
 MODEL_TYPE='svm'
+GOOGLE_DEV_APP_NAME=''
+GSHEET_ID=''
 FOLD_NUM=$SLURM_ARRAY_TASK_ID
 
 module purge
@@ -38,6 +40,8 @@ python $SRCDIR/06_train_classifier.py \
     --svm-conv-tolerance 0.001 \
     --svm-max-iterations 1000000 \
     --svm-reg-penalty-type l2 \
+    --gsheet-id $GSHEET_ID \
+    --google-dev-app-name $GOOGLE_DEV_APP_NAME \
     --verbose \
     $FEATURES_DIR \
     $OUTPUT_DIR \

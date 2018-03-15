@@ -1,8 +1,10 @@
 import datetime
+import getpass
 import json
 import os
 import pickle as pk
 import random
+import git
 
 import keras
 import keras.regularizers as regularizers
@@ -21,6 +23,9 @@ from classifier.metrics import compute_metrics, collapse_metrics
 from data.usc.us8k import get_us8k_batch_generator, get_us8k_batch, load_test_fold
 from l3embedding.train import LossHistory
 from log import *
+
+from gsheets import get_credentials, append_row, update_experiment
+from googleapiclient import discovery
 
 LOGGER = logging.getLogger('classifier')
 LOGGER.setLevel(logging.DEBUG)
@@ -296,14 +301,14 @@ def train_mlp(train_gen, valid_data, test_data, model_dir,
     # Set up train and validation metrics
     train_metrics = {
         'loss': metric_cb.train_loss,
-        'acc': metric_cb.train_acc
+        'accuracy': metric_cb.train_acc
     }
 
     valid_metrics = {
         'loss': metric_cb.valid_loss,
-        'acc': metric_cb.valid_acc,
-        'class_acc': metric_cb.valid_class_acc,
-        'avg_class_acc': metric_cb.valid_avg_class_acc
+        'accuracy': metric_cb.valid_acc,
+        'class_accuracy': metric_cb.valid_class_acc,
+        'average_class_accuracy': metric_cb.valid_avg_class_acc
     }
 
     # Evaluate model on test data
@@ -311,11 +316,10 @@ def train_mlp(train_gen, valid_data, test_data, model_dir,
     y_test_pred_frame = m.predict(X_test)
     y_test_pred = []
     for start_idx, end_idx in test_data['file_idxs']:
-        class_pred = mode(y_test_pred_frame[start_idx:end_idx])[0][0]
+        class_pred = y_test_pred_frame[start_idx:end_idx].mean(axis=0).argmax()
         y_test_pred.append(class_pred)
     y_test_pred = np.array(y_test_pred)
-    test_metrics = compute_metrics(enc.fit_transform(test_data['labels'].reshape(-1,1)),
-                                   y_test_pred)
+    test_metrics = compute_metrics(test_data['labels'], y_test_pred)
 
     return m, train_metrics, valid_metrics, test_metrics
 
@@ -323,7 +327,8 @@ def train_mlp(train_gen, valid_data, test_data, model_dir,
 def train(features_dir, output_dir, model_id, fold_num, model_type='svm',
           train_num_streamers=None, train_batch_size=64, train_mux_rate=None,
           valid_num_streamers=None, valid_batch_size=64, valid_mux_rate=None,
-          random_state=20171021, verbose=False, **model_args):
+          random_state=20171021, gsheet_id=None, google_dev_app_name=None,
+          verbose=False, **model_args):
     init_console_logger(LOGGER, verbose=verbose)
     LOGGER.debug('Initialized logging.')
 
@@ -340,26 +345,53 @@ def train(features_dir, output_dir, model_id, fold_num, model_type='svm',
     if not os.path.isdir(model_dir):
         os.makedirs(model_dir)
 
+    config = {
+        'username': getpass.getuser(),
+        'features_dir': features_dir,
+        'output_dir': output_dir,
+        'model_dir': model_dir,
+        'model_id': model_id,
+        'fold_num': fold_num,
+        'model_type': model_type,
+        'train_num_streamers': train_num_streamers,
+        'train_batch_size': train_batch_size,
+        'train_mux_rate': train_mux_rate,
+        'valid_num_streamers': valid_num_streamers,
+        'valid_batch_size': valid_batch_size,
+        'valid_mux_rate': valid_mux_rate,
+        'random_state': random_state,
+        'verbose': verbose,
+        'git_commit': git.Repo(os.path.dirname(os.path.abspath(__file__)),
+                               search_parent_directories=True).head.object.hexsha,
+        'gsheet_id': gsheet_id,
+        'google_dev_app_name': google_dev_app_name
+    }
+    config.update(model_args)
+
     # Save configs
     with open(os.path.join(model_dir, 'config.json'), 'w') as fp:
-        config = {
-            'features_dir': features_dir,
-            'output_dir': output_dir,
-            'model_id': model_id,
-            'fold_num': fold_num,
-            'model_type': model_type,
-            'train_num_streamers': train_num_streamers,
-            'train_batch_size': train_batch_size,
-            'train_mux_rate': train_mux_rate,
-            'valid_num_streamers': valid_num_streamers,
-            'valid_batch_size': valid_batch_size,
-            'valid_mux_rate': valid_mux_rate,
-            'random_state': random_state,
-            'verbose': verbose
-        }
-        config.update(model_args)
-
         json.dump(config, fp)
+
+
+    if gsheet_id:
+        # Add a new entry in the Google Sheets spreadsheet
+        LOGGER.info('Creating new spreadsheet entry...')
+        config.update({
+              'train_loss': '-',
+              'valid_loss': '-',
+              'train_acc': '-',
+              'valid_acc': '-',
+              'valid_avg_class_acc': '-',
+              'valid_class_acc': '-',
+              'test_acc': '-',
+              'test_avg_class_acc': '-',
+              'test_class_acc': '-'
+        })
+        credentials = get_credentials(google_dev_app_name)
+        service = discovery.build('sheets', 'v4', credentials=credentials)
+        append_row(service, gsheet_id, config, 'classifier')
+    else:
+        LOGGER.error(gsheet_id)
 
     LOGGER.info('Loading data...')
 
@@ -405,5 +437,23 @@ def train(features_dir, output_dir, model_id, fold_num, model_type='svm',
     results_file = os.path.join(model_dir, 'results.pkl')
     with open(results_file, 'wb') as fp:
         pk.dump(results, fp, protocol=pk.HIGHEST_PROTOCOL)
+
+
+    if gsheet_id:
+        # Update spreadsheet with results
+        LOGGER.info('Updating spreadsheet...')
+        update_values = [
+              train_metrics['loss'][-1],
+              valid_metrics['loss'][-1],
+              train_metrics['accuracy'][-1],
+              valid_metrics['accuracy'][-1],
+              valid_metrics['average_class_accuracy'][-1],
+              ', '.join(map(str, valid_metrics['class_accuracy'][-1])),
+              test_metrics['accuracy'],
+              test_metrics['average_class_accuracy'],
+              ', '.join(map(str, test_metrics['class_accuracy']))
+        ]
+        update_experiment(service, gsheet_id, config, 'V', 'AE',
+                          update_values, 'classifier')
 
     LOGGER.info('Done!')

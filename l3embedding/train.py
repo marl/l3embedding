@@ -65,9 +65,9 @@ class GSheetLogger(keras.callbacks.Callback):
         self.service = discovery.build('sheets', 'v4', credentials=self.credentials)
         self.param_dict = copy.deepcopy(param_dict)
 
-        row_num = get_row(self.service, self.spreadsheet_id, self.param_dict)
+        row_num = get_row(self.service, self.spreadsheet_id, self.param_dict, 'embedding')
         if row_num is None:
-            append_row(self.service, self.spreadsheet_id, self.param_dict)
+            append_row(self.service, self.spreadsheet_id, self.param_dict, 'embedding')
 
     def on_train_begin(self, logs=None):
         if logs is None:
@@ -102,7 +102,7 @@ class GSheetLogger(keras.callbacks.Callback):
             self.best_valid_loss, self.best_train_acc, self.best_valid_acc]
 
         update_experiment(self.service, self.spreadsheet_id, self.param_dict,
-                          'R', 'AA', values)
+                          'R', 'AA', values, 'embedding')
 
 
 class TimeHistory(keras.callbacks.Callback):

@@ -8,33 +8,66 @@ from googleapiclient import discovery
 
 # TODO: Implement initializing spreadsheet
 
-FIELD_NAMES = [
-          'username',
-          'model_id',
-          'model_dir',
-          'git_commit',
-          'train_data_dir',
-          'validation_data_dir',
-          'continue_model_dir',
-          'model_type',
-          'num_epochs',
-          'train_epoch_size',
-          'validation_epoch_size',
-          'train_batch_size',
-          'validation_batch_size',
-          'random_state',
-          'learning_rate',
-          'gpus',
-          'checkpoint_interval',
-          'latest_epoch',
-          'latest_train_loss',
-          'latest_validation_loss',
-          'latest_train_acc',
-          'latest_validation_acc',
-          'best_train_loss',
-          'best_validation_loss',
-          'best_train_acc',
-          'best_validation_acc'
+EMBEDDING_FIELD_NAMES = [
+    'username',
+    'model_id',
+    'model_dir',
+    'git_commit',
+    'train_data_dir',
+    'validation_data_dir',
+    'continue_model_dir',
+    'model_type',
+    'num_epochs',
+    'train_epoch_size',
+    'validation_epoch_size',
+    'train_batch_size',
+    'validation_batch_size',
+    'random_state',
+    'learning_rate',
+    'gpus',
+    'checkpoint_interval',
+    'latest_epoch',
+    'latest_train_loss',
+    'latest_validation_loss',
+    'latest_train_acc',
+    'latest_validation_acc',
+    'best_train_loss',
+    'best_validation_loss',
+    'best_train_acc',
+    'best_validation_acc'
+]
+
+CLASSIFIER_FIELD_NAMES = [
+    'username',
+    'model_id',
+    'model_dir',
+    'git_commit',
+    'features_dir',
+    'fold_num',
+    'model_type',
+    'train_num_streamers',
+    'train_batch_size',
+    'train_mux_rate',
+    'valid_num_streamers',
+    'valid_batch_size',
+    'valid_mux_rate',
+    'random_state',
+    'num_epochs',
+    'learning_rate',
+    'weight_decay',
+    'reg_penalty',
+    'C',
+    'tol',
+    'max_iterations',
+    'train_loss',
+    'valid_loss',
+    'train_acc',
+    'valid_acc',
+    'valid_avg_class_acc',
+    'valid_class_acc',
+    'test_acc',
+    'test_avg_class_acc',
+    'test_class_acc',
 ]
 
 
@@ -74,10 +107,17 @@ def get_credentials(application_name, client_secret_file=None, flags=None):
     return credentials
 
 
-def append_row(service, spreadsheet_id, param_dict):
+def append_row(service, spreadsheet_id, param_dict, sheet_name):
+    if sheet_name == 'embedding':
+        field_names = EMBEDDING_FIELD_NAMES
+    elif sheet_name == 'classifier':
+        field_names = CLASSIFIER_FIELD_NAMES
+    else:
+        raise ValueError('Unknown spreadsheet sheet name: {}'.format(sheet_name))
+
     # The A1 notation of a range to search for a logical table of data.
     # Values will be appended after the last row of the table.
-    range_ = 'A1:A{}'.format(len(FIELD_NAMES))
+    range_ = '{}!A1:A{}'.format(sheet_name, len(field_names))
     # How the input data should be interpreted.
     value_input_option = 'USER_ENTERED'
     # How the input data should be inserted.
@@ -86,7 +126,7 @@ def append_row(service, spreadsheet_id, param_dict):
     value_range_body = {
         "range": range_,
         "majorDimension": 'ROWS',
-        "values": [[str(param_dict[field_name]) for field_name in FIELD_NAMES ]]
+        "values": [[str(param_dict[field_name]) for field_name in field_names ]]
     }
 
     request = service.spreadsheets().values().append(
@@ -113,8 +153,8 @@ def request_with_retry(request, num_retries=50):
     return response
 
 
-def get_row(service, spreadsheet_id, param_dict):
-    range_ = 'C:C'
+def get_row(service, spreadsheet_id, param_dict, sheet_name):
+    range_ = '{}!C:C'.format(sheet_name)
     major_dimension = 'COLUMNS'
 
     request = service.spreadsheets().values().get(
@@ -130,10 +170,10 @@ def get_row(service, spreadsheet_id, param_dict):
         return None
 
 
-def update_experiment(service, spreadsheet_id, param_dict, start_col, end_col, values):
-    row_num = get_row(service, spreadsheet_id, param_dict)
+def update_experiment(service, spreadsheet_id, param_dict, start_col, end_col, values, sheet_name):
+    row_num = get_row(service, spreadsheet_id, param_dict, sheet_name)
     value_input_option = 'USER_ENTERED'
-    range_ = '{1}{0}:{2}{0}'.format(row_num, start_col, end_col)
+    range_ = '{0}!{2}{1}:{3}{1}'.format(sheet_name, row_num, start_col, end_col)
     value_range_body = {
         "range": range_,
         "majorDimension": 'ROWS',
