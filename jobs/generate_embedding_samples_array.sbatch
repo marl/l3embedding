@@ -19,11 +19,11 @@ SRCDIR=$HOME/dev/l3embedding
 L3_MODEL_PATH=''
 L3_MODEL_TYPE='cnn_L3_melspec1'
 L3_POOLING_TYPE='original'
-US8K_PATH=/scratch/jtc440/UrbanSound8K
+US8K_PATH=/beegfs/jtc440/UrbanSound8K
 METADATA_PATH=$US8K_PATH/metadata/UrbanSound8K.csv
 DATA_DIR=$US8K_PATH/audio
 OUTPUT_DIR=/scratch/jtc440/l3_features
-MODEL_ID='test'
+MODEL_ID='l3embedding'
 
 module purge
 #module load cuda/8.0.44
@@ -40,7 +40,7 @@ python $SRCDIR/05_generate_embedding_samples.py \
     --l3embedding-pooling-type $L3_POOLING_TYPE \
     --hop-size 0.1 \
     --gpus 0 \
-    --fold 1 \
+    --fold $SLURM_ARRAY_TASK_ID \
     $METADATA_PATH \
     $MODEL_ID \
     us8k \
