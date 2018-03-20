@@ -9,7 +9,7 @@ import git
 import keras
 import keras.regularizers as regularizers
 import numpy as np
-from keras.layers import Input, Dense
+from keras.layers import Input, Dense, BatchNormalization
 from keras.models import Model
 from keras.optimizers import Adam
 from scipy.stats import mode
@@ -208,8 +208,11 @@ def construct_mlp_model(input_shape, weight_decay=1e-5, num_classes=10):
     l2_weight_decay = regularizers.l2(weight_decay)
     LOGGER.info(str(input_shape))
     inp = Input(shape=input_shape, dtype='float32')
-    y = Dense(512, activation='relu', kernel_regularizer=l2_weight_decay)(inp)
+    y = BatchNormalization()(y)
+    y = Dense(512, activation='relu', kernel_regularizer=l2_weight_decay)(y)
+    y = BatchNormalization()(y)
     y = Dense(128, activation='relu', kernel_regularizer=l2_weight_decay)(y)
+    y = BatchNormalization()(y)
     y = Dense(num_classes, activation='softmax', kernel_regularizer=l2_weight_decay)(y)
     m = Model(inputs=inp, outputs=y)
     m.name = 'urban_sound_classifier'

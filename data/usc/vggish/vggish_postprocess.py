@@ -48,7 +48,7 @@ class Postprocessor(object):
     assert self._pca_means.shape == (embedding_size, 1), (
         'Bad PCA means shape: %r' % (self._pca_means.shape,))
 
-  def postprocess(self, embeddings_batch, embedding_size=128, quantize=False,
+  def postprocess(self, embeddings_batch, embedding_size=128, quantize=True,
                   quantize_min_val=-2.0, quantize_max_val=+2.0, **params):
     """Applies postprocessing to a batch of embeddings.
 

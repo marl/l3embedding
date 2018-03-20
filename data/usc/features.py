@@ -126,6 +126,27 @@ def get_vggish_frames_uniform(audio_path, hop_size=0.1):
     return extract_vggish_embedding(audio_path, frame_hop_sec=hop_size)
 
 
+def get_vggish_stats(audio_path, hop_size=0.1):
+    """
+    Get vggish embedding features summary statistics for all frames in the
+    audio file
+
+    Args:
+        audio: Audio data or path to audio file
+               (Type: np.ndarray or str)
+
+    Keyword Args:
+        hop_size: Hop size in seconds
+                  (Type: float)
+
+    Returns:
+        features:  Array of embedding vectors
+                   (Type: np.ndarray)
+    """
+    vggish_embedding = extract_vggish_embedding(audio_path, frame_hop_sec=hop_size)
+    return compute_stats_features(vggish_embedding, hop_size)
+
+
 def get_l3_stack_features(audio_path, l3embedding_model, hop_size=0.1):
     """
     Get stacked L3 embedding features, i.e. stack embedding features for each
@@ -183,6 +204,35 @@ def get_l3_stack_features(audio_path, l3embedding_model, hop_size=0.1):
     return l3embedding.flatten()
 
 
+def compute_stats_features(embeddings, hop_size):
+    # Compute statistics on the time series of embeddings
+    minimum = np.min(embeddings, axis=0)
+    maximum = np.max(embeddings, axis=0)
+    #median = np.median(embeddings, axis=0)
+    mean = np.mean(embeddings, axis=0)
+    var = np.var(embeddings, axis=0)
+    #skewness = sp.stats.skew(embeddings, axis=0)
+    #kurtosis = sp.stats.kurtosis(embeddings, axis=0)
+
+    # Compute statistics on the first and second derivatives of time series of embeddings
+
+    # Use finite differences to approximate the derivatives
+    d1 = np.gradient(embeddings, 1/hop_size, edge_order=1, axis=0)
+    #d2 = np.gradient(embeddings, 1/hop_size, edge_order=2, axis=0)
+
+    d1_mean = np.mean(d1, axis=0)
+    d1_var = np.var(d1, axis=0)
+
+    #d2_mean = np.mean(d2, axis=0)
+    #d2_var = np.var(d2, axis=0)
+
+    """
+    return np.concatenate((minimum, maximum, median, mean, var, skewness, kurtosis,
+                           d1_mean, d1_var, d2_mean, d2_var))
+    """
+    return np.concatenate((minimum, maximum, mean, var, d1_mean, d1_var))
+
+
 def get_l3_stats_features(audio_path, l3embedding_model, hop_size=0.1):
     """
     Get L3 embedding stats features, i.e. compute statistics for each of the
@@ -238,29 +288,7 @@ def get_l3_stats_features(audio_path, l3embedding_model, hop_size=0.1):
     # Get the L3 embedding for each frame
     l3embedding = l3embedding_model.predict(x)
 
-    # Compute statistics on the time series of embeddings
-    minimum = np.min(l3embedding, axis=0)
-    maximum = np.max(l3embedding, axis=0)
-    median = np.median(l3embedding, axis=0)
-    mean = np.mean(l3embedding, axis=0)
-    var = np.var(l3embedding, axis=0)
-    skewness = sp.stats.skew(l3embedding, axis=0)
-    kurtosis = sp.stats.kurtosis(l3embedding, axis=0)
-
-    # Compute statistics on the first and second derivatives of time series of embeddings
-
-    # Use finite differences to approximate the derivatives
-    d1 = np.gradient(l3embedding, 1/sr, edge_order=1, axis=0)
-    d2 = np.gradient(l3embedding, 1/sr, edge_order=2, axis=0)
-
-    d1_mean = np.mean(d1, axis=0)
-    d1_var = np.var(d1, axis=0)
-
-    d2_mean = np.mean(d2, axis=0)
-    d2_var = np.var(d2, axis=0)
-
-    return np.concatenate((minimum, maximum, median, mean, var, skewness, kurtosis,
-                           d1_mean, d1_var, d2_mean, d2_var))
+    return compute_stats_features(l3embedding, hop_size)
 
 
 def get_l3_frames_uniform(audio, l3embedding_model, hop_size=0.1, sr=48000):
@@ -399,6 +427,9 @@ def compute_file_features(path, feature_type, l3embedding_model=None, **feature_
             raise ValueError('Must specify "num_samples" for "l3_frame_random" features')
         file_features = get_l3_frames_random(path, l3embedding_model,
                                              num_samples)
+    elif feature_type == 'vggish_stats':
+        hop_size = feature_args.get('hop_size', 0.1)
+        file_features = get_vggish_stats(path, hop_size=hop_size)
     elif feature_type == 'vggish_frames_uniform':
         hop_size = feature_args.get('hop_size', 0.1)
         file_features = get_vggish_frames_uniform(path, hop_size=hop_size)
