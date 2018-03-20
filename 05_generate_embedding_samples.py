@@ -152,6 +152,8 @@ if __name__ == '__main__':
     dataset_name = args['dataset_name']
     fold_num = args['fold']
 
+    LOGGER.info('Configuration: {}'.format(str(args)))
+
     is_l3_feature = features.startswith('l3')
 
     if is_l3_feature and model_path:
