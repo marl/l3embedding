@@ -144,7 +144,7 @@ def get_vggish_stats(audio_path, hop_size=0.1):
                    (Type: np.ndarray)
     """
     vggish_embedding = extract_vggish_embedding(audio_path, frame_hop_sec=hop_size)
-    return compute_stats_features(vggish_embedding, hop_size)
+    return compute_stats_features(vggish_embedding)
 
 
 def get_l3_stack_features(audio_path, l3embedding_model, hop_size=0.1):
@@ -204,33 +204,17 @@ def get_l3_stack_features(audio_path, l3embedding_model, hop_size=0.1):
     return l3embedding.flatten()
 
 
-def compute_stats_features(embeddings, hop_size):
+def compute_stats_features(embeddings):
     # Compute statistics on the time series of embeddings
     minimum = np.min(embeddings, axis=0)
     maximum = np.max(embeddings, axis=0)
-    #median = np.median(embeddings, axis=0)
+    median = np.median(embeddings, axis=0)
     mean = np.mean(embeddings, axis=0)
     var = np.var(embeddings, axis=0)
-    #skewness = sp.stats.skew(embeddings, axis=0)
-    #kurtosis = sp.stats.kurtosis(embeddings, axis=0)
+    skewness = sp.stats.skew(embeddings, axis=0)
+    kurtosis = sp.stats.kurtosis(embeddings, axis=0)
 
-    # Compute statistics on the first and second derivatives of time series of embeddings
-
-    # Use finite differences to approximate the derivatives
-    d1 = np.gradient(embeddings, 1/hop_size, edge_order=1, axis=0)
-    #d2 = np.gradient(embeddings, 1/hop_size, edge_order=2, axis=0)
-
-    d1_mean = np.mean(d1, axis=0)
-    d1_var = np.var(d1, axis=0)
-
-    #d2_mean = np.mean(d2, axis=0)
-    #d2_var = np.var(d2, axis=0)
-
-    """
-    return np.concatenate((minimum, maximum, median, mean, var, skewness, kurtosis,
-                           d1_mean, d1_var, d2_mean, d2_var))
-    """
-    return np.concatenate((minimum, maximum, mean, var, d1_mean, d1_var))
+    return np.concatenate((minimum, maximum, median, mean, var, skewness, kurtosis))
 
 
 def get_l3_stats_features(audio_path, l3embedding_model, hop_size=0.1):
@@ -263,10 +247,10 @@ def get_l3_stats_features(audio_path, l3embedding_model, hop_size=0.1):
     frame_length = 48000 * 1
 
     audio_length = len(audio)
-    if audio_length < (frame_length + 2*hop_length):
+    if audio_length < frame_length:
         # Make sure we can have at least three frames so that we can compute
         # all of the stats.
-        pad_length = frame_length + 2*hop_length - audio_length
+        pad_length = frame_length - audio_length
     else:
         # Zero pad so we compute embedding on all samples
         pad_length = int(np.ceil(audio_length - frame_length)/hop_length) * hop_length \
@@ -288,7 +272,7 @@ def get_l3_stats_features(audio_path, l3embedding_model, hop_size=0.1):
     # Get the L3 embedding for each frame
     l3embedding = l3embedding_model.predict(x)
 
-    return compute_stats_features(l3embedding, hop_size)
+    return compute_stats_features(l3embedding)
 
 
 def get_l3_frames_uniform(audio, l3embedding_model, hop_size=0.1, sr=48000):
