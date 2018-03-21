@@ -30,8 +30,7 @@ module purge
 python $SRCDIR/05_generate_embedding_samples.py \
     --random-state 20180302 \
     --verbose \
-    --features 'l3_frames_uniform' \
-    --label-format 'int' \
+    --features 'l3' \
     --l3embedding-model-path $L3_MODEL_PATH \
     --l3embedding-model-type $L3_MODEL_TYPE \
     --l3embedding-pooling-type $L3_POOLING_TYPE \

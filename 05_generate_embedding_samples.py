@@ -41,7 +41,7 @@ def parse_arguments():
                         dest='features',
                         action='store',
                         type=str,
-                        default='l3_frames_uniform',
+                        default='l3',
                         help='Type of features to be used in training')
 
     parser.add_argument('-lmp',
@@ -145,7 +145,7 @@ if __name__ == '__main__':
 
     LOGGER.info('Configuration: {}'.format(str(args)))
 
-    is_l3_feature = features.startswith('l3')
+    is_l3_feature = features == 'l3'
 
     if is_l3_feature and model_path:
         # Load L3 embedding model if using L3 features

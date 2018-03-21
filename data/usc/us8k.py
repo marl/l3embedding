@@ -214,7 +214,7 @@ def get_us8k_train_folds(feature_dir, test_fold_idx):
 
 
 def generate_us8k_folds(metadata_path, data_dir, output_dir, l3embedding_model=None,
-                        features='l3_stack', random_state=12345678, **feature_args):
+                        features='l3', random_state=12345678, **feature_args):
     """
     Generate all of the data for each fold
 
@@ -247,7 +247,7 @@ def generate_us8k_folds(metadata_path, data_dir, output_dir, l3embedding_model=N
 
 
 def generate_us8k_fold_data(metadata, data_dir, fold_idx, output_dir, l3embedding_model=None,
-                            features='l3_stack', random_state=12345678, **feature_args):
+                            features='l3', random_state=12345678, **feature_args):
     """
     Generate all of the data for a specific fold
 

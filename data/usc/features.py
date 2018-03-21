@@ -1,6 +1,5 @@
 import logging
 import os
-import warnings
 import librosa
 import numpy as np
 import scipy as sp
@@ -193,84 +192,6 @@ def get_vggish_frames_uniform(audio_path, hop_size=0.1):
     return extract_vggish_embedding(audio_path, frame_hop_sec=hop_size)
 
 
-def get_vggish_stats(audio_path, hop_size=0.1):
-    """
-    Get vggish embedding features summary statistics for all frames in the
-    audio file
-
-    Args:
-        audio: Audio data or path to audio file
-               (Type: np.ndarray or str)
-
-    Keyword Args:
-        hop_size: Hop size in seconds
-                  (Type: float)
-
-    Returns:
-        features:  Array of embedding vectors
-                   (Type: np.ndarray)
-    """
-    vggish_embedding = extract_vggish_embedding(audio_path, frame_hop_sec=hop_size)
-    return compute_stats_features(vggish_embedding)
-
-
-def get_l3_stack_features(audio_path, l3embedding_model, hop_size=0.1):
-    """
-    Get stacked L3 embedding features, i.e. stack embedding features for each
-    1 second (overlapping) window of the given audio
-
-    Computes a _single_ feature for the given audio file
-
-    Args:
-        audio_path: Path to audio file
-                    (Type: str)
-
-        l3embedding_model:  Audio embedding model
-                            (keras.engine.training.Model)
-
-    Keyword Args:
-        hop_size: Hop size in seconds
-                  (Type: float)
-
-    Returns:
-        features:  Feature vector
-                   (Type: np.ndarray)
-    """
-    sr = 48000
-    audio = load_audio(audio_path, sr)
-    audio_length = len(audio)
-    frame_length = sr
-    hop_length = int(sr * hop_size)
-
-    # Zero pad to 4 seconds
-    target_len = 48000 * 4
-    if audio_length < target_len:
-        pad_length = target_len - audio_length
-        # Use (roughly) symmetric padding
-        left_pad = pad_length // 2
-        right_pad= pad_length - left_pad
-        audio = np.pad(audio, (left_pad, right_pad), mode='constant')
-    elif audio_length > target_len:
-        # Take center of audio (ASSUMES NOT MUCH GREATER THAN TARGET LENGTH)
-        center_sample = audio_length // 2
-        half_len = target_len // 2
-        audio = audio[center_sample-half_len:center_sample+half_len]
-
-
-
-    # Divide into overlapping 1 second frames
-    x = librosa.util.utils.frame(audio, frame_length=frame_length, hop_length=hop_length).T
-
-    # Add a channel dimension
-    x = x.reshape((x.shape[0], 1, x.shape[-1]))
-
-    # Get the L3 embedding for each frame
-    l3embedding = l3embedding_model.predict(x)
-
-    # Return a flattened vector of the embeddings
-    return l3embedding.flatten()
-
-
 def compute_stats_features(embeddings):
     # Compute statistics on the time series of embeddings
     minimum = np.min(embeddings, axis=0)
@@ -282,64 +203,6 @@ def compute_stats_features(embeddings):
     kurtosis = sp.stats.kurtosis(embeddings, axis=0)
 
     return np.concatenate((minimum, maximum, median, mean, var, skewness, kurtosis))
-
-
-def get_l3_stats_features(audio_path, l3embedding_model, hop_size=0.1):
-    """
-    Get L3 embedding stats features, i.e. compute statistics for each of the
-    embedding features across 1 second (overlapping) window of the given audio
-
-    Computes a _single_ feature for the given audio file
-
-
-    Args:
-        audio_path: Path to audio file
-                    (Type: str)
-
-        l3embedding_model:  Audio embedding model
-                            (keras.engine.training.Model)
-
-    Keyword Args:
-        hop_size: Hop size in seconds
-                  (Type: float)
-
-    Returns:
-        features:  Feature vector
-                   (Type: np.ndarray)
-    """
-    sr = 48000
-    audio = load_audio(audio_path, sr)
-
-    hop_length = int(hop_size * sr)
-    frame_length = 48000 * 1
-
-    audio_length = len(audio)
-    if audio_length < frame_length:
-        # Make sure we can have at least three frames so that we can compute
-        # all of the stats.
-        pad_length = frame_length - audio_length
-    else:
-        # Zero pad so we compute embedding on all samples
-        pad_length = int(np.ceil(audio_length - frame_length)/hop_length) * hop_length \
-                     - (audio_length - frame_length)
-
-    if pad_length > 0:
-        # Use (roughly) symmetric padding
-        left_pad = pad_length // 2
-        right_pad= pad_length - left_pad
-        audio = np.pad(audio, (left_pad, right_pad), mode='constant')
-
-
-    # Divide into overlapping 1 second frames
-    x = librosa.util.utils.frame(audio, frame_length=frame_length, hop_length=hop_length).T
-
-    # Add a channel dimension
-    x = x.reshape((x.shape[0], 1, x.shape[-1]))
-
-    # Get the L3 embedding for each frame
-    l3embedding = l3embedding_model.predict(x)
-
-    return compute_stats_features(l3embedding)
 
 
 def get_l3_frames_uniform(audio, l3embedding_model, hop_size=0.1, sr=48000):
@@ -394,94 +257,16 @@ def get_l3_frames_uniform(audio, l3embedding_model, hop_size=0.1, sr=48000):
 
     return l3embedding
 
-def get_l3_frames_random(audio, l3embedding_model, num_samples, sr=48000):
-    """
-    Get L3 embedding for random frames in the given audio file
-
-    Args:
-        audio: Numpy array or path to audio file
-               (Type: np.ndarray or str)
-
-        l3embedding_model:  Audio embedding model
-                            (Type: keras.engine.training.Model)
-
-        num_samples: Number of samples
-                     (Type: int)
-
-    Returns:
-        features:  Array of embedding vectors
-                   (Type: np.ndarray)
-    """
-    if type(audio) == str:
-        audio = load_audio(audio, sr)
-
-    frame_length = sr * 1
-
-    audio_length = len(audio)
-    pad_length = frame_length - audio_length
-
-    if pad_length > 0:
-        # Use (roughly) symmetric padding
-        left_pad = pad_length // 2
-        right_pad= pad_length - left_pad
-        audio = np.pad(audio, (left_pad, right_pad), mode='constant')
-
-    if audio_length != frame_length:
-        sample_start_idxs = np.random.randint(low=0,
-                                              high=audio_length - frame_length,
-                                              size=num_samples)
-
-        x = []
-        for start_idx in sample_start_idxs:
-            end_idx = start_idx + frame_length
-            x.append(audio[start_idx:end_idx])
-
-
-        x = np.array(x)
-        x = x.reshape((x.shape[0], 1, x.shape[-1]))
-        l3embedding = l3embedding_model.predict(x).T
-
-    else:
-        warn_msg = 'Replicating samples'
-        LOGGER.warning(warn_msg)
-        warnings.warn(warn_msg)
-
-        x = audio.reshape((1,1,audio.shape[0]))
-        x = x.reshape((x.shape[0], 1, x.shape[-1]))
-        frame_l3embedding = l3embedding_model.predict(x).flatten()
-
-        l3embedding = np.tile(frame_l3embedding, (num_samples, 1))
-
-    return l3embedding
-
 
 def compute_file_features(path, feature_type, l3embedding_model=None, **feature_args):
-    if feature_type.startswith('l3') and not l3embedding_model:
-        err_msg = 'Must provide L3 embedding model to use {} features'
-        raise ValueError(err_msg.format(feature_type))
-
-    if feature_type == 'l3_stack':
-        hop_size = feature_args.get('hop_size', 0.1)
-        file_features = get_l3_stack_features(path, l3embedding_model,
-                                              hop_size=hop_size)
-    elif feature_type == 'l3_stats':
-        hop_size = feature_args.get('hop_size', 0.1)
-        file_features = get_l3_stats_features(path, l3embedding_model,
-                                              hop_size=hop_size)
-    elif feature_type == 'l3_frames_uniform':
+    if feature_type == 'l3':
+        if not l3embedding_model:
+            err_msg = 'Must provide L3 embedding model to use {} features'
+            raise ValueError(err_msg.format(feature_type))
         hop_size = feature_args.get('hop_size', 0.1)
         file_features = get_l3_frames_uniform(path, l3embedding_model,
                                               hop_size=hop_size)
-    elif feature_type == 'l3_frames_random':
-        num_samples = feature_args.get('num_random_samples')
-        if not num_samples:
-            raise ValueError('Must specify "num_samples" for "l3_frame_random" features')
-        file_features = get_l3_frames_random(path, l3embedding_model,
-                                             num_samples)
-    elif feature_type == 'vggish_stats':
-        hop_size = feature_args.get('hop_size', 0.1)
-        file_features = get_vggish_stats(path, hop_size=hop_size)
-    elif feature_type == 'vggish_frames_uniform':
+    elif feature_type == 'vggish':
         hop_size = feature_args.get('hop_size', 0.1)
         file_features = get_vggish_frames_uniform(path, hop_size=hop_size)
     else:
