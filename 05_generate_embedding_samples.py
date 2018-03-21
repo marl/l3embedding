@@ -44,14 +44,6 @@ def parse_arguments():
                         default='l3_frames_uniform',
                         help='Type of features to be used in training')
 
-    parser.add_argument('-lf',
-                        '--label-format',
-                        dest='label_format',
-                        action='store',
-                        type=str,
-                        default='int',
-                        help='Type of format used for encoding outputs')
-
     parser.add_argument('-lmp',
                         '--l3embedding-model-path',
                         dest='l3embedding_model_path',
@@ -144,7 +136,6 @@ if __name__ == '__main__':
     hop_size = args['hop_size']
     random_state = args['random_state']
     num_random_samples = args['num_random_samples']
-    label_format = args['label_format']
     model_path = args['l3embedding_model_path']
     num_gpus = args['gpus']
     output_dir = args['output_dir']
@@ -190,14 +181,14 @@ if __name__ == '__main__':
             # Generate a single fold if a fold was specified
             generate_us8k_fold_data(metadata_path, data_dir, fold_num-1, dataset_output_dir,
                 l3embedding_model=l3embedding_model,
-                features=features, label_format=label_format, random_state=random_state,
+                features=features, random_state=random_state,
                 hop_size=hop_size, num_random_samples=num_random_samples)
 
         else:
             # Otherwise, generate all the folds
             generate_us8k_folds(metadata_path, data_dir, dataset_output_dir,
                 l3embedding_model=l3embedding_model,
-                features=features, label_format=label_format, random_state=random_state,
+                features=features, random_state=random_state,
                 hop_size=hop_size, num_random_samples=num_random_samples)
     else:
         LOGGER.error('Invalid dataset name: {}'.format(dataset_name))

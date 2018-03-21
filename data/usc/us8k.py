@@ -214,8 +214,7 @@ def get_us8k_train_folds(feature_dir, test_fold_idx):
 
 
 def generate_us8k_folds(metadata_path, data_dir, output_dir, l3embedding_model=None,
-                        features='l3_stack', label_format='int',
-                        random_state=12345678, **feature_args):
+                        features='l3_stack', random_state=12345678, **feature_args):
     """
     Generate all of the data for each fold
 
@@ -236,9 +235,6 @@ def generate_us8k_folds(metadata_path, data_dir, output_dir, l3embedding_model=N
         features: Type of features to be computed
                   (Type: str)
 
-        label_format: Type of format used for encoding outputs
-                      (Type: str)
-
     """
     LOGGER.info('Generating all folds.')
     metadata = load_us8k_metadata(metadata_path)
@@ -246,13 +242,12 @@ def generate_us8k_folds(metadata_path, data_dir, output_dir, l3embedding_model=N
     for fold_idx in range(10):
         generate_us8k_fold_data(metadata, data_dir, fold_idx, output_dir,
                                 l3embedding_model=l3embedding_model,
-                                features=features, label_format=label_format,
-                                random_state=random_state, **feature_args)
+                                features=features, random_state=random_state,
+                                **feature_args)
 
 
 def generate_us8k_fold_data(metadata, data_dir, fold_idx, output_dir, l3embedding_model=None,
-                            features='l3_stack', label_format='int',
-                            random_state=12345678, **feature_args):
+                            features='l3_stack', random_state=12345678, **feature_args):
     """
     Generate all of the data for a specific fold
 
@@ -275,9 +270,6 @@ def generate_us8k_fold_data(metadata, data_dir, fold_idx, output_dir, l3embeddin
 
         features: Type of features to be computed
                   (Type: str)
-
-        label_format: Type of format used for encoding outputs
-                      (Type: str)
 
     """
 
@@ -304,12 +296,12 @@ def generate_us8k_fold_data(metadata, data_dir, fold_idx, output_dir, l3embeddin
         desc = '({}/{}) Processed {} -'.format(idx+1, num_files, fname)
         with LogTimer(LOGGER, desc, log_level=logging.DEBUG):
             generate_us8k_file_data(fname, example_metadata, audio_fold_dir,
-                                    output_fold_dir, features, label_format,
+                                    output_fold_dir, features,
                                     l3embedding_model, **feature_args)
 
 
 def generate_us8k_file_data(fname, example_metadata, audio_fold_dir,
-                            output_fold_dir, features, label_format,
+                            output_fold_dir, features,
                             l3embedding_model, **feature_args):
     audio_path = os.path.join(audio_fold_dir, fname)
 
@@ -328,12 +320,7 @@ def generate_us8k_file_data(fname, example_metadata, audio_fold_dir,
         return
 
     class_label = example_metadata['classID']
-    if label_format == 'int':
-        y = class_label
-    elif label_format == 'one_hot':
-        y = cls_features.one_hot(class_label)
-    else:
-        raise ValueError('Invalid label format: {}'.format(label_format))
+    y = class_label
 
     np.savez_compressed(output_path, X=X, y=y)
 
