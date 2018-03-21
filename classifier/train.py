@@ -99,9 +99,9 @@ def train_svm(train_data, valid_data, test_data, model_dir, C=1.0, kernel='rbf',
                      (Type: np.ndarray)
     """
     X_train = train_data['features']
-    y_train = train_data['label']
+    y_train = train_data['labels']
     X_valid = valid_data['features']
-    y_valid = valid_data['label']
+    y_valid = valid_data['labels']
 
     model_output_path = os.path.join(model_dir, "model.pkl")
 
@@ -109,13 +109,13 @@ def train_svm(train_data, valid_data, test_data, model_dir, C=1.0, kernel='rbf',
     clf = SVC(C=C, probability=True, kernel=kernel, max_iter=max_iterations,
               tol=tol, random_state=random_state, verbose=verbose)
 
-    # Save the model for this iteration
-    LOGGER.info('Saving model...')
-    joblib.dump(clf, model_output_path)
-
     # Fit data and get output for train and valid batches
     LOGGER.debug('Fitting model to data...')
     clf.fit(X_train, y_train)
+
+    LOGGER.info('Saving model...')
+    joblib.dump(clf, model_output_path)
+
     y_train_pred = clf.predict(X_train)
     y_valid_pred = clf.predict(X_valid)
 
@@ -339,8 +339,10 @@ def train(features_dir, output_dir, model_id, fold_num,
     config.update(model_args)
 
     # Save configs
-    with open(os.path.join(model_dir, 'config.json'), 'w') as fp:
+    config_path = os.path.join(model_dir, 'config.json')
+    with open(config_path, 'w') as fp:
         json.dump(config, fp)
+    LOGGER.info('Saved configurations to {}'.format(config_path))
 
     if gsheet_id:
         # Add a new entry in the Google Sheets spreadsheet
@@ -384,7 +386,7 @@ def train(features_dir, output_dir, model_id, fold_num,
     # Fit the model
     if model_type == 'svm':
         model, train_metrics, valid_metrics, test_metrics \
-            = train_svm(train_data, test_data, model_dir,
+            = train_svm(train_data, valid_data, test_data, model_dir,
                 random_state=random_state, verbose=verbose, **model_args)
 
     elif model_type == 'mlp':
