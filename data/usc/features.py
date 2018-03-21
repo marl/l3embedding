@@ -227,7 +227,7 @@ def get_l3_frames_uniform(audio, l3embedding_model, hop_size=0.1, sr=48000):
     if type(audio) == str:
         audio = load_audio(audio, sr)
 
-    hop_size = 0.25 # REVISIT
+    hop_size = hop_size
     hop_length = int(hop_size * sr)
     frame_length = sr * 1
 
