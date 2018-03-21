@@ -95,6 +95,9 @@ def get_us8k_batch_generator(features_dir, test_fold_idx, valid=False, num_strea
         if valid and fold_idx != valid_fold_idx:
             continue
 
+        if not valid and fold_idx == valid_fold_idx:
+            continue
+
         fold_dir = os.path.join(features_dir, fold_dirname)
         for feature_filename in os.listdir(fold_dir):
             feature_filepath = os.path.join(fold_dir, feature_filename)
@@ -129,7 +132,7 @@ def get_us8k_batch(features_dir, test_fold_idx, valid=False, num_streamers=None,
     return next(gen)
 
 
-def load_test_fold(feature_dir, fold_idx):
+def get_us8k_fold(feature_dir, fold_idx):
     X = []
     y = []
     file_idxs = []
@@ -149,7 +152,7 @@ def load_test_fold(feature_dir, fold_idx):
 
         X.append(file_X)
         y.append(file_y)
-        file_idxs.append((start_idx, end_idx))
+        file_idxs.append([start_idx, end_idx])
 
         start_idx = end_idx
 
@@ -159,6 +162,8 @@ def load_test_fold(feature_dir, fold_idx):
         y = np.array(y)
     else:
         y = np.concatenate(y)
+
+    file_idxs = np.array(file_idxs)
 
     return {'features': X, 'labels': y, 'file_idxs': file_idxs, 'filenames': filenames}
 

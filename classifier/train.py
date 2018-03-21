@@ -410,7 +410,7 @@ def train(features_dir, output_dir, model_id, fold_num, model_type='svm',
                          batch_size=valid_batch_size, random_state=random_state,
                          rate=valid_mux_rate)
     LOGGER.info('Preparing test data for fold {}'.format(fold_num))
-    test_data = load_test_fold(features_dir, fold_idx)
+    test_data = get_us8k_fold(features_dir, fold_idx)
 
     LOGGER.info('Training {} with fold {} held out'.format(model_type, fold_num))
     # Fit the model
