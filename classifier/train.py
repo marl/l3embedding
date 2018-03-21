@@ -10,17 +10,15 @@ import keras
 import keras.regularizers as regularizers
 from tensorflow import set_random_seed
 import numpy as np
-from keras.layers import Input, Dense, BatchNormalization
+from keras.layers import Input, Dense
 from keras.models import Model
 from keras.optimizers import Adam
-from scipy.stats import mode
 from sklearn.metrics import hinge_loss
 from sklearn.externals import joblib
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.svm import SVC
-import pescador
 
-from classifier.metrics import compute_metrics, collapse_metrics
+from classifier.metrics import compute_metrics
 from data.usc.features import preprocess_split_data
 from data.usc.us8k import get_us8k_split
 from l3embedding.train import LossHistory
