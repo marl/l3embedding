@@ -19,6 +19,7 @@ FEATURES_DIR=/scratch/jtc440/l3_features/us8k/l3_frames_uniform/l3embedding/cnn_
 OUTPUT_DIR=/scratch/jtc440/cls_output
 MODEL_ID='mycls'
 MODEL_TYPE='svm'
+FEATURE_MODE='framewise'
 GOOGLE_DEV_APP_NAME=''
 GSHEET_ID=''
 FOLD_NUM=$SLURM_ARRAY_TASK_ID
@@ -28,6 +29,7 @@ module purge
 python $SRCDIR/06_train_classifier.py \
     --random-state 20171021 \
     --model-type $MODEL_TYPE \
+    --feature-mode $FEATURE_MODE \
     --num-epochs 10 \
     --train-num-streamers 1024 \
     --train-mux-rate 16 \
@@ -39,7 +41,7 @@ python $SRCDIR/06_train_classifier.py \
     --norm-penalty-factor 0.0001 \
     --svm-conv-tolerance 0.001 \
     --svm-max-iterations 1000000 \
-    --svm-reg-penalty-type l2 \
+    --svm-kernel-type rbf \
     --gsheet-id $GSHEET_ID \
     --google-dev-app-name $GOOGLE_DEV_APP_NAME \
     --verbose \

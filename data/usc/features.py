@@ -7,6 +7,7 @@ import scipy as sp
 import soundfile as sf
 import resampy
 import tensorflow as tf
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from .vggish import vggish_input
 from .vggish import vggish_postprocess
 from .vggish import vggish_slim
@@ -47,6 +48,72 @@ def one_hot(idx, n_classes=10):
     y = np.zeros((n_classes,))
     y[idx] = 1
     return y
+
+
+def framewise_to_stats(data):
+    X = []
+    for start_idx, end_idx in data['file_idxs']:
+        X.append(compute_stats_features(data['features'][start_idx:end_idx]))
+
+    data['features'] = np.vstack(X)
+
+    idxs = np.arange(data['features'].shape[0])
+    data['file_idx'] = np.column_stack((idxs, idxs + 1))
+
+
+def expand_framewise_labels(data):
+    labels = []
+    for y, (start_idx, end_idx) in zip(data['labels'], data['file_idxs']):
+        num_frames = end_idx - start_idx
+        labels.append(np.tile(y, num_frames))
+
+    data['labels'] = np.concatenate(labels)
+
+
+def preprocess_split_data(train_data, valid_data, test_data,
+                          feature_mode='framewise'):
+    # NOTE: This function mutates data so there aren't extra copies
+
+    # Apply min max scaling to data
+    min_max_scaler = MinMaxScaler()
+    train_data['features'] = min_max_scaler.fit_transform(
+        train_data['features'])
+    valid_data['features'] = min_max_scaler.transform(valid_data['features'])
+    test_data['features'] = min_max_scaler.transform(test_data['features'])
+
+    if feature_mode == 'framewise':
+        # Expand training and validation labels to apply to each frame
+        expand_framewise_labels(train_data)
+        expand_framewise_labels(valid_data)
+    elif feature_mode == 'stats':
+        # Summarize frames in each file using summary statistics
+        framewise_to_stats(train_data)
+        framewise_to_stats(valid_data)
+        framewise_to_stats(test_data)
+    else:
+        raise ValueError('Invalid feature mode: {}'.format(feature_mode))
+
+    # Standardize features
+    stdizer = StandardScaler()
+    train_data['features'] = stdizer.fit_transform(train_data['features'])
+    valid_data['features'] = stdizer.transform(valid_data['features'])
+    test_data['features'] = stdizer.transform(test_data['features'])
+
+    return min_max_scaler, stdizer
+
+
+def preprocess_features(data, min_max_scaler, stdizer,
+                        feature_mode='framewise'):
+    data['features'] = min_max_scaler.fit_transform(data['features'])
+    if feature_mode == 'framewise':
+        # Expand training and validation labels to apply to each frame
+        expand_framewise_labels(data)
+    elif feature_mode == 'stats':
+        # Summarize frames in each file using summary statistics
+        framewise_to_stats(data)
+    else:
+        raise ValueError('Invalid feature mode: {}'.format(feature_mode))
+    data['features'] = stdizer.transform(data['features'])
 
 
 def extract_vggish_embedding(audio_path, input_op_name='vggish/input_features',

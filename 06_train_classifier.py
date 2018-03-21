@@ -95,7 +95,7 @@ def parse_arguments():
                         dest='C',
                         action='store',
                         type=float,
-                        default=1e-4,
+                        default=1.0,
                         help='(SVM) norm penalization factor')
 
     parser.add_argument('-sct',
@@ -103,7 +103,7 @@ def parse_arguments():
                         dest='tol',
                         action='store',
                         type=float,
-                        default=1e-3,
+                        default=0.001,
                         help='(SVM) convergence tolerance threshold')
 
     parser.add_argument('-smi',
@@ -111,17 +111,17 @@ def parse_arguments():
                         dest='max_iterations',
                         action='store',
                         type=int,
-                        default=1000000,
+                        default=-1,
                         help='(SVM) maximum iterations')
 
-    parser.add_argument('-srpt',
-                        '--svm-reg-penalty-type',
-                        dest='reg_penalty',
+    parser.add_argument('-skt',
+                        '--svm-kernel-type',
+                        dest='kernel',
                         action='store',
                         type=str,
-                        default='l2',
-                        choices=['l1', 'l2', 'elasticnet', 'none'],
-                        help='(SVM) maximum iterations')
+                        default='rbf',
+                        choices=['rbf', 'sigmoid', 'linear', 'poly'],
+                        help='(SVM) kernel type')
 
     parser.add_argument('-gsid',
                         '--gsheet-id',
@@ -150,12 +150,22 @@ def parse_arguments():
                         default=False,
                         help='If True, print detailed messages')
 
+    parser.add_argument('-fm',
+                        '--feature-mode',
+                        dest='feature_mode',
+                        action='store',
+                        type=str,
+                        default='framewise',
+                        choices=['framewise', 'stats'],
+                        help='Type of inputs used for model')
+
     parser.add_argument('-mt',
                         '--model-type',
                         dest='model_type',
                         action='store',
                         type=str,
                         default='svm',
+                        choices=['svm', 'mlp'],
                         help='Type of model used for training classifier')
 
     parser.add_argument('features_dir',

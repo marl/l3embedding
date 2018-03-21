@@ -168,6 +168,51 @@ def get_us8k_fold(feature_dir, fold_idx):
     return {'features': X, 'labels': y, 'file_idxs': file_idxs, 'filenames': filenames}
 
 
+def get_us8k_split(feature_dir, test_fold_idx):
+    train_data = get_us8k_train_folds(feature_dir, test_fold_idx)
+    valid_data = get_us8k_fold(feature_dir, get_valid_fold_idx(test_fold_idx))
+    test_data = get_us8k_fold(feature_dir, test_fold_idx)
+
+    return train_data, valid_data, test_data
+
+
+def get_valid_fold_idx(test_fold_idx):
+    return (test_fold_idx - 1) % 10
+
+
+def get_us8k_train_folds(feature_dir, test_fold_idx):
+    X = []
+    y = []
+    file_idxs = []
+    filenames = []
+
+    valid_fold_idx = get_valid_fold_idx(test_fold_idx)
+
+    for fold_idx in range(10):
+        if fold_idx in (valid_fold_idx, test_fold_idx):
+            continue
+
+        fold_data = get_us8k_fold(feature_dir, fold_idx)
+
+        X.append(fold_data['features'])
+        y.append(fold_data['labels'])
+        idxs = fold_data['file_idxs']
+        if len(file_idxs) > 0:
+            # Since we're appending all of the file indices together, increment
+            # the current fold indices by the current global index
+            idxs = idxs + file_idxs[-1][-1, -1]
+        file_idxs.append(idxs)
+
+        filenames += fold_data['filenames']
+
+    X = np.vstack(X)
+    y = np.concatenate(y)
+    file_idxs = np.vstack(file_idxs)
+
+    return {'features': X, 'labels': y, 'file_idxs': file_idxs,
+            'filenames': filenames}
+
+
 def generate_us8k_folds(metadata_path, data_dir, output_dir, l3embedding_model=None,
                         features='l3_stack', label_format='int',
                         random_state=12345678, **feature_args):
