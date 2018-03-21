@@ -56,7 +56,6 @@ CLASSIFIER_FIELD_NAMES = [
     'num_epochs',
     'learning_rate',
     'weight_decay',
-    'reg_penalty',
     'C',
     'tol',
     'max_iterations',

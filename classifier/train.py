@@ -427,7 +427,7 @@ def train(features_dir, output_dir, model_id, fold_num,
               test_metrics['average_class_accuracy'],
               ', '.join(map(str, test_metrics['class_accuracy']))
         ]
-        update_experiment(service, gsheet_id, config, 'V', 'AG',
+        update_experiment(service, gsheet_id, config, 'V', 'AF',
                           update_values, 'classifier')
 
     LOGGER.info('Done!')
