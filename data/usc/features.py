@@ -57,7 +57,7 @@ def framewise_to_stats(data):
     data['features'] = np.vstack(X)
 
     idxs = np.arange(data['features'].shape[0])
-    data['file_idx'] = np.column_stack((idxs, idxs + 1))
+    data['file_idxs'] = np.column_stack((idxs, idxs + 1))
 
 
 def expand_framewise_labels(data):
