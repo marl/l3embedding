@@ -294,8 +294,7 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
 
 def train(features_dir, output_dir, model_id, fold_num,
           model_type='svm', feature_mode='framewise',
-          train_num_streamers=None, train_batch_size=64, train_mux_rate=None,
-          valid_num_streamers=None, valid_batch_size=64, valid_mux_rate=None,
+          train_batch_size=64, valid_batch_size=64,
           random_state=20171021, gsheet_id=None, google_dev_app_name=None,
           verbose=False, **model_args):
     init_console_logger(LOGGER, verbose=verbose)
@@ -323,12 +322,8 @@ def train(features_dir, output_dir, model_id, fold_num,
         'fold_num': fold_num,
         'model_type': model_type,
         'feature_mode': feature_mode,
-        'train_num_streamers': train_num_streamers,
         'train_batch_size': train_batch_size,
-        'train_mux_rate': train_mux_rate,
-        'valid_num_streamers': valid_num_streamers,
         'valid_batch_size': valid_batch_size,
-        'valid_mux_rate': valid_mux_rate,
         'random_state': random_state,
         'verbose': verbose,
         'git_commit': git.Repo(os.path.dirname(os.path.abspath(__file__)),
@@ -365,8 +360,6 @@ def train(features_dir, output_dir, model_id, fold_num,
         append_row(service, gsheet_id, config, 'classifier')
     else:
         LOGGER.error(gsheet_id)
-
-    LOGGER.info('Loading data...')
 
     fold_idx = fold_num - 1
 
@@ -429,7 +422,7 @@ def train(features_dir, output_dir, model_id, fold_num,
               test_metrics['average_class_accuracy'],
               ', '.join(map(str, test_metrics['class_accuracy']))
         ]
-        update_experiment(service, gsheet_id, config, 'V', 'AF',
+        update_experiment(service, gsheet_id, config, 'R', 'AB',
                           update_values, 'classifier')
 
     LOGGER.info('Done!')

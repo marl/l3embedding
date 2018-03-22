@@ -29,21 +29,6 @@ def parse_arguments():
                         default=64,
                         help='(MLP) Number of training examples per batch')
 
-    parser.add_argument('-tns',
-                        '--train-num-streamers',
-                        dest='train_num_streamers',
-                        action='store',
-                        type=int,
-                        help='Number of open pescador streamers to keep open ' \
-                             'while sampling features for training data')
-
-    parser.add_argument('-tmr',
-                        '--train-mux-rate',
-                        dest='train_mux_rate',
-                        action='store',
-                        type=int,
-                        help='Pescador poisson rate used for sampling training data')
-
     parser.add_argument('-vbs',
                         '--valid-batch-size',
                         dest='valid_batch_size',
@@ -51,21 +36,6 @@ def parse_arguments():
                         type=int,
                         default=64,
                         help='(MLP) Number of validation examples per batch')
-
-    parser.add_argument('-vns',
-                        '--valid-num-streamers',
-                        dest='valid_num_streamers',
-                        action='store',
-                        type=int,
-                        help='Number of open pescador streamers to keep open ' \
-                             'while sampling features for validation data')
-
-    parser.add_argument('-vmr',
-                        '--valid-mux-rate',
-                        dest='valid_mux_rate',
-                        action='store',
-                        type=int,
-                        help='Pescador poisson rate used for sampling validation data')
 
     parser.add_argument('-tes',
                         '--train-epoch-size',
@@ -103,7 +73,7 @@ def parse_arguments():
                         dest='tol',
                         action='store',
                         type=float,
-                        default=0.001,
+                        default=0.00001,
                         help='(SVM) convergence tolerance threshold')
 
     parser.add_argument('-smi',
