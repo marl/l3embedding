@@ -31,14 +31,10 @@ python $SRCDIR/06_train_classifier.py \
     --model-type $MODEL_TYPE \
     --feature-mode $FEATURE_MODE \
     --num-epochs 10 \
-    --train-num-streamers 1024 \
-    --train-mux-rate 16 \
     --train-batch-size 128 \
     --train-epoch-size 16 \
-    --valid-num-streamers 1024 \
-    --valid-mux-rate 1 \
     --valid-batch-size 512 \
-    --norm-penalty-factor 0.0001 \
+    --norm-penalty-factor 1.0 \
     --svm-conv-tolerance 0.001 \
     --svm-max-iterations 1000000 \
     --svm-kernel-type rbf \
