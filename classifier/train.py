@@ -294,7 +294,7 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
 
 def train(features_dir, output_dir, model_id, fold_num,
           model_type='svm', feature_mode='framewise',
-          train_batch_size=64, valid_batch_size=64,
+          train_batch_size=64,
           random_state=20171021, gsheet_id=None, google_dev_app_name=None,
           verbose=False, non_overlap=False, non_overlap_chunk_size=10,
           use_min_max=False, **model_args):
@@ -324,7 +324,6 @@ def train(features_dir, output_dir, model_id, fold_num,
         'model_type': model_type,
         'feature_mode': feature_mode,
         'train_batch_size': train_batch_size,
-        'valid_batch_size': valid_batch_size,
         'random_state': random_state,
         'verbose': verbose,
         'git_commit': git.Repo(os.path.dirname(os.path.abspath(__file__)),
@@ -426,7 +425,7 @@ def train(features_dir, output_dir, model_id, fold_num,
               test_metrics['average_class_accuracy'],
               ', '.join(map(str, test_metrics['class_accuracy']))
         ]
-        update_experiment(service, gsheet_id, config, 'R', 'AB',
+        update_experiment(service, gsheet_id, config, 'Q', 'AA',
                           update_values, 'classifier')
 
     LOGGER.info('Done!')

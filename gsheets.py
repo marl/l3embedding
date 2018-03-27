@@ -47,7 +47,6 @@ CLASSIFIER_FIELD_NAMES = [
     'model_type',
     'feature_mode',
     'train_batch_size',
-    'valid_batch_size',
     'random_state',
     'num_epochs',
     'learning_rate',

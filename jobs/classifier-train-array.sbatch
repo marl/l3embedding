@@ -33,7 +33,6 @@ python $SRCDIR/06_train_classifier.py \
     --num-epochs 10 \
     --train-batch-size 128 \
     --train-epoch-size 16 \
-    --valid-batch-size 512 \
     --norm-penalty-factor 1.0 \
     --svm-conv-tolerance 0.001 \
     --svm-max-iterations 1000000 \

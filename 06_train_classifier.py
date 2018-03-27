@@ -29,14 +29,6 @@ def parse_arguments():
                         default=64,
                         help='(MLP) Number of training examples per batch')
 
-    parser.add_argument('-vbs',
-                        '--valid-batch-size',
-                        dest='valid_batch_size',
-                        action='store',
-                        type=int,
-                        default=64,
-                        help='(MLP) Number of validation examples per batch')
-
     parser.add_argument('-tes',
                         '--train-epoch-size',
                         dest='train_epoch_size',
