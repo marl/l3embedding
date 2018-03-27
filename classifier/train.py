@@ -296,7 +296,7 @@ def train(features_dir, output_dir, model_id, fold_num,
           model_type='svm', feature_mode='framewise',
           train_batch_size=64, valid_batch_size=64,
           random_state=20171021, gsheet_id=None, google_dev_app_name=None,
-          verbose=False, **model_args):
+          verbose=False, non_overlap=False, use_min_max=False, **model_args):
     init_console_logger(LOGGER, verbose=verbose)
     LOGGER.debug('Initialized logging.')
 
@@ -368,7 +368,9 @@ def train(features_dir, output_dir, model_id, fold_num,
 
     LOGGER.info('Preprocessing data...')
     min_max_scaler, stdizer = preprocess_split_data(train_data, valid_data, test_data,
-                                                    feature_mode=feature_mode)
+                                                    feature_mode=feature_mode,
+                                                    non_overlap=non_overlap,
+                                                    use_min_max=use_min_max)
 
     min_max_scaler_output_path = os.path.join(model_dir, "min_max_scaler.pkl")
     joblib.dump(min_max_scaler, min_max_scaler_output_path)
