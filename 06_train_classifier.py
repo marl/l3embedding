@@ -144,6 +144,12 @@ def parse_arguments():
                         action='store_true',
                         default=False)
 
+    parser.add_argument('-nocs',
+                        '--non-overlap-chunk-size',
+                        dest='non_overlap_chunk_size',
+                        action='store',
+                        default=10)
+
     parser.add_argument('-umm',
                         '--use-min-max',
                         dest='use_min_max',

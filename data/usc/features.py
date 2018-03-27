@@ -49,7 +49,7 @@ def one_hot(idx, n_classes=10):
     return y
 
 
-def sample_non_overlap(X, chunk_size=10):
+def sample_non_overlap_file(X, chunk_size=10):
     def _chunks(l, n):
         """Yield successive n-sized chunks from l."""
         for i in range(0, len(l), n):
@@ -57,12 +57,27 @@ def sample_non_overlap(X, chunk_size=10):
     return np.array([chunk[0] for chunk in _chunks(X, chunk_size)])
 
 
-def framewise_to_stats(data, non_overlap=False):
+def remove_data_overlap(data, chunk_size=10):
+    X = []
+    file_idxs = []
+    new_start_idx = 0
+    for start_idx, end_idx in data['file_idxs']:
+        features = data['features'][start_idx:end_idx]
+        features = sample_non_overlap_file(features, chunk_size=chunk_size)
+        X.append(features)
+
+        new_end_idx = new_start_idx + features.shape[0]
+        file_idxs.append([new_start_idx, new_end_idx])
+        new_start_idx = new_end_idx
+
+    data['features'] = np.vstack(X)
+    data['file_idxs'] = np.array(file_idxs)
+
+
+def framewise_to_stats(data):
     X = []
     for start_idx, end_idx in data['file_idxs']:
         features = data['features'][start_idx:end_idx]
-        if non_overlap:
-            features = sample_non_overlap(features)
         X.append(compute_stats_features(features))
 
     data['features'] = np.vstack(X)
@@ -82,8 +97,14 @@ def expand_framewise_labels(data):
 
 def preprocess_split_data(train_data, valid_data, test_data,
                           feature_mode='framewise', non_overlap=False,
-                          use_min_max=False):
+                          non_overlap_chunk_size=10, use_min_max=False):
     # NOTE: This function mutates data so there aren't extra copies
+
+    # Remove overlapping frames if no overlap
+    if non_overlap:
+        remove_data_overlap(train_data, chunk_size=non_overlap_chunk_size)
+        remove_data_overlap(valid_data, chunk_size=non_overlap_chunk_size)
+        remove_data_overlap(test_data, chunk_size=non_overlap_chunk_size)
 
     # Apply min max scaling to data
     min_max_scaler = MinMaxScaler()
@@ -99,9 +120,9 @@ def preprocess_split_data(train_data, valid_data, test_data,
         expand_framewise_labels(valid_data)
     elif feature_mode == 'stats':
         # Summarize frames in each file using summary statistics
-        framewise_to_stats(train_data, non_overlap)
-        framewise_to_stats(valid_data, non_overlap)
-        framewise_to_stats(test_data, non_overlap)
+        framewise_to_stats(train_data)
+        framewise_to_stats(valid_data)
+        framewise_to_stats(test_data)
     else:
         raise ValueError('Invalid feature mode: {}'.format(feature_mode))
 
