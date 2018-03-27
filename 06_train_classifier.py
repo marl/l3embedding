@@ -138,6 +138,24 @@ def parse_arguments():
                         choices=['svm', 'mlp'],
                         help='Type of model used for training classifier')
 
+    parser.add_argument('-no',
+                        '--non-overlap',
+                        dest='non_overlap',
+                        action='store_true',
+                        default=False)
+
+    parser.add_argument('-nocs',
+                        '--non-overlap-chunk-size',
+                        dest='non_overlap_chunk_size',
+                        action='store',
+                        default=10)
+
+    parser.add_argument('-umm',
+                        '--use-min-max',
+                        dest='use_min_max',
+                        action='store_true',
+                        default=False)
+
     parser.add_argument('features_dir',
                         action='store',
                         type=str,
