@@ -324,6 +324,8 @@ def train(features_dir, output_dir, model_id, fold_num,
         'model_type': model_type,
         'feature_mode': feature_mode,
         'train_batch_size': train_batch_size,
+        'non_overlap': non_overlap,
+        'non_overlap_chunk_size': non_overlap_chunk_size,
         'random_state': random_state,
         'verbose': verbose,
         'git_commit': git.Repo(os.path.dirname(os.path.abspath(__file__)),
@@ -425,7 +427,7 @@ def train(features_dir, output_dir, model_id, fold_num,
               test_metrics['average_class_accuracy'],
               ', '.join(map(str, test_metrics['class_accuracy']))
         ]
-        update_experiment(service, gsheet_id, config, 'Q', 'AA',
+        update_experiment(service, gsheet_id, config, 'R', 'AB',
                           update_values, 'classifier')
 
     LOGGER.info('Done!')

@@ -47,6 +47,7 @@ CLASSIFIER_FIELD_NAMES = [
     'model_type',
     'feature_mode',
     'train_batch_size',
+    'non_overlap',
     'random_state',
     'num_epochs',
     'learning_rate',
