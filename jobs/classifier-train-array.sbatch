@@ -17,7 +17,6 @@ source activate l3embedding-cpu
 SRCDIR=$HOME/dev/l3embedding
 FEATURES_DIR=/scratch/jtc440/l3_features/us8k/l3_frames_uniform/l3embedding/cnn_L3_orig/original
 OUTPUT_DIR=/scratch/jtc440/cls_output
-MODEL_ID='mycls'
 MODEL_TYPE='svm'
 FEATURE_MODE='framewise'
 GOOGLE_DEV_APP_NAME=''
@@ -30,20 +29,12 @@ python $SRCDIR/06_train_classifier.py \
     --random-state 20171021 \
     --model-type $MODEL_TYPE \
     --feature-mode $FEATURE_MODE \
-    --num-epochs 10 \
-    --train-batch-size 128 \
-    --train-epoch-size 16 \
-    --norm-penalty-factor 1.0 \
-    --svm-conv-tolerance 0.001 \
-    --svm-max-iterations 1000000 \
-    --svm-kernel-type rbf \
+    --num-epochs 150 \
+    --train-batch-size 32 \
     --gsheet-id $GSHEET_ID \
     --google-dev-app-name $GOOGLE_DEV_APP_NAME \
     --verbose \
     $FEATURES_DIR \
     $OUTPUT_DIR \
-    $MODEL_ID \
+    $SLURM_JOB_ID \
     $FOLD_NUM
-
-#    --learning-rate 0.00001 \
-#    --weight-decay 0.00001 \

@@ -29,13 +29,6 @@ def parse_arguments():
                         default=64,
                         help='(MLP) Number of training examples per batch')
 
-    parser.add_argument('-tes',
-                        '--train-epoch-size',
-                        dest='train_epoch_size',
-                        action='store',
-                        type=int,
-                        help='(MLP) Number of training batches per epoch')
-
     parser.add_argument('-lr',
                         '--learning-rate',
                         dest='learning_rate',
@@ -158,10 +151,10 @@ def parse_arguments():
                         type=str,
                         help='Path to directory where output files will be stored')
 
-    parser.add_argument('model_id',
+    parser.add_argument('model_id_suffix',
                         action='store',
                         type=str,
-                        help='Identifier for this model')
+                        help='Identifier suffix for this model')
 
     parser.add_argument('fold_num',
                         action='store',

@@ -179,7 +179,7 @@ def construct_mlp_model(input_shape, weight_decay=1e-5, num_classes=10):
 
 
 def train_mlp(train_data, valid_data, test_data, model_dir,
-              batch_size=64, num_epochs=100, train_epoch_size=None,
+              batch_size=64, num_epochs=100,
               learning_rate=1e-4, weight_decay=1e-5, num_classes=10,
               random_state=12345678, verbose=False, **kwargs):
     """
@@ -209,8 +209,6 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
                     (Type: int)
         num_epochs: Number of training epochs
                     (Type: int)
-        train_epoch_size: Number of training batches per training epoch
-                          (Type: int)
         learning_rate: Learning rate value
                        (Type: float)
         weight_decay: L2 regularization factor
@@ -255,8 +253,7 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
     m.compile(Adam(lr=learning_rate), loss=loss, metrics=metrics)
     LOGGER.debug('Fitting model to data...')
     m.fit(x=X_train, y=y_train, batch_size=batch_size,
-          epochs=num_epochs, steps_per_epoch=train_epoch_size,
-          validation_data=(X_valid, y_valid), callbacks=cb)
+          epochs=num_epochs, validation_data=(X_valid, y_valid), callbacks=cb)
 
     # Compute metrics for train and valid
     train_pred = m.predict(X_train)
@@ -292,7 +289,7 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
     return m, train_metrics, valid_metrics, test_metrics
 
 
-def train(features_dir, output_dir, model_id, fold_num,
+def train(features_dir, output_dir, model_id_suffix, fold_num,
           model_type='svm', feature_mode='framewise',
           train_batch_size=64,
           random_state=20171021, gsheet_id=None, google_dev_app_name=None,
@@ -305,8 +302,25 @@ def train(features_dir, output_dir, model_id, fold_num,
     np.random.seed(random_state)
     random.seed(random_state)
 
+    datasets = ['us8k', 'esc50', 'dcase2013']
+    for ds in datasets:
+        if ds in features_dir:
+            dataset_name = ds
+            break
+    else:
+        err_msg = 'Feature directory must contain name of dataset ({})'
+        raise ValueError(err_msg.format(str(datasets)))
+
+    features_desc_str = features_dir[features_dir.index(dataset_name):]
+
+    model_id = os.path.join(features_desc_str,
+                            model_type, feature_mode,
+                            "non-overlap" if non_overlap else "overlap",
+                            "min-max" if use_min_max else "no-min-max",
+                            random_state, model_id_suffix)
+
     # Make sure the directories we need exist
-    model_dir = os.path.join(output_dir, model_id, model_type, feature_mode,
+    model_dir = os.path.join(output_dir, model_id,
                              'fold{}'.format(fold_num),
                              datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
 
