@@ -311,7 +311,7 @@ def train(features_dir, output_dir, fold_num,
         err_msg = 'Feature directory must contain name of dataset ({})'
         raise ValueError(err_msg.format(str(datasets)))
 
-    features_desc_str = features_dir[features_dir.rindex('features'):]
+    features_desc_str = features_dir[features_dir.rindex('features')+9:]
 
     model_id = os.path.join(features_desc_str, feature_mode,
                             "non-overlap" if non_overlap else "overlap",
