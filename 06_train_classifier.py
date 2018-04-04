@@ -151,11 +151,6 @@ def parse_arguments():
                         type=str,
                         help='Path to directory where output files will be stored')
 
-    parser.add_argument('model_id_suffix',
-                        action='store',
-                        type=str,
-                        help='Identifier suffix for this model')
-
     parser.add_argument('fold_num',
                         action='store',
                         type=int,

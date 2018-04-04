@@ -289,7 +289,7 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
     return m, train_metrics, valid_metrics, test_metrics
 
 
-def train(features_dir, output_dir, model_id_suffix, fold_num,
+def train(features_dir, output_dir, fold_num,
           model_type='svm', feature_mode='framewise',
           train_batch_size=64,
           random_state=20171021, gsheet_id=None, google_dev_app_name=None,
