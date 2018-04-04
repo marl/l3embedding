@@ -313,9 +313,10 @@ def train(features_dir, output_dir, model_id_suffix, fold_num,
 
     features_desc_str = features_dir[features_dir.rindex('features'):]
 
-    model_id = os.path.join(features_desc_str, model_type, feature_mode,
+    model_id = os.path.join(features_desc_str, feature_mode,
                             "non-overlap" if non_overlap else "overlap",
-                            "min-max" if use_min_max else "no-min-max")
+                            "min-max" if use_min_max else "no-min-max",
+                            model_type)
 
     # Make sure the directories we need exist
     model_dir = os.path.join(output_dir, 'classifier', model_id,
