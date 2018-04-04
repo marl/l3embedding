@@ -36,5 +36,4 @@ python $SRCDIR/06_train_classifier.py \
     --verbose \
     $FEATURES_DIR \
     $OUTPUT_DIR \
-    $SLURM_JOB_ID \
     $FOLD_NUM

@@ -311,16 +311,14 @@ def train(features_dir, output_dir, model_id_suffix, fold_num,
         err_msg = 'Feature directory must contain name of dataset ({})'
         raise ValueError(err_msg.format(str(datasets)))
 
-    features_desc_str = features_dir[features_dir.index(dataset_name):]
+    features_desc_str = features_dir[features_dir.rindex('features'):]
 
-    model_id = os.path.join(features_desc_str,
-                            model_type, feature_mode,
+    model_id = os.path.join(features_desc_str, model_type, feature_mode,
                             "non-overlap" if non_overlap else "overlap",
-                            "min-max" if use_min_max else "no-min-max",
-                            random_state, model_id_suffix)
+                            "min-max" if use_min_max else "no-min-max")
 
     # Make sure the directories we need exist
-    model_dir = os.path.join(output_dir, model_id,
+    model_dir = os.path.join(output_dir, 'classifier', model_id,
                              'fold{}'.format(fold_num),
                              datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
 
