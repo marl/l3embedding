@@ -15,8 +15,8 @@ source ~/.bashrc
 source activate l3embedding-cpu
 
 SRCDIR=$HOME/dev/l3embedding
-FEATURES_DIR=/scratch/jtc440/l3_features/us8k/l3_frames_uniform/l3embedding/cnn_L3_orig/original
-OUTPUT_DIR=/scratch/jtc440/cls_output
+FEATURES_DIR=/scratch/jtc440/sonyc-usc/features/us8k/l3/original/music/cnn_L3_orig
+OUTPUT_DIR=/scratch/jtc440/sonyc-usc
 MODEL_TYPE='svm'
 FEATURE_MODE='framewise'
 GOOGLE_DEV_APP_NAME=''
