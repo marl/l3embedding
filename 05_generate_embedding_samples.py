@@ -3,6 +3,8 @@ import logging
 import os
 import json
 from l3embedding.model import load_embedding
+from data.usc.dcase2013 import generate_dcase2013_folds, generate_dcase2013_fold_data
+from data.usc.esc50 import generate_esc50_folds, generate_esc50_fold_data
 from data.usc.us8k import generate_us8k_folds, generate_us8k_fold_data
 from log import init_console_logger
 
@@ -98,7 +100,7 @@ def parse_arguments():
     parser.add_argument('dataset_name',
                         action='store',
                         type=str,
-                        choices=['us8k'],
+                        choices=['us8k', 'esc50', 'dcase2013'],
                         help='Name of dataset')
 
     parser.add_argument('data_dir',
@@ -187,6 +189,31 @@ if __name__ == '__main__':
                 l3embedding_model=l3embedding_model,
                 features=features, random_state=random_state,
                 hop_size=hop_size, num_random_samples=num_random_samples)
+
+    elif dataset_name == 'esc50':
+        if fold_num is not None:
+            generate_esc50_fold_data(data_dir, fold_num-1, dataset_output_dir,
+                l3embedding_model=l3embedding_model,
+                features=features, random_state=random_state,
+                hop_size=hop_size, num_random_samples=num_random_samples)
+        else:
+            generate_esc50_folds(data_dir, dataset_output_dir,
+                l3embedding_model=l3embedding_model,
+                features=features, random_state=random_state,
+                hop_size=hop_size, num_random_samples=num_random_samples)
+
+    elif dataset_name == 'dcase2013':
+        if fold_num is not None:
+            generate_dcase2013_fold_data(data_dir, fold_num-1, dataset_output_dir,
+                l3embedding_model=l3embedding_model,
+                features=features, random_state=random_state,
+                hop_size=hop_size, num_random_samples=num_random_samples)
+        else:
+            generate_dcase2013_folds(data_dir, dataset_output_dir,
+                l3embedding_model=l3embedding_model,
+                features=features, random_state=random_state,
+                hop_size=hop_size, num_random_samples=num_random_samples)
+
     else:
         LOGGER.error('Invalid dataset name: {}'.format(dataset_name))
 
