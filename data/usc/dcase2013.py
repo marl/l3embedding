@@ -58,7 +58,7 @@ def generate_dcase2013_fold_data(data_dir, fold_idx, output_dir, l3embedding_mod
         fname = f.split('/')[-1]
         desc = '({}/{}) Processed {} -'.format(idx+1, num_files, fname)
         with LogTimer(LOGGER, desc, log_level=logging.DEBUG):
-            generate_esc50_file_data(fname, audio_fold_dir, output_fold_dir,
+            generate_dcase2013_file_data(fname, audio_fold_dir, output_fold_dir,
                                      features, l3embedding_model, **feature_args)
 
 
