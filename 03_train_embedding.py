@@ -144,11 +144,6 @@ def parse_arguments():
                         type=str,
                         help='Path to directory where validation set files are stored')
 
-    parser.add_argument('model_id',
-                        action='store',
-                        type=str,
-                        help='Identifier for this model')
-
     parser.add_argument('output_dir',
                         action='store',
                         type=str,

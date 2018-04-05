@@ -18,7 +18,6 @@ source activate l3embedding
 SRCDIR=''
 TRAIN_DATA_DIR=''
 VAL_DATA_DIR=''
-MODEL_ID='mymodel'
 OUTPUT_DIR=''
 
 module purge
@@ -51,5 +50,4 @@ python $SRCDIR/train.py \
     --verbose \
     $TRAIN_DATA_DIR \
     $VAL_DATA_DIR \
-    $MODEL_ID \
     $OUTPUT_DIR

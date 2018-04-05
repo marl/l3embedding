@@ -19,7 +19,6 @@ source activate l3embedding-cpu
 SRCDIR=$HOME/dev/l3embedding
 TRAIN_DATA_DIR=/beegfs/work/AudioSetSamples/filtered_train
 VAL_DATA_DIR=/beegfs/work/AudioSetSamples/filtered_valid
-MODEL_ID='new_train_test'
 OUTPUT_DIR=/scratch/$USER/l3_output
 GOOGLE_DEV_APP_NAME='l3embeddingexperiments'
 GSHEET_ID='' # REPLACE THIS
@@ -45,5 +44,4 @@ python $SRCDIR/03_train_embedding.py \
     --verbose \
     $TRAIN_DATA_DIR \
     $VAL_DATA_DIR \
-    $MODEL_ID \
     $OUTPUT_DIR

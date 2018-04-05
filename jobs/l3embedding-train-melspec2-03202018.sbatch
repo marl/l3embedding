@@ -19,7 +19,6 @@ source activate l3embedding
 SRCDIR=$HOME/dev/l3embedding
 TRAIN_DATA_DIR=/beegfs/work/AudioSetSamples_environmental/urban_train
 VAL_DATA_DIR=/beegfs/work/AudioSetSamples_environmental/urban_valid
-MODEL_ID='melspec2'
 OUTPUT_DIR=/scratch/jtc440/l3_output
 GOOGLE_DEV_APP_NAME='l3embeddingexperiments'
 GSHEET_ID='' # REPLACE THIS
@@ -45,5 +44,4 @@ python $SRCDIR/03_train_embedding.py \
     --verbose \
     $TRAIN_DATA_DIR \
     $VAL_DATA_DIR \
-    $MODEL_ID \
     $OUTPUT_DIR

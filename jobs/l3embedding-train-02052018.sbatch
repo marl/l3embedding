@@ -19,7 +19,6 @@ source activate l3embedding
 SRCDIR=$HOME/dev/l3embedding
 TRAIN_DATA_DIR=/beegfs/work/AudioSetSamples/filtered_train
 VAL_DATA_DIR=/beegfs/work/AudioSetSamples/filtered_valid
-MODEL_ID='new_train_test'
 OUTPUT_DIR=/scratch/myname/l3_output
 
 module purge
@@ -40,5 +39,4 @@ python $SRCDIR/03_train_embedding.py \
     --verbose \
     $TRAIN_DATA_DIR \
     $VAL_DATA_DIR \
-    $MODEL_ID \
     $OUTPUT_DIR

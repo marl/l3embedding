@@ -215,7 +215,7 @@ def get_restart_info(history_path):
     return int(last['epoch']), float(last['val_acc']), float(last['val_loss'])
 
 
-def train(train_data_dir, validation_data_dir, model_id, output_dir,
+def train(train_data_dir, validation_data_dir, output_dir,
           num_epochs=150, train_epoch_size=512, validation_epoch_size=1024,
           train_batch_size=64, validation_batch_size=64,
           model_type='cnn_L3_orig', random_state=20180123,
@@ -227,6 +227,11 @@ def train(train_data_dir, validation_data_dir, model_id, output_dir,
     if not disable_logging:
         init_file_logger(LOGGER, log_path=log_path)
     LOGGER.debug('Initialized logging.')
+
+    # Form model ID
+    data_subset_name = os.path.basename(train_data_dir)
+    data_subset_name = data_subset_name[:data_subset_name.rindex('_')]
+    model_id = os.path.join(data_subset_name, model_type)
 
     param_dict = {
           'username': getpass.getuser(),
