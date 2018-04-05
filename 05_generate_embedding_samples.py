@@ -51,14 +51,6 @@ def parse_arguments():
                         type=str,
                         help='Path to L3 embedding model weights file')
 
-    parser.add_argument('-lmt',
-                        '--l3embedding-model-type',
-                        dest='l3embedding_model_type',
-                        action='store',
-                        type=str,
-                        default='cnn_L3_orig',
-                        help='Type of L3 embedding model')
-
     parser.add_argument('-lpt',
                         '--l3embedding-pooling-type',
                         dest='l3embedding_pooling_type',
@@ -128,7 +120,6 @@ if __name__ == '__main__':
     LOGGER.debug('Initialized logging.')
 
     # Unpack CL args
-    model_type = args['l3embedding_model_type']
     pooling_type = args['l3embedding_pooling_type']
     metadata_path = args['metadata_path']
     data_dir = args['data_dir']
@@ -146,29 +137,35 @@ if __name__ == '__main__':
     LOGGER.info('Configuration: {}'.format(str(args)))
 
     is_l3_feature = features == 'l3'
+    if is_l3_feature and not model_path:
+        raise ValueError('Must provide model path is L3 embedding features are used')
 
-    if is_l3_feature and model_path:
+    if is_l3_feature:
+        # Get output dir
+        model_desc_start_idx = model_path.rindex('embedding')+10
+        model_desc_end_idx = os.path.dirname(model_path).rindex('/')
+        embedding_desc_str = model_path[model_desc_start_idx:model_desc_end_idx]
+        # If using an L3 model, make model arch. type and pooling type to path
+        dataset_output_dir = os.path.join(output_dir, dataset_name, features,
+                                          pooling_type, embedding_desc_str)
+
         # Load L3 embedding model if using L3 features
         LOGGER.info('Loading embedding model...')
+        model_type = embedding_desc_str.split('/')[-1]
         l3embedding_model = load_embedding(model_path,
                                            model_type,
                                            'audio', pooling_type,
                                            tgt_num_gpus=num_gpus)
     else:
+        # Get output dir
+        dataset_output_dir = os.path.join(output_dir, dataset_name, features)
         l3embedding_model = None
-
-    if is_l3_feature:
-        # If using an L3 model, make model arch. type and pooling type to path
-        dataset_output_dir = os.path.join(output_dir, dataset_name, features,
-                                          model_id, model_type, pooling_type)
-    else:
-        dataset_output_dir = os.path.join(output_dir, dataset_name, features,
-                                          model_id)
 
     # Make sure output directory exists
     if not os.path.isdir(dataset_output_dir):
         os.makedirs(dataset_output_dir)
 
+    args['features_dir'] = dataset_output_dir
     # Write configurations to a file for reproducibility/posterity
     config_path = os.path.join(dataset_output_dir, 'config_{}.json'.format(fold_num))
     with open(config_path, 'w') as f:
