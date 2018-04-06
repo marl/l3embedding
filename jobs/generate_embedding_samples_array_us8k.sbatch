@@ -21,7 +21,7 @@ L3_POOLING_TYPE='original'
 US8K_PATH=/beegfs/jtc440/UrbanSound8K
 METADATA_PATH=$US8K_PATH/metadata/UrbanSound8K.csv
 DATA_DIR=$US8K_PATH/audio
-OUTPUT_DIR=/scratch/jtc440/l3_features
+OUTPUT_DIR=/scratch/jtc440/sonyc-usc
 DATASET='us8k'
 
 module purge
@@ -38,7 +38,7 @@ python $SRCDIR/05_generate_embedding_samples.py \
     --hop-size 0.1 \
     --gpus 0 \
     --fold $SLURM_ARRAY_TASK_ID \
-    $METADATA_PATH \
+    --us8k-metadata-path $METADATA_PATH \
     $DATASET \
     $DATA_DIR \
     $OUTPUT_DIR

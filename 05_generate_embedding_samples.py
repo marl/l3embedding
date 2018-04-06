@@ -76,7 +76,8 @@ def parse_arguments():
                         type=int,
                         help='Number of random samples for randomized sampling methods')
 
-    parser.add_argument('--gpus',
+    parser.add_argument('-g',
+                        '--gpus',
                         dest='gpus',
                         type=int,
                         default=0,
@@ -87,9 +88,11 @@ def parse_arguments():
                         type=int,
                         help='Fold number to generate. If unused, generate all folds')
 
-    parser.add_argument('metadata_path',
-                        action='store',
+    parser.add_argument('-ump',
+                        '--us8k-metadata-path',
+                        dest='us8k_metadata_path',
                         type=str,
+                        action='store',
                         help='Path to UrbanSound8K metadata file')
 
     parser.add_argument('dataset_name',
@@ -118,7 +121,7 @@ if __name__ == '__main__':
 
     # Unpack CL args
     pooling_type = args['l3embedding_pooling_type']
-    metadata_path = args['metadata_path']
+    metadata_path = args['us8k_metadata_path']
     data_dir = args['data_dir']
     features = args['features']
     hop_size = args['hop_size']
@@ -169,6 +172,8 @@ if __name__ == '__main__':
     LOGGER.info('Saved configuration to {}'.format(config_path))
 
     if dataset_name == 'us8k':
+        if not metadata_path:
+            raise ValueError('Must provide metadata file for UrbanSound8k')
 
         if fold_num is not None:
             # Generate a single fold if a fold was specified
