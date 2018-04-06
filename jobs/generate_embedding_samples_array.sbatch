@@ -22,7 +22,7 @@ US8K_PATH=/beegfs/jtc440/UrbanSound8K
 METADATA_PATH=$US8K_PATH/metadata/UrbanSound8K.csv
 DATA_DIR=$US8K_PATH/audio
 OUTPUT_DIR=/scratch/jtc440/l3_features
-MODEL_ID='l3embedding'
+DATASET='us8k'
 
 module purge
 #module load cuda/8.0.44
@@ -39,7 +39,6 @@ python $SRCDIR/05_generate_embedding_samples.py \
     --gpus 0 \
     --fold $SLURM_ARRAY_TASK_ID \
     $METADATA_PATH \
-    $MODEL_ID \
-    us8k \
+    $DATASET \
     $DATA_DIR \
     $OUTPUT_DIR

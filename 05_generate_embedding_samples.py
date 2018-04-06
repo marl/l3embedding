@@ -92,11 +92,6 @@ def parse_arguments():
                         type=str,
                         help='Path to UrbanSound8K metadata file')
 
-    parser.add_argument('model_id',
-                        action='store',
-                        type=str,
-                        help='Model ID used to generate features (or experiment ID)')
-
     parser.add_argument('dataset_name',
                         action='store',
                         type=str,
@@ -132,7 +127,6 @@ if __name__ == '__main__':
     model_path = args['l3embedding_model_path']
     num_gpus = args['gpus']
     output_dir = args['output_dir']
-    model_id = args['model_id']
     dataset_name = args['dataset_name']
     fold_num = args['fold']
 
