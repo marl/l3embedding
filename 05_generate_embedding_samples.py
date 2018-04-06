@@ -145,8 +145,8 @@ if __name__ == '__main__':
         model_desc_end_idx = os.path.dirname(model_path).rindex('/')
         embedding_desc_str = model_path[model_desc_start_idx:model_desc_end_idx]
         # If using an L3 model, make model arch. type and pooling type to path
-        dataset_output_dir = os.path.join(output_dir, dataset_name, features,
-                                          pooling_type, embedding_desc_str)
+        dataset_output_dir = os.path.join(output_dir, 'features', dataset_name,
+                                          features, pooling_type, embedding_desc_str)
 
         # Load L3 embedding model if using L3 features
         LOGGER.info('Loading embedding model...')
@@ -157,7 +157,7 @@ if __name__ == '__main__':
                                            tgt_num_gpus=num_gpus)
     else:
         # Get output dir
-        dataset_output_dir = os.path.join(output_dir, dataset_name, features)
+        dataset_output_dir = os.path.join(output_dir, 'features', dataset_name, features)
         l3embedding_model = None
 
     # Make sure output directory exists
