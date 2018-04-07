@@ -5,7 +5,7 @@ import random
 
 import numpy as np
 
-from data.usc.features as compute_file_features
+from data.usc.features import compute_file_features
 from log import LogTimer
 
 LOGGER = logging.getLogger('cls-data-generation')
