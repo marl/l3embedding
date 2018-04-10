@@ -12,6 +12,8 @@ LOGGER = logging.getLogger('cls-data-generation')
 LOGGER.setLevel(logging.DEBUG)
 
 
+NUM_FOLDS = 2
+
 CLASS_TO_INT = {
     'bus': 0,
     'busystreet': 1,
@@ -28,7 +30,7 @@ CLASS_TO_INT = {
 
 def generate_dcase2013_folds(data_dir, output_dir, l3embedding_model=None,
                              features='l3', random_state=12345678, **feature_args):
-    for fold_idx in range(2):
+    for fold_idx in range(NUM_FOLDS):
         generate_dcase2013_fold_data(data_dir, fold_idx, output_dir,
                                      l3embedding_model=l3embedding_model,
                                      features=features, random_state=random_state,

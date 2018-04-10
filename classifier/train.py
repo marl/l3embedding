@@ -20,7 +20,7 @@ from sklearn.svm import SVC
 
 from classifier.metrics import compute_metrics
 from data.usc.features import preprocess_split_data
-from data.usc.us8k import get_us8k_split
+from data.usc.folds import get_split
 from l3embedding.train import LossHistory
 from log import *
 
@@ -29,6 +29,13 @@ from googleapiclient import discovery
 
 LOGGER = logging.getLogger('classifier')
 LOGGER.setLevel(logging.DEBUG)
+
+
+DATASET_NUM_CLASSES = {
+    'us8k': 10,
+    'esc50': 50,
+    'dcase2013': 10,
+}
 
 
 class MetricCallback(keras.callbacks.Callback):
@@ -312,6 +319,7 @@ def train(features_dir, output_dir, fold_num,
         raise ValueError(err_msg.format(str(datasets)))
 
     features_desc_str = features_dir[features_dir.rindex('features')+9:]
+    dataset_name = features_desc_str.split('/')[0]
 
     model_id = os.path.join(features_desc_str, feature_mode,
                             "non-overlap" if non_overlap else "overlap",
@@ -379,7 +387,7 @@ def train(features_dir, output_dir, fold_num,
     fold_idx = fold_num - 1
 
     LOGGER.info('Loading data for configuration with test fold {}...'.format(fold_num))
-    train_data, valid_data, test_data = get_us8k_split(features_dir, fold_idx)
+    train_data, valid_data, test_data = get_split(features_dir, fold_idx, dataset_name)
 
     LOGGER.info('Preprocessing data...')
     min_max_scaler, stdizer = preprocess_split_data(train_data, valid_data, test_data,
@@ -398,12 +406,14 @@ def train(features_dir, output_dir, fold_num,
     if model_type == 'svm':
         model, train_metrics, valid_metrics, test_metrics \
             = train_svm(train_data, valid_data, test_data, model_dir,
+                num_classes=DATASET_NUM_CLASSES[dataset_name],
                 random_state=random_state, verbose=verbose, **model_args)
 
     elif model_type == 'mlp':
         model, train_metrics, valid_metrics, test_metrics \
                 = train_mlp(train_data, valid_data, test_data, model_dir,
                     batch_size=train_batch_size, random_state=random_state,
+                    num_classes=DATASET_NUM_CLASSES[dataset_name],
                     verbose=verbose, **model_args)
 
     else:

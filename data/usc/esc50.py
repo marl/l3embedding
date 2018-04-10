@@ -11,10 +11,12 @@ from log import LogTimer
 LOGGER = logging.getLogger('cls-data-generation')
 LOGGER.setLevel(logging.DEBUG)
 
+NUM_FOLDS = 5
+
 
 def generate_esc50_folds(data_dir, output_dir, l3embedding_model=None,
                          features='l3', random_state=12345678, **feature_args):
-    for fold_idx in range(5):
+    for fold_idx in range(NUM_FOLDS):
         generate_esc50_fold_data(data_dir, fold_idx, output_dir,
                                  l3embedding_model=l3embedding_model,
                                  features=features, random_state=random_state,
