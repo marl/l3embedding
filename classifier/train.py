@@ -16,9 +16,10 @@ from keras.optimizers import Adam
 from sklearn.metrics import hinge_loss
 from sklearn.externals import joblib
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.model_selection import StratifiedKFold
 from sklearn.svm import SVC
 
-from classifier.metrics import compute_metrics
+from classifier.metrics import compute_metrics, aggregate_metrics
 from data.usc.features import preprocess_split_data
 from data.usc.folds import get_split
 from l3embedding.train import LossHistory
@@ -105,10 +106,11 @@ def train_svm(train_data, valid_data, test_data, model_dir, C=1.0, kernel='rbf',
         y_test_pred: Predicted test output of classifier
                      (Type: np.ndarray)
     """
+    np.random.seed(random_state)
+    random.seed(random_state)
+
     X_train = train_data['features']
     y_train = train_data['labels']
-    X_valid = valid_data['features']
-    y_valid = valid_data['labels']
 
     model_output_path = os.path.join(model_dir, "model.pkl")
 
@@ -124,33 +126,39 @@ def train_svm(train_data, valid_data, test_data, model_dir, C=1.0, kernel='rbf',
     joblib.dump(clf, model_output_path)
 
     y_train_pred = clf.predict(X_train)
-    y_valid_pred = clf.predict(X_valid)
-
     # Compute new metrics
     classes = np.arange(num_classes)
     train_loss = hinge_loss(y_train, clf.decision_function(X_train), labels=classes)
-    valid_loss = hinge_loss(y_valid, clf.decision_function(X_valid), labels=classes)
     train_metrics = compute_metrics(y_train, y_train_pred)
-    valid_metrics = compute_metrics(y_valid, y_valid_pred)
     train_metrics['loss'] = train_loss
-    valid_metrics['loss'] = valid_loss
-
     train_msg = 'Train - hinge loss: {}, acc: {}'
-    valid_msg = 'Valid - hinge loss: {}, acc: {}'
     LOGGER.info(train_msg.format(train_loss, train_metrics['accuracy']))
-    LOGGER.info(valid_msg.format(valid_loss, valid_metrics['accuracy']))
 
+    if valid_data:
+        X_valid = valid_data['features']
+        y_valid = valid_data['labels']
+        y_valid_pred = clf.predict(X_valid)
+        valid_loss = hinge_loss(y_valid, clf.decision_function(X_valid), labels=classes)
+        valid_metrics = compute_metrics(y_valid, y_valid_pred)
+        valid_metrics['loss'] = valid_loss
+        valid_msg = 'Valid - hinge loss: {}, acc: {}'
+        LOGGER.info(valid_msg.format(valid_loss, valid_metrics['accuracy']))
+    else:
+        valid_metrics = {}
 
     # Evaluate model on test data
-    X_test = test_data['features']
-    y_test_pred_frame = clf.predict_proba(X_test)
-    y_test_pred = []
-    for start_idx, end_idx in test_data['file_idxs']:
-        class_pred = y_test_pred_frame[start_idx:end_idx].mean(axis=0).argmax()
-        y_test_pred.append(class_pred)
+    if test_data:
+        X_test = test_data['features']
+        y_test_pred_frame = clf.predict_proba(X_test)
+        y_test_pred = []
+        for start_idx, end_idx in test_data['file_idxs']:
+            class_pred = y_test_pred_frame[start_idx:end_idx].mean(axis=0).argmax()
+            y_test_pred.append(class_pred)
 
-    y_test_pred = np.array(y_test_pred)
-    test_metrics = compute_metrics(test_data['labels'], y_test_pred)
+        y_test_pred = np.array(y_test_pred)
+        test_metrics = compute_metrics(test_data['labels'], y_test_pred)
+    else:
+        test_metrics = {}
 
     return clf, train_metrics, valid_metrics, test_metrics
 
@@ -186,7 +194,7 @@ def construct_mlp_model(input_shape, weight_decay=1e-5, num_classes=10):
 
 
 def train_mlp(train_data, valid_data, test_data, model_dir,
-              batch_size=64, num_epochs=100,
+              batch_size=64, num_epochs=100, valid_split=0.15, patience=20,
               learning_rate=1e-4, weight_decay=1e-5, num_classes=10,
               random_state=12345678, verbose=False, **kwargs):
     """
@@ -232,8 +240,12 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
     X_train = train_data['features']
     y_train = enc.fit_transform(train_data['labels'].reshape(-1, 1))
 
-    X_valid = valid_data['features']
-    y_valid = enc.fit_transform(valid_data['labels'].reshape(-1, 1))
+    if valid_data:
+        validation_data = (valid_data['features'],
+                           enc.fit_transform(valid_data['labels'].reshape(-1, 1)))
+        valid_split = 0.0
+    else:
+        validation_data = None
 
     # Set up model
     m, inp, out = construct_mlp_model(X_train.shape[1:],
@@ -247,6 +259,7 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
                                               save_weights_only=True,
                                               save_best_only=True,
                                               monitor=monitor))
+    cb.append(keras.callbacks.EarlyStopping(monitor='val_loss', patience=patience))
     history_checkpoint = os.path.join(model_dir, 'history_checkpoint.pkl')
     cb.append(LossHistory(history_checkpoint))
     history_csvlog = os.path.join(model_dir, 'history_csvlog.csv')
@@ -259,15 +272,12 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
     LOGGER.debug('Compiling model...')
     m.compile(Adam(lr=learning_rate), loss=loss, metrics=metrics)
     LOGGER.debug('Fitting model to data...')
-    m.fit(x=X_train, y=y_train, batch_size=batch_size,
-          epochs=num_epochs, validation_data=(X_valid, y_valid), callbacks=cb)
+    m.fit(x=X_train, y=y_train, batch_size=batch_size, epochs=num_epochs,
+          validation_data=validation_data, validation_split=valid_split, callbacks=cb)
 
     # Compute metrics for train and valid
     train_pred = m.predict(X_train)
-    valid_pred = m.predict(X_valid)
     train_metrics = compute_metrics(y_train, train_pred)
-    valid_metrics = compute_metrics(y_valid, valid_pred)
-
     # Set up train and validation metrics
     train_metrics = {
         'loss': metric_cb.train_loss[-1],
@@ -279,27 +289,110 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
     valid_metrics = {
         'loss': metric_cb.valid_loss[-1],
         'accuracy': metric_cb.valid_acc[-1],
-        'class_accuracy': valid_metrics['class_accuracy'],
-        'average_class_accuracy': valid_metrics['average_class_accuracy']
     }
 
-    # Evaluate model on test data
-    X_test = test_data['features']
-    y_test_pred_frame = m.predict(X_test)
-    y_test_pred = []
-    for start_idx, end_idx in test_data['file_idxs']:
-        class_pred = y_test_pred_frame[start_idx:end_idx].mean(axis=0).argmax()
-        y_test_pred.append(class_pred)
-    y_test_pred = np.array(y_test_pred)
-    test_metrics = compute_metrics(test_data['labels'], y_test_pred)
+    if valid_data:
+        valid_pred = m.predict(validation_data[0])
+        valid_metrics = compute_metrics(validation_data[1], valid_pred)
+        valid_metrics.update({
+            'class_accuracy': valid_metrics['class_accuracy'],
+            'average_class_accuracy': valid_metrics['average_class_accuracy']
+        })
+
+    if test_data:
+        # Evaluate model on test data
+        X_test = test_data['features']
+        y_test_pred_frame = m.predict(X_test)
+        y_test_pred = []
+        for start_idx, end_idx in test_data['file_idxs']:
+            class_pred = y_test_pred_frame[start_idx:end_idx].mean(axis=0).argmax()
+            y_test_pred.append(class_pred)
+        y_test_pred = np.array(y_test_pred)
+        test_metrics = compute_metrics(test_data['labels'], y_test_pred)
+    else:
+        test_metrics = {}
 
     return m, train_metrics, valid_metrics, test_metrics
 
 
+def train_cvsearch(train_data, valid_data, test_data, model_dir, train_func,
+                   search_param, search_space=None, num_splits=7, **kwargs):
+
+    cv_train_metrics = {}
+    cv_valid_metrics = {}
+
+    if not search_space:
+        if search_param == 'learning_rate':
+            search_space = [1e-5, 1e-4, 1e-3, 1e-2]
+        elif search_param == 'C':
+            search_space = [0.1, 1, 10, 100, 1000]
+        else:
+            raise ValueError('Defaults for parameter {} not implemented'.format(search_param))
+
+
+    LOGGER.info('Starting hyperparameter search on {}.'.format(search_param))
+
+    skf = StratifiedKFold(n_splits=num_splits)
+
+    best_valid_loss = float('inf')
+    best_param = None
+
+    for param in search_space:
+        LOGGER.info('Evaluating {} = {}'.format(search_param, param))
+        skf_train_metrics = []
+        skf_valid_metrics = []
+        for train_idxs, valid_idxs in skf.split(train_data['features'], train_data['labels']):
+            train_data_skf = {
+                'features': train_data['features'][train_idxs],
+                'labels': train_data['labels'][train_idxs]
+            }
+            valid_data_skf = {
+                'features': train_data['features'][valid_idxs],
+                'labels': train_data['labels'][valid_idxs]
+            }
+
+            kwargs[search_param] = param
+
+            LOGGER.info('')
+            _, train_metrics, valid_metrics, _ \
+                = train_func(train_data_skf, valid_data_skf, None, model_dir, **kwargs)
+
+            skf_train_metrics.append(train_metrics)
+            skf_valid_metrics.append(valid_metrics)
+
+        ave_train_metrics = aggregate_metrics(skf_train_metrics)
+        ave_valid_metrics = aggregate_metrics(skf_valid_metrics)
+
+        if ave_valid_metrics['loss'] < best_valid_loss:
+            best_valid_loss = ave_valid_metrics['loss']
+            best_param = param
+
+        cv_train_metrics[param] = {
+            'average': ave_train_metrics,
+            'minifolds': skf_train_metrics
+        }
+
+        cv_valid_metrics[param] = {
+            'average': ave_valid_metrics,
+            'minifolds': skf_valid_metrics
+        }
+
+    LOGGER.info('Best {} = {}, ave valid loss = {}'.format(search_param, best_param,
+                                                           best_valid_loss))
+
+    kwargs[search_param] = best_param
+    clf, train_metrics, _, test_metrics, \
+        = train_func(train_data, None, test_data, model_dir, **kwargs)
+
+    train_metrics['cross_validation'] = cv_train_metrics
+
+    return clf, train_metrics, cv_valid_metrics, test_metrics
+
+
 def train(features_dir, output_dir, fold_num,
           model_type='svm', feature_mode='framewise',
-          train_batch_size=64,
-          random_state=20171021, gsheet_id=None, google_dev_app_name=None,
+          train_batch_size=64, random_state=20171021, search_param=None,
+          search_space=None, gsheet_id=None, google_dev_app_name=None,
           verbose=False, non_overlap=False, non_overlap_chunk_size=10,
           use_min_max=False, **model_args):
     init_console_logger(LOGGER, verbose=verbose)
@@ -310,16 +403,13 @@ def train(features_dir, output_dir, fold_num,
     random.seed(random_state)
 
     datasets = ['us8k', 'esc50', 'dcase2013']
-    for ds in datasets:
-        if ds in features_dir:
-            dataset_name = ds
-            break
-    else:
-        err_msg = 'Feature directory must contain name of dataset ({})'
-        raise ValueError(err_msg.format(str(datasets)))
 
     features_desc_str = features_dir[features_dir.rindex('features')+9:]
     dataset_name = features_desc_str.split('/')[0]
+
+    if dataset_name not in datasets:
+        err_msg = 'Feature directory must contain name of dataset ({})'
+        raise ValueError(err_msg.format(str(datasets)))
 
     model_id = os.path.join(features_desc_str, feature_mode,
                             "non-overlap" if non_overlap else "overlap",
@@ -404,17 +494,34 @@ def train(features_dir, output_dir, fold_num,
     LOGGER.info('Training {} with fold {} held out'.format(model_type, fold_num))
     # Fit the model
     if model_type == 'svm':
-        model, train_metrics, valid_metrics, test_metrics \
-            = train_svm(train_data, valid_data, test_data, model_dir,
-                num_classes=DATASET_NUM_CLASSES[dataset_name],
-                random_state=random_state, verbose=verbose, **model_args)
+        if search_param:
+            model, train_metrics, valid_metrics, test_metrics \
+                = train_cvsearch(train_data, valid_data, test_data, model_dir,
+                    train_func=train_svm, search_param=search_param,
+                    search_space=search_space,
+                    num_classes=DATASET_NUM_CLASSES[dataset_name],
+                    random_state=random_state, verbose=verbose, **model_args)
+        else:
+            model, train_metrics, valid_metrics, test_metrics \
+                = train_svm(train_data, valid_data, test_data, model_dir,
+                    num_classes=DATASET_NUM_CLASSES[dataset_name],
+                    random_state=random_state, verbose=verbose, **model_args)
 
     elif model_type == 'mlp':
-        model, train_metrics, valid_metrics, test_metrics \
-                = train_mlp(train_data, valid_data, test_data, model_dir,
-                    batch_size=train_batch_size, random_state=random_state,
-                    num_classes=DATASET_NUM_CLASSES[dataset_name],
-                    verbose=verbose, **model_args)
+        if search_param:
+            model, train_metrics, valid_metrics, test_metrics \
+                = train_cvsearch(train_data, valid_data, test_data, model_dir,
+                                 train_func=train_mlp, search_param=search_param,
+                                 search_space=search_space,
+                                 batch_size=train_batch_size, random_state=random_state,
+                                 num_classes=DATASET_NUM_CLASSES[dataset_name],
+                                 verbose=verbose, **model_args)
+        else:
+            model, train_metrics, valid_metrics, test_metrics \
+                    = train_mlp(train_data, valid_data, test_data, model_dir,
+                        batch_size=train_batch_size, random_state=random_state,
+                        num_classes=DATASET_NUM_CLASSES[dataset_name],
+                        verbose=verbose, **model_args)
 
     else:
         raise ValueError('Invalid model type: {}'.format(model_type))
@@ -434,6 +541,7 @@ def train(features_dir, output_dir, fold_num,
         pk.dump(results, fp, protocol=pk.HIGHEST_PROTOCOL)
 
 
+    # TODO: Update spreadsheet for cross validation!
     if gsheet_id:
         # Update spreadsheet with results
         LOGGER.info('Updating spreadsheet...')
