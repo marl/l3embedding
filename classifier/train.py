@@ -16,10 +16,10 @@ from keras.optimizers import Adam
 from sklearn.metrics import hinge_loss
 from sklearn.externals import joblib
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.svm import SVC
 
-from classifier.metrics import compute_metrics, aggregate_metrics
+from classifier.metrics import compute_metrics
 from data.usc.features import preprocess_split_data
 from data.usc.folds import get_split
 from l3embedding.train import LossHistory
@@ -315,11 +315,11 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
     return m, train_metrics, valid_metrics, test_metrics
 
 
-def train_cvsearch(train_data, valid_data, test_data, model_dir, train_func,
-                   search_param, search_space=None, num_splits=7, **kwargs):
+def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
+                   search_param, search_space=None, valid_ratio=0.15, **kwargs):
 
-    cv_train_metrics = {}
-    cv_valid_metrics = {}
+    search_train_metrics = {}
+    search_valid_metrics = {}
 
     if not search_space:
         if search_param == 'learning_rate':
@@ -332,50 +332,35 @@ def train_cvsearch(train_data, valid_data, test_data, model_dir, train_func,
 
     LOGGER.info('Starting hyperparameter search on {}.'.format(search_param))
 
-    skf = StratifiedKFold(n_splits=num_splits)
+    splitter = StratifiedShuffleSplit(n_splits=1, test_size=valid_ratio)
+    train_idxs, valid_idxs = splitter.split(train_data['features'], train_data['labels'])
 
     best_valid_loss = float('inf')
     best_param = None
 
     for param in search_space:
         LOGGER.info('Evaluating {} = {}'.format(search_param, param))
-        skf_train_metrics = []
-        skf_valid_metrics = []
-        for train_idxs, valid_idxs in skf.split(train_data['features'], train_data['labels']):
-            train_data_skf = {
-                'features': train_data['features'][train_idxs],
-                'labels': train_data['labels'][train_idxs]
-            }
-            valid_data_skf = {
-                'features': train_data['features'][valid_idxs],
-                'labels': train_data['labels'][valid_idxs]
-            }
+        train_data_skf = {
+            'features': train_data['features'][train_idxs],
+            'labels': train_data['labels'][train_idxs]
+        }
+        valid_data_skf = {
+            'features': train_data['features'][valid_idxs],
+            'labels': train_data['labels'][valid_idxs]
+        }
 
-            kwargs[search_param] = param
+        kwargs[search_param] = param
 
-            LOGGER.info('')
-            _, train_metrics, valid_metrics, _ \
-                = train_func(train_data_skf, valid_data_skf, None, model_dir, **kwargs)
+        LOGGER.info('')
+        _, train_metrics, valid_metrics, _ \
+            = train_func(train_data_skf, valid_data_skf, None, model_dir, **kwargs)
 
-            skf_train_metrics.append(train_metrics)
-            skf_valid_metrics.append(valid_metrics)
-
-        ave_train_metrics = aggregate_metrics(skf_train_metrics)
-        ave_valid_metrics = aggregate_metrics(skf_valid_metrics)
-
-        if ave_valid_metrics['loss'] < best_valid_loss:
-            best_valid_loss = ave_valid_metrics['loss']
+        if valid_metrics['accuracy'] < best_valid_loss:
+            best_valid_loss = valid_metrics['accuracy']
             best_param = param
 
-        cv_train_metrics[param] = {
-            'average': ave_train_metrics,
-            'minifolds': skf_train_metrics
-        }
-
-        cv_valid_metrics[param] = {
-            'average': ave_valid_metrics,
-            'minifolds': skf_valid_metrics
-        }
+        search_train_metrics[param] = train_metrics
+        search_valid_metrics[param] = valid_metrics
 
     LOGGER.info('Best {} = {}, ave valid loss = {}'.format(search_param, best_param,
                                                            best_valid_loss))
@@ -384,9 +369,18 @@ def train_cvsearch(train_data, valid_data, test_data, model_dir, train_func,
     clf, train_metrics, _, test_metrics, \
         = train_func(train_data, None, test_data, model_dir, **kwargs)
 
-    train_metrics['cross_validation'] = cv_train_metrics
+    train_metrics['search'] = search_train_metrics
+    train_metrics['search_param'] = search_param
+    train_metrics['search_param_best_value'] = best_param
 
-    return clf, train_metrics, cv_valid_metrics, test_metrics
+    valid_metrics = {
+        'search': search_valid_metrics,
+        'search_param': search_param,
+        'search_param_best_value': best_param
+    }
+    valid_metrics.update(search_valid_metrics[best_param])
+
+    return clf, train_metrics, valid_metrics, test_metrics
 
 
 def train(features_dir, output_dir, fold_num,
@@ -496,7 +490,7 @@ def train(features_dir, output_dir, fold_num,
     if model_type == 'svm':
         if search_param:
             model, train_metrics, valid_metrics, test_metrics \
-                = train_cvsearch(train_data, valid_data, test_data, model_dir,
+                = train_param_search(train_data, valid_data, test_data, model_dir,
                     train_func=train_svm, search_param=search_param,
                     search_space=search_space,
                     num_classes=DATASET_NUM_CLASSES[dataset_name],
@@ -510,7 +504,7 @@ def train(features_dir, output_dir, fold_num,
     elif model_type == 'mlp':
         if search_param:
             model, train_metrics, valid_metrics, test_metrics \
-                = train_cvsearch(train_data, valid_data, test_data, model_dir,
+                = train_param_search(train_data, valid_data, test_data, model_dir,
                                  train_func=train_mlp, search_param=search_param,
                                  search_space=search_space,
                                  batch_size=train_batch_size, random_state=random_state,
