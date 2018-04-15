@@ -25,7 +25,7 @@ from data.usc.folds import get_split
 from l3embedding.train import LossHistory
 from log import *
 
-from gsheets import get_credentials, append_row, update_experiment
+from gsheets import get_credentials, append_row, update_experiment, CLASSIFIER_FIELD_NAMES
 from googleapiclient import discovery
 
 LOGGER = logging.getLogger('classifier')
@@ -545,14 +545,23 @@ def train(features_dir, output_dir, fold_num,
               train_metrics['accuracy'],
               valid_metrics['accuracy'],
               train_metrics['average_class_accuracy'],
-              valid_metrics['average_class_accuracy'],
+              valid_metrics.get('average_class_accuracy', -1),
               ', '.join(map(str, train_metrics['class_accuracy'])),
-              ', '.join(map(str, valid_metrics['class_accuracy'])),
+              ', '.join(map(str, valid_metrics['class_accuracy'])) \
+                  if valid_metrics.get('class_accuracy') else '',
               test_metrics['accuracy'],
               test_metrics['average_class_accuracy'],
               ', '.join(map(str, test_metrics['class_accuracy']))
         ]
         update_experiment(service, gsheet_id, config, 'R', 'AB',
                           update_values, 'classifier')
+
+        if search_param and search_param in CLASSIFIER_FIELD_NAMES:
+            # Also update search parameter
+            # ASSUMES that parameter values will be in the first 26 columns
+            col = chr(CLASSIFIER_FIELD_NAMES.index(search_param) + 67)
+            best_param = train_metrics['search_param_best_value']
+            update_experiment(service, gsheet_id, config, col, col,
+                              [best_param], 'classifier')
 
     LOGGER.info('Done!')
