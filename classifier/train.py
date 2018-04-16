@@ -5,6 +5,7 @@ import os
 import pickle as pk
 import random
 import git
+from itertools import product
 
 import keras
 import keras.regularizers as regularizers
@@ -316,21 +317,13 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
 
 
 def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
-                   search_param, search_space=None, valid_ratio=0.15, **kwargs):
+                       search_space, valid_ratio=0.15, **kwargs):
 
     search_train_metrics = {}
     search_valid_metrics = {}
 
-    if not search_space:
-        if search_param == 'learning_rate':
-            search_space = [1e-5, 1e-4, 1e-3, 1e-2]
-        elif search_param == 'C':
-            search_space = [0.1, 1, 10, 100, 1000]
-        else:
-            raise ValueError('Defaults for parameter {} not implemented'.format(search_param))
-
-
-    LOGGER.info('Starting hyperparameter search on {}.'.format(search_param))
+    search_params = list(search_space.keys())
+    LOGGER.info('Starting hyperparameter search on {}.'.format(search_params))
 
     splitter = StratifiedShuffleSplit(n_splits=1, test_size=valid_ratio)
     train_idxs, valid_idxs = splitter.split(train_data['features'], train_data['labels'])
@@ -338,8 +331,9 @@ def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
     best_valid_loss = float('inf')
     best_param = None
 
-    for param in search_space:
-        LOGGER.info('Evaluating {} = {}'.format(search_param, param))
+
+    for params in product(*[search_space[p] for p in search_params]):
+        LOGGER.info('Evaluating {} = {}'.format(search_params, params))
         train_data_skf = {
             'features': train_data['features'][train_idxs],
             'labels': train_data['labels'][train_idxs]
@@ -349,7 +343,7 @@ def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
             'labels': train_data['labels'][valid_idxs]
         }
 
-        kwargs[search_param] = param
+        kwargs.update(dict(zip(search_params, params)))
 
         LOGGER.info('')
         _, train_metrics, valid_metrics, _ \
@@ -357,26 +351,26 @@ def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
 
         if valid_metrics['accuracy'] < best_valid_loss:
             best_valid_loss = valid_metrics['accuracy']
-            best_param = param
+            best_params = params
 
-        search_train_metrics[param] = train_metrics
-        search_valid_metrics[param] = valid_metrics
+        search_train_metrics[best_params] = train_metrics
+        search_valid_metrics[best_params] = valid_metrics
 
-    LOGGER.info('Best {} = {}, ave valid loss = {}'.format(search_param, best_param,
+    LOGGER.info('Best {} = {}, ave valid loss = {}'.format(search_params, best_param,
                                                            best_valid_loss))
 
-    kwargs[search_param] = best_param
+    kwargs.update(dict(zip(search_params, best_params)))
     clf, train_metrics, _, test_metrics, \
         = train_func(train_data, None, test_data, model_dir, **kwargs)
 
     train_metrics['search'] = search_train_metrics
-    train_metrics['search_param'] = search_param
-    train_metrics['search_param_best_value'] = best_param
+    train_metrics['search_params'] = search_params
+    train_metrics['search_params_best_values'] = best_params
 
     valid_metrics = {
         'search': search_valid_metrics,
-        'search_param': search_param,
-        'search_param_best_value': best_param
+        'search_params': search_params,
+        'search_params_best_values': best_params
     }
     valid_metrics.update(search_valid_metrics[best_param])
 
@@ -385,8 +379,8 @@ def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
 
 def train(features_dir, output_dir, fold_num,
           model_type='svm', feature_mode='framewise',
-          train_batch_size=64, random_state=20171021, search_param=None,
-          search_space=None, gsheet_id=None, google_dev_app_name=None,
+          train_batch_size=64, random_state=20171021, parameter_search=False,
+          gsheet_id=None, google_dev_app_name=None,
           verbose=False, non_overlap=False, non_overlap_chunk_size=10,
           use_min_max=False, **model_args):
     init_console_logger(LOGGER, verbose=verbose)
@@ -488,11 +482,11 @@ def train(features_dir, output_dir, fold_num,
     LOGGER.info('Training {} with fold {} held out'.format(model_type, fold_num))
     # Fit the model
     if model_type == 'svm':
-        if search_param:
+        if parameter_search:
+            search_space = { 'C': [0.1, 1, 10, 100, 1000] }
             model, train_metrics, valid_metrics, test_metrics \
                 = train_param_search(train_data, valid_data, test_data, model_dir,
-                    train_func=train_svm, search_param=search_param,
-                    search_space=search_space,
+                    train_func=train_svm, search_space=search_space,
                     num_classes=DATASET_NUM_CLASSES[dataset_name],
                     random_state=random_state, verbose=verbose, **model_args)
         else:
@@ -502,11 +496,14 @@ def train(features_dir, output_dir, fold_num,
                     random_state=random_state, verbose=verbose, **model_args)
 
     elif model_type == 'mlp':
-        if search_param:
+        if parameter_search:
+            search_space = {
+                'learning_rate': [1e-5, 1e-4, 1e-3],
+                'weight_decay': [1e-5, 1e-4, 1e-3],
+            }
             model, train_metrics, valid_metrics, test_metrics \
                 = train_param_search(train_data, valid_data, test_data, model_dir,
-                                 train_func=train_mlp, search_param=search_param,
-                                 search_space=search_space,
+                                 train_func=train_mlp, search_space=search_space,
                                  batch_size=train_batch_size, random_state=random_state,
                                  num_classes=DATASET_NUM_CLASSES[dataset_name],
                                  verbose=verbose, **model_args)
@@ -556,12 +553,15 @@ def train(features_dir, output_dir, fold_num,
         update_experiment(service, gsheet_id, config, 'R', 'AB',
                           update_values, 'classifier')
 
-        if search_param and search_param in CLASSIFIER_FIELD_NAMES:
-            # Also update search parameter
-            # ASSUMES that parameter values will be in the first 26 columns
-            col = chr(CLASSIFIER_FIELD_NAMES.index(search_param) + 67)
-            best_param = train_metrics['search_param_best_value']
-            update_experiment(service, gsheet_id, config, col, col,
-                              [best_param], 'classifier')
+        if parameter_search:
+            for param, param_value in zip(train_metrics['search_params'],
+                    train_metrics['search_params_best_values']):
+                if param not in CLASSIFIER_FIELD_NAMES:
+                    continue
+                # Also update search parameter
+                # ASSUMES that parameter values will be in the first 26 columns
+                col = chr(CLASSIFIER_FIELD_NAMES.index(param) + 67)
+                update_experiment(service, gsheet_id, config, col, col,
+                                  [param_value], 'classifier')
 
     LOGGER.info('Done!')

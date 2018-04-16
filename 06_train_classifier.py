@@ -29,20 +29,11 @@ def parse_arguments():
                         default=64,
                         help='(MLP) Number of training examples per batch')
 
-    parser.add_argument('-cv',
-                        '--cross-validation',
-                        dest='search_param',
-                        action='store',
-                        type=str,
-                        help='Name of parameter to cross-validate over. If not provided, cross validation will not be done')
-
-    parser.add_argument('-cvss',
-                        '--cross-validation-search_space',
-                        dest='search_space',
-                        action='store',
-                        nargs="*",
-                        type=float,
-                        help='List of numeric possible parameter values used in cross validation')
+    parser.add_argument('-ps',
+                        '--parameter-search',
+                        dest='parameter_search',
+                        action='store_true',
+                        help='If True, parameter search will be run')
 
     parser.add_argument('-lr',
                         '--learning-rate',
