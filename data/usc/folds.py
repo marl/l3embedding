@@ -57,12 +57,15 @@ def get_fold(feature_dir, fold_idx):
     return {'features': X, 'labels': y, 'file_idxs': file_idxs, 'filenames': filenames}
 
 
-def get_split(feature_dir, test_fold_idx, dataset_name):
+def get_split(feature_dir, test_fold_idx, dataset_name, valid=True):
     if dataset_name not in DATASET_NUM_FOLDS:
         raise ValueError('Invalid dataset: {}'.format(dataset_name))
     num_folds = DATASET_NUM_FOLDS[dataset_name]
-    train_data = get_train_folds(feature_dir, test_fold_idx, num_folds)
-    valid_data = get_fold(feature_dir, get_valid_fold_idx(test_fold_idx, num_folds))
+    train_data = get_train_folds(feature_dir, test_fold_idx, num_folds, valid=valid)
+    if valid:
+        valid_data = get_fold(feature_dir, get_valid_fold_idx(test_fold_idx, num_folds))
+    else:
+        valid_data = None
     test_data = get_fold(feature_dir, test_fold_idx)
 
     return train_data, valid_data, test_data
@@ -72,7 +75,7 @@ def get_valid_fold_idx(test_fold_idx, num_folds):
     return (test_fold_idx - 1) % num_folds
 
 
-def get_train_folds(feature_dir, test_fold_idx, num_folds):
+def get_train_folds(feature_dir, test_fold_idx, num_folds, valid=True):
     X = []
     y = []
     file_idxs = []
@@ -81,7 +84,7 @@ def get_train_folds(feature_dir, test_fold_idx, num_folds):
     valid_fold_idx = get_valid_fold_idx(test_fold_idx, num_folds)
 
     for fold_idx in range(num_folds):
-        if fold_idx in (valid_fold_idx, test_fold_idx):
+        if fold_idx == test_fold_idx or (valid and fold_idx == valid_fold_idx):
             continue
 
         fold_data = get_fold(feature_dir, fold_idx)
@@ -97,9 +100,11 @@ def get_train_folds(feature_dir, test_fold_idx, num_folds):
 
         filenames += fold_data['filenames']
 
-    X = np.vstack(X)
-    y = np.concatenate(y)
-    file_idxs = np.vstack(file_idxs)
+    num_examples = len(y)
+    shuffle_idxs = np.random.permutation(num_examples)
+    X = np.vstack(X)[shuffle_idxs]
+    y = np.concatenate(y)[shuffle_idxs]
+    file_idxs = np.vstack(file_idxs)[shuffle_idxs]
 
     return {'features': X, 'labels': y, 'file_idxs': file_idxs,
             'filenames': filenames}

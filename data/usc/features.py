@@ -103,7 +103,8 @@ def preprocess_split_data(train_data, valid_data, test_data,
     # Remove overlapping frames if no overlap
     if non_overlap:
         remove_data_overlap(train_data, chunk_size=non_overlap_chunk_size)
-        remove_data_overlap(valid_data, chunk_size=non_overlap_chunk_size)
+        if valid_data:
+            remove_data_overlap(valid_data, chunk_size=non_overlap_chunk_size)
         remove_data_overlap(test_data, chunk_size=non_overlap_chunk_size)
 
     # Apply min max scaling to data
@@ -111,17 +112,20 @@ def preprocess_split_data(train_data, valid_data, test_data,
     if use_min_max:
         train_data['features'] = min_max_scaler.fit_transform(
             train_data['features'])
-        valid_data['features'] = min_max_scaler.transform(valid_data['features'])
+        if valid_data:
+            valid_data['features'] = min_max_scaler.transform(valid_data['features'])
         test_data['features'] = min_max_scaler.transform(test_data['features'])
 
     if feature_mode == 'framewise':
         # Expand training and validation labels to apply to each frame
         expand_framewise_labels(train_data)
-        expand_framewise_labels(valid_data)
+        if valid_data:
+            expand_framewise_labels(valid_data)
     elif feature_mode == 'stats':
         # Summarize frames in each file using summary statistics
         framewise_to_stats(train_data)
-        framewise_to_stats(valid_data)
+        if valid_data:
+            framewise_to_stats(valid_data)
         framewise_to_stats(test_data)
     else:
         raise ValueError('Invalid feature mode: {}'.format(feature_mode))
@@ -129,7 +133,8 @@ def preprocess_split_data(train_data, valid_data, test_data,
     # Standardize features
     stdizer = StandardScaler()
     train_data['features'] = stdizer.fit_transform(train_data['features'])
-    valid_data['features'] = stdizer.transform(valid_data['features'])
+    if valid_data:
+        valid_data['features'] = stdizer.transform(valid_data['features'])
     test_data['features'] = stdizer.transform(test_data['features'])
 
     return min_max_scaler, stdizer

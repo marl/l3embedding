@@ -35,6 +35,20 @@ def parse_arguments():
                         action='store_true',
                         help='If True, parameter search will be run')
 
+    parser.add_argument('-psnv',
+                        '--parameter-search-no-valid-fold',
+                        dest='parameter_search_valid_fold',
+                        action='store_false',
+                        help='If True, include validation set in train set and instead get the validation set as a ratio of the training set')
+
+    parser.add_argument('-psvr',
+                        '--parameter-search-valid-ratio',
+                        dest='parameter_search_valid_ratio',
+                        action='store',
+                        type=float,
+                        default=0.15,
+                        help='If no validation fold is used, the ratio of the extended training set to set aside for validation')
+
     parser.add_argument('-lr',
                         '--learning-rate',
                         dest='learning_rate',

@@ -15,7 +15,7 @@ source ~/.bashrc
 source activate l3embedding-cpu
 
 SRCDIR=$HOME/dev/l3embedding
-FEATURES_DIR=/scratch/jtc440/sonyc-usc/features/us8k/l3/original/music/cnn_L3_orig
+FEATURES_DIR=/scratch/jtc440/sonyc-usc/features/esc50/l3/original/music/cnn_L3_orig
 OUTPUT_DIR=/scratch/jtc440/sonyc-usc
 MODEL_TYPE='svm'
 FEATURE_MODE='framewise'
@@ -29,10 +29,13 @@ python $SRCDIR/06_train_classifier.py \
     --random-state 20171021 \
     --model-type $MODEL_TYPE \
     --feature-mode $FEATURE_MODE \
-    --num-epochs 150 \
+    --num-epochs 50 \
     --train-batch-size 32 \
     --gsheet-id $GSHEET_ID \
     --google-dev-app-name $GOOGLE_DEV_APP_NAME \
+    --parameter-search \
+    --parameter-search-no-valid-fold \
+    --parameter-search-valid-ratio 0.15 \
     --verbose \
     $FEATURES_DIR \
     $OUTPUT_DIR \

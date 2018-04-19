@@ -317,7 +317,7 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
 
 
 def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
-                       search_space, valid_ratio=0.15, **kwargs):
+                       search_space, valid_ratio=0.15, train_with_valid=True, **kwargs):
 
     search_train_metrics = {}
     search_valid_metrics = {}
@@ -331,9 +331,10 @@ def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
     best_valid_loss = float('inf')
     best_param = None
 
-
-    for params in product(*[search_space[p] for p in search_params]):
-        LOGGER.info('Evaluating {} = {}'.format(search_params, params))
+    if valid_data:
+        train_data_skf = train_data
+        valid_data_skf = valid_data
+    else:
         train_data_skf = {
             'features': train_data['features'][train_idxs],
             'labels': train_data['labels'][train_idxs]
@@ -342,6 +343,11 @@ def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
             'features': train_data['features'][valid_idxs],
             'labels': train_data['labels'][valid_idxs]
         }
+
+
+
+    for params in product(*[search_space[p] for p in search_params]):
+        LOGGER.info('Evaluating {} = {}'.format(search_params, params))
 
         kwargs.update(dict(zip(search_params, params)))
 
@@ -360,8 +366,35 @@ def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
                                                            best_valid_loss))
 
     kwargs.update(dict(zip(search_params, best_params)))
-    clf, train_metrics, _, test_metrics, \
-        = train_func(train_data, None, test_data, model_dir, **kwargs)
+
+    if valid_data:
+        if train_with_valid:
+            # If valid data was provided and we want to train the final model
+            # with it, we need to merge the train and valid data and shuffle
+            num_examples = train_data['labels'].size + valid_data['labels'].size
+            idxs = np.random.permutation(num_examples)
+            clf, train_metrics, _, test_metrics \
+                = train_func({
+                        'features': np.vstack((train_data['features'],
+                                               valid_data['features']))[idxs],
+                        'labels': np.concatenate((train_data['labels'],
+                                                  valid_data['labels']))[idxs]
+                    }, None, test_data, model_dir, **kwargs)
+        else:
+            # If valid data was provided but we just want to train the final
+            # model with train, just do that
+            clf, train_metrics, _, test_metrics \
+                = train_func(train_data, None, test_data, model_dir, **kwargs)
+
+    else:
+        if train_with_valid:
+            # If valid data was not provided, train with entire training set
+            clf, train_metrics, _, test_metrics \
+                = train_func(train_data, None, test_data, model_dir, **kwargs)
+        else:
+            # If valid data was not provided, train with just the sub-train split
+            clf, train_metrics, _, test_metrics \
+                = train_func(train_data_skf, None, test_data, model_dir, **kwargs)
 
     train_metrics['search'] = search_train_metrics
     train_metrics['search_params'] = search_params
@@ -380,6 +413,7 @@ def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
 def train(features_dir, output_dir, fold_num,
           model_type='svm', feature_mode='framewise',
           train_batch_size=64, random_state=20171021, parameter_search=False,
+          parameter_search_valid_fold=True, parameter_search_valid_ratio=0.15,
           gsheet_id=None, google_dev_app_name=None,
           verbose=False, non_overlap=False, non_overlap_chunk_size=10,
           use_min_max=False, **model_args):
@@ -420,6 +454,9 @@ def train(features_dir, output_dir, fold_num,
         'model_dir': model_dir,
         'model_id': model_id,
         'fold_num': fold_num,
+        'parameter_search': parameter_search,
+        'parameter_search_valid_fold': parameter_search_valid_fold,
+        'parameter_search_valid_ratio': parameter_search_valid_ratio,
         'model_type': model_type,
         'feature_mode': feature_mode,
         'train_batch_size': train_batch_size,
@@ -465,7 +502,8 @@ def train(features_dir, output_dir, fold_num,
     fold_idx = fold_num - 1
 
     LOGGER.info('Loading data for configuration with test fold {}...'.format(fold_num))
-    train_data, valid_data, test_data = get_split(features_dir, fold_idx, dataset_name)
+    train_data, valid_data, test_data = get_split(features_dir, fold_idx, dataset_name,
+                                                  valid=(not parameter_search or parameter_search_valid_fold))
 
     LOGGER.info('Preprocessing data...')
     min_max_scaler, stdizer = preprocess_split_data(train_data, valid_data, test_data,
@@ -488,6 +526,7 @@ def train(features_dir, output_dir, fold_num,
                 = train_param_search(train_data, valid_data, test_data, model_dir,
                     train_func=train_svm, search_space=search_space,
                     num_classes=DATASET_NUM_CLASSES[dataset_name],
+                    valid_ratio=parameter_search_valid_ratio,
                     random_state=random_state, verbose=verbose, **model_args)
         else:
             model, train_metrics, valid_metrics, test_metrics \
@@ -503,10 +542,11 @@ def train(features_dir, output_dir, fold_num,
             }
             model, train_metrics, valid_metrics, test_metrics \
                 = train_param_search(train_data, valid_data, test_data, model_dir,
-                                 train_func=train_mlp, search_space=search_space,
-                                 batch_size=train_batch_size, random_state=random_state,
-                                 num_classes=DATASET_NUM_CLASSES[dataset_name],
-                                 verbose=verbose, **model_args)
+                     train_func=train_mlp, search_space=search_space,
+                     batch_size=train_batch_size, random_state=random_state,
+                     num_classes=DATASET_NUM_CLASSES[dataset_name],
+                     valid_ratio=parameter_search_valid_ratio,
+                     verbose=verbose, **model_args)
         else:
             model, train_metrics, valid_metrics, test_metrics \
                     = train_mlp(train_data, valid_data, test_data, model_dir,
@@ -550,7 +590,7 @@ def train(features_dir, output_dir, fold_num,
               test_metrics['average_class_accuracy'],
               ', '.join(map(str, test_metrics['class_accuracy']))
         ]
-        update_experiment(service, gsheet_id, config, 'R', 'AB',
+        update_experiment(service, gsheet_id, config, 'U', 'AE',
                           update_values, 'classifier')
 
         if parameter_search:
