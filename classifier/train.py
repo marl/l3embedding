@@ -326,9 +326,10 @@ def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
     LOGGER.info('Starting hyperparameter search on {}.'.format(search_params))
 
     splitter = StratifiedShuffleSplit(n_splits=1, test_size=valid_ratio)
-    train_idxs, valid_idxs = splitter.split(train_data['features'], train_data['labels'])
+    train_idxs, valid_idxs = next(splitter.split(train_data['features'],
+                                                 train_data['labels']))
 
-    best_valid_loss = float('inf')
+    best_valid_acc = float('inf')
     best_param = None
 
     if valid_data:
@@ -351,19 +352,18 @@ def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
 
         kwargs.update(dict(zip(search_params, params)))
 
-        LOGGER.info('')
         _, train_metrics, valid_metrics, _ \
             = train_func(train_data_skf, valid_data_skf, None, model_dir, **kwargs)
 
-        if valid_metrics['accuracy'] < best_valid_loss:
-            best_valid_loss = valid_metrics['accuracy']
+        if valid_metrics['accuracy'] < best_valid_acc:
+            best_valid_acc = valid_metrics['accuracy']
             best_params = params
 
         search_train_metrics[best_params] = train_metrics
         search_valid_metrics[best_params] = valid_metrics
 
     LOGGER.info('Best {} = {}, ave valid loss = {}'.format(search_params, best_param,
-                                                           best_valid_loss))
+                                                           best_valid_acc))
 
     kwargs.update(dict(zip(search_params, best_params)))
 
@@ -496,8 +496,6 @@ def train(features_dir, output_dir, fold_num,
         credentials = get_credentials(google_dev_app_name)
         service = discovery.build('sheets', 'v4', credentials=credentials)
         append_row(service, gsheet_id, config, 'classifier')
-    else:
-        LOGGER.error(gsheet_id)
 
     fold_idx = fold_num - 1
 

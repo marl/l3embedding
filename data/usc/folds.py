@@ -100,11 +100,9 @@ def get_train_folds(feature_dir, test_fold_idx, num_folds, valid=True):
 
         filenames += fold_data['filenames']
 
-    num_examples = len(y)
-    shuffle_idxs = np.random.permutation(num_examples)
-    X = np.vstack(X)[shuffle_idxs]
-    y = np.concatenate(y)[shuffle_idxs]
-    file_idxs = np.vstack(file_idxs)[shuffle_idxs]
+    X = np.vstack(X)
+    y = np.concatenate(y)
+    file_idxs = np.vstack(file_idxs)
 
     return {'features': X, 'labels': y, 'file_idxs': file_idxs,
             'filenames': filenames}

@@ -137,6 +137,15 @@ def preprocess_split_data(train_data, valid_data, test_data,
         valid_data['features'] = stdizer.transform(valid_data['features'])
     test_data['features'] = stdizer.transform(test_data['features'])
 
+    # Shuffle training data
+    num_train_examples = len(train_data['labels'])
+    shuffle_idxs = np.random.permutation(num_train_examples)
+    reverse_shuffle_idxs = np.argsort(shuffle_idxs)
+    train_data['features'] = train_data['features'][shuffle_idxs]
+    train_data['labels'] = train_data['labels'][shuffle_idxs]
+    train_data['file_idxs'] = np.vstack([reverse_shuffle_idxs[slice(*pair)]
+                                         for pair in train_data['file_idxs']])
+
     return min_max_scaler, stdizer
 
 
