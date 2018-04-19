@@ -325,17 +325,17 @@ def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
     search_params = list(search_space.keys())
     LOGGER.info('Starting hyperparameter search on {}.'.format(search_params))
 
-    splitter = StratifiedShuffleSplit(n_splits=1, test_size=valid_ratio)
-    train_idxs, valid_idxs = next(splitter.split(train_data['features'],
-                                                 train_data['labels']))
-
-    best_valid_acc = float('inf')
-    best_param = None
+    best_valid_acc = float('-inf')
+    best_params = None
 
     if valid_data:
         train_data_skf = train_data
         valid_data_skf = valid_data
     else:
+        splitter = StratifiedShuffleSplit(n_splits=1, test_size=valid_ratio)
+        train_idxs, valid_idxs = next(splitter.split(train_data['features'],
+                                                     train_data['labels']))
+
         train_data_skf = {
             'features': train_data['features'][train_idxs],
             'labels': train_data['labels'][train_idxs]
@@ -345,8 +345,6 @@ def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
             'labels': train_data['labels'][valid_idxs]
         }
 
-
-
     for params in product(*[search_space[p] for p in search_params]):
         LOGGER.info('Evaluating {} = {}'.format(search_params, params))
 
@@ -355,18 +353,21 @@ def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
         _, train_metrics, valid_metrics, _ \
             = train_func(train_data_skf, valid_data_skf, None, model_dir, **kwargs)
 
-        if valid_metrics['accuracy'] < best_valid_acc:
+        if valid_metrics['accuracy'] > best_valid_acc:
             best_valid_acc = valid_metrics['accuracy']
             best_params = params
 
         search_train_metrics[best_params] = train_metrics
         search_valid_metrics[best_params] = valid_metrics
 
-    LOGGER.info('Best {} = {}, ave valid loss = {}'.format(search_params, best_param,
+    LOGGER.info('Best {} = {}, valid accuracy = {}'.format(search_params,
+                                                           best_params,
                                                            best_valid_acc))
 
     kwargs.update(dict(zip(search_params, best_params)))
 
+    LOGGER.info('Training model with chosen parameters...')
+    # Retrain final model
     if valid_data:
         if train_with_valid:
             # If valid data was provided and we want to train the final model
@@ -405,7 +406,7 @@ def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
         'search_params': search_params,
         'search_params_best_values': best_params
     }
-    valid_metrics.update(search_valid_metrics[best_param])
+    valid_metrics.update(search_valid_metrics[best_params])
 
     return clf, train_metrics, valid_metrics, test_metrics
 
