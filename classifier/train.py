@@ -5,6 +5,7 @@ import os
 import pickle as pk
 import random
 import git
+from itertools import product
 
 import keras
 import keras.regularizers as regularizers
@@ -16,6 +17,7 @@ from keras.optimizers import Adam
 from sklearn.metrics import hinge_loss
 from sklearn.externals import joblib
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.svm import SVC
 
 from classifier.metrics import compute_metrics
@@ -24,7 +26,7 @@ from data.usc.folds import get_split
 from l3embedding.train import LossHistory
 from log import *
 
-from gsheets import get_credentials, append_row, update_experiment
+from gsheets import get_credentials, append_row, update_experiment, CLASSIFIER_FIELD_NAMES
 from googleapiclient import discovery
 
 LOGGER = logging.getLogger('classifier')
@@ -105,10 +107,11 @@ def train_svm(train_data, valid_data, test_data, model_dir, C=1.0, kernel='rbf',
         y_test_pred: Predicted test output of classifier
                      (Type: np.ndarray)
     """
+    np.random.seed(random_state)
+    random.seed(random_state)
+
     X_train = train_data['features']
     y_train = train_data['labels']
-    X_valid = valid_data['features']
-    y_valid = valid_data['labels']
 
     model_output_path = os.path.join(model_dir, "model.pkl")
 
@@ -124,33 +127,39 @@ def train_svm(train_data, valid_data, test_data, model_dir, C=1.0, kernel='rbf',
     joblib.dump(clf, model_output_path)
 
     y_train_pred = clf.predict(X_train)
-    y_valid_pred = clf.predict(X_valid)
-
     # Compute new metrics
     classes = np.arange(num_classes)
     train_loss = hinge_loss(y_train, clf.decision_function(X_train), labels=classes)
-    valid_loss = hinge_loss(y_valid, clf.decision_function(X_valid), labels=classes)
     train_metrics = compute_metrics(y_train, y_train_pred)
-    valid_metrics = compute_metrics(y_valid, y_valid_pred)
     train_metrics['loss'] = train_loss
-    valid_metrics['loss'] = valid_loss
-
     train_msg = 'Train - hinge loss: {}, acc: {}'
-    valid_msg = 'Valid - hinge loss: {}, acc: {}'
     LOGGER.info(train_msg.format(train_loss, train_metrics['accuracy']))
-    LOGGER.info(valid_msg.format(valid_loss, valid_metrics['accuracy']))
 
+    if valid_data:
+        X_valid = valid_data['features']
+        y_valid = valid_data['labels']
+        y_valid_pred = clf.predict(X_valid)
+        valid_loss = hinge_loss(y_valid, clf.decision_function(X_valid), labels=classes)
+        valid_metrics = compute_metrics(y_valid, y_valid_pred)
+        valid_metrics['loss'] = valid_loss
+        valid_msg = 'Valid - hinge loss: {}, acc: {}'
+        LOGGER.info(valid_msg.format(valid_loss, valid_metrics['accuracy']))
+    else:
+        valid_metrics = {}
 
     # Evaluate model on test data
-    X_test = test_data['features']
-    y_test_pred_frame = clf.predict_proba(X_test)
-    y_test_pred = []
-    for start_idx, end_idx in test_data['file_idxs']:
-        class_pred = y_test_pred_frame[start_idx:end_idx].mean(axis=0).argmax()
-        y_test_pred.append(class_pred)
+    if test_data:
+        X_test = test_data['features']
+        y_test_pred_frame = clf.predict_proba(X_test)
+        y_test_pred = []
+        for start_idx, end_idx in test_data['file_idxs']:
+            class_pred = y_test_pred_frame[start_idx:end_idx].mean(axis=0).argmax()
+            y_test_pred.append(class_pred)
 
-    y_test_pred = np.array(y_test_pred)
-    test_metrics = compute_metrics(test_data['labels'], y_test_pred)
+        y_test_pred = np.array(y_test_pred)
+        test_metrics = compute_metrics(test_data['labels'], y_test_pred)
+    else:
+        test_metrics = {}
 
     return clf, train_metrics, valid_metrics, test_metrics
 
@@ -186,7 +195,7 @@ def construct_mlp_model(input_shape, weight_decay=1e-5, num_classes=10):
 
 
 def train_mlp(train_data, valid_data, test_data, model_dir,
-              batch_size=64, num_epochs=100,
+              batch_size=64, num_epochs=100, valid_split=0.15, patience=20,
               learning_rate=1e-4, weight_decay=1e-5, num_classes=10,
               random_state=12345678, verbose=False, **kwargs):
     """
@@ -232,8 +241,12 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
     X_train = train_data['features']
     y_train = enc.fit_transform(train_data['labels'].reshape(-1, 1))
 
-    X_valid = valid_data['features']
-    y_valid = enc.fit_transform(valid_data['labels'].reshape(-1, 1))
+    if valid_data:
+        validation_data = (valid_data['features'],
+                           enc.fit_transform(valid_data['labels'].reshape(-1, 1)))
+        valid_split = 0.0
+    else:
+        validation_data = None
 
     # Set up model
     m, inp, out = construct_mlp_model(X_train.shape[1:],
@@ -247,6 +260,7 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
                                               save_weights_only=True,
                                               save_best_only=True,
                                               monitor=monitor))
+    cb.append(keras.callbacks.EarlyStopping(monitor='val_loss', patience=patience))
     history_checkpoint = os.path.join(model_dir, 'history_checkpoint.pkl')
     cb.append(LossHistory(history_checkpoint))
     history_csvlog = os.path.join(model_dir, 'history_csvlog.csv')
@@ -259,15 +273,12 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
     LOGGER.debug('Compiling model...')
     m.compile(Adam(lr=learning_rate), loss=loss, metrics=metrics)
     LOGGER.debug('Fitting model to data...')
-    m.fit(x=X_train, y=y_train, batch_size=batch_size,
-          epochs=num_epochs, validation_data=(X_valid, y_valid), callbacks=cb)
+    m.fit(x=X_train, y=y_train, batch_size=batch_size, epochs=num_epochs,
+          validation_data=validation_data, validation_split=valid_split, callbacks=cb)
 
     # Compute metrics for train and valid
     train_pred = m.predict(X_train)
-    valid_pred = m.predict(X_valid)
     train_metrics = compute_metrics(y_train, train_pred)
-    valid_metrics = compute_metrics(y_valid, valid_pred)
-
     # Set up train and validation metrics
     train_metrics = {
         'loss': metric_cb.train_loss[-1],
@@ -279,27 +290,132 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
     valid_metrics = {
         'loss': metric_cb.valid_loss[-1],
         'accuracy': metric_cb.valid_acc[-1],
-        'class_accuracy': valid_metrics['class_accuracy'],
-        'average_class_accuracy': valid_metrics['average_class_accuracy']
     }
 
-    # Evaluate model on test data
-    X_test = test_data['features']
-    y_test_pred_frame = m.predict(X_test)
-    y_test_pred = []
-    for start_idx, end_idx in test_data['file_idxs']:
-        class_pred = y_test_pred_frame[start_idx:end_idx].mean(axis=0).argmax()
-        y_test_pred.append(class_pred)
-    y_test_pred = np.array(y_test_pred)
-    test_metrics = compute_metrics(test_data['labels'], y_test_pred)
+    if valid_data:
+        valid_pred = m.predict(validation_data[0])
+        valid_metrics = compute_metrics(validation_data[1], valid_pred)
+        valid_metrics.update({
+            'class_accuracy': valid_metrics['class_accuracy'],
+            'average_class_accuracy': valid_metrics['average_class_accuracy']
+        })
+
+    if test_data:
+        # Evaluate model on test data
+        X_test = test_data['features']
+        y_test_pred_frame = m.predict(X_test)
+        y_test_pred = []
+        for start_idx, end_idx in test_data['file_idxs']:
+            class_pred = y_test_pred_frame[start_idx:end_idx].mean(axis=0).argmax()
+            y_test_pred.append(class_pred)
+        y_test_pred = np.array(y_test_pred)
+        test_metrics = compute_metrics(test_data['labels'], y_test_pred)
+    else:
+        test_metrics = {}
 
     return m, train_metrics, valid_metrics, test_metrics
 
 
+def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
+                       search_space, valid_ratio=0.15, train_with_valid=True, **kwargs):
+
+    search_train_metrics = {}
+    search_valid_metrics = {}
+
+    search_params = list(search_space.keys())
+    LOGGER.info('Starting hyperparameter search on {}.'.format(search_params))
+
+    best_valid_acc = float('-inf')
+    best_params = None
+
+    if valid_data:
+        train_data_skf = train_data
+        valid_data_skf = valid_data
+    else:
+        splitter = StratifiedShuffleSplit(n_splits=1, test_size=valid_ratio)
+        train_idxs, valid_idxs = next(splitter.split(train_data['features'],
+                                                     train_data['labels']))
+
+        train_data_skf = {
+            'features': train_data['features'][train_idxs],
+            'labels': train_data['labels'][train_idxs]
+        }
+        valid_data_skf = {
+            'features': train_data['features'][valid_idxs],
+            'labels': train_data['labels'][valid_idxs]
+        }
+
+    for params in product(*[search_space[p] for p in search_params]):
+        LOGGER.info('Evaluating {} = {}'.format(search_params, params))
+
+        kwargs.update(dict(zip(search_params, params)))
+
+        _, train_metrics, valid_metrics, _ \
+            = train_func(train_data_skf, valid_data_skf, None, model_dir, **kwargs)
+
+        if valid_metrics['accuracy'] > best_valid_acc:
+            best_valid_acc = valid_metrics['accuracy']
+            best_params = params
+
+        search_train_metrics[best_params] = train_metrics
+        search_valid_metrics[best_params] = valid_metrics
+
+    LOGGER.info('Best {} = {}, valid accuracy = {}'.format(search_params,
+                                                           best_params,
+                                                           best_valid_acc))
+
+    kwargs.update(dict(zip(search_params, best_params)))
+
+    LOGGER.info('Training model with chosen parameters...')
+    # Retrain final model
+    if valid_data:
+        if train_with_valid:
+            # If valid data was provided and we want to train the final model
+            # with it, we need to merge the train and valid data and shuffle
+            num_examples = train_data['labels'].size + valid_data['labels'].size
+            idxs = np.random.permutation(num_examples)
+            clf, train_metrics, _, test_metrics \
+                = train_func({
+                        'features': np.vstack((train_data['features'],
+                                               valid_data['features']))[idxs],
+                        'labels': np.concatenate((train_data['labels'],
+                                                  valid_data['labels']))[idxs]
+                    }, None, test_data, model_dir, **kwargs)
+        else:
+            # If valid data was provided but we just want to train the final
+            # model with train, just do that
+            clf, train_metrics, _, test_metrics \
+                = train_func(train_data, None, test_data, model_dir, **kwargs)
+
+    else:
+        if train_with_valid:
+            # If valid data was not provided, train with entire training set
+            clf, train_metrics, _, test_metrics \
+                = train_func(train_data, None, test_data, model_dir, **kwargs)
+        else:
+            # If valid data was not provided, train with just the sub-train split
+            clf, train_metrics, _, test_metrics \
+                = train_func(train_data_skf, None, test_data, model_dir, **kwargs)
+
+    train_metrics['search'] = search_train_metrics
+    train_metrics['search_params'] = search_params
+    train_metrics['search_params_best_values'] = best_params
+
+    valid_metrics = {
+        'search': search_valid_metrics,
+        'search_params': search_params,
+        'search_params_best_values': best_params
+    }
+    valid_metrics.update(search_valid_metrics[best_params])
+
+    return clf, train_metrics, valid_metrics, test_metrics
+
+
 def train(features_dir, output_dir, fold_num,
           model_type='svm', feature_mode='framewise',
-          train_batch_size=64,
-          random_state=20171021, gsheet_id=None, google_dev_app_name=None,
+          train_batch_size=64, random_state=20171021, parameter_search=False,
+          parameter_search_valid_fold=True, parameter_search_valid_ratio=0.15,
+          gsheet_id=None, google_dev_app_name=None,
           verbose=False, non_overlap=False, non_overlap_chunk_size=10,
           use_min_max=False, **model_args):
     init_console_logger(LOGGER, verbose=verbose)
@@ -310,16 +426,13 @@ def train(features_dir, output_dir, fold_num,
     random.seed(random_state)
 
     datasets = ['us8k', 'esc50', 'dcase2013']
-    for ds in datasets:
-        if ds in features_dir:
-            dataset_name = ds
-            break
-    else:
-        err_msg = 'Feature directory must contain name of dataset ({})'
-        raise ValueError(err_msg.format(str(datasets)))
 
     features_desc_str = features_dir[features_dir.rindex('features')+9:]
     dataset_name = features_desc_str.split('/')[0]
+
+    if dataset_name not in datasets:
+        err_msg = 'Feature directory must contain name of dataset ({})'
+        raise ValueError(err_msg.format(str(datasets)))
 
     model_id = os.path.join(features_desc_str, feature_mode,
                             "non-overlap" if non_overlap else "overlap",
@@ -342,6 +455,9 @@ def train(features_dir, output_dir, fold_num,
         'model_dir': model_dir,
         'model_id': model_id,
         'fold_num': fold_num,
+        'parameter_search': parameter_search,
+        'parameter_search_valid_fold': parameter_search_valid_fold,
+        'parameter_search_valid_ratio': parameter_search_valid_ratio,
         'model_type': model_type,
         'feature_mode': feature_mode,
         'train_batch_size': train_batch_size,
@@ -381,13 +497,12 @@ def train(features_dir, output_dir, fold_num,
         credentials = get_credentials(google_dev_app_name)
         service = discovery.build('sheets', 'v4', credentials=credentials)
         append_row(service, gsheet_id, config, 'classifier')
-    else:
-        LOGGER.error(gsheet_id)
 
     fold_idx = fold_num - 1
 
     LOGGER.info('Loading data for configuration with test fold {}...'.format(fold_num))
-    train_data, valid_data, test_data = get_split(features_dir, fold_idx, dataset_name)
+    train_data, valid_data, test_data = get_split(features_dir, fold_idx, dataset_name,
+                                                  valid=(not parameter_search or parameter_search_valid_fold))
 
     LOGGER.info('Preprocessing data...')
     min_max_scaler, stdizer = preprocess_split_data(train_data, valid_data, test_data,
@@ -404,17 +519,39 @@ def train(features_dir, output_dir, fold_num,
     LOGGER.info('Training {} with fold {} held out'.format(model_type, fold_num))
     # Fit the model
     if model_type == 'svm':
-        model, train_metrics, valid_metrics, test_metrics \
-            = train_svm(train_data, valid_data, test_data, model_dir,
-                num_classes=DATASET_NUM_CLASSES[dataset_name],
-                random_state=random_state, verbose=verbose, **model_args)
+        if parameter_search:
+            search_space = { 'C': [0.1, 1, 10, 100, 1000] }
+            model, train_metrics, valid_metrics, test_metrics \
+                = train_param_search(train_data, valid_data, test_data, model_dir,
+                    train_func=train_svm, search_space=search_space,
+                    num_classes=DATASET_NUM_CLASSES[dataset_name],
+                    valid_ratio=parameter_search_valid_ratio,
+                    random_state=random_state, verbose=verbose, **model_args)
+        else:
+            model, train_metrics, valid_metrics, test_metrics \
+                = train_svm(train_data, valid_data, test_data, model_dir,
+                    num_classes=DATASET_NUM_CLASSES[dataset_name],
+                    random_state=random_state, verbose=verbose, **model_args)
 
     elif model_type == 'mlp':
-        model, train_metrics, valid_metrics, test_metrics \
-                = train_mlp(train_data, valid_data, test_data, model_dir,
-                    batch_size=train_batch_size, random_state=random_state,
-                    num_classes=DATASET_NUM_CLASSES[dataset_name],
-                    verbose=verbose, **model_args)
+        if parameter_search:
+            search_space = {
+                'learning_rate': [1e-5, 1e-4, 1e-3],
+                'weight_decay': [1e-5, 1e-4, 1e-3],
+            }
+            model, train_metrics, valid_metrics, test_metrics \
+                = train_param_search(train_data, valid_data, test_data, model_dir,
+                     train_func=train_mlp, search_space=search_space,
+                     batch_size=train_batch_size, random_state=random_state,
+                     num_classes=DATASET_NUM_CLASSES[dataset_name],
+                     valid_ratio=parameter_search_valid_ratio,
+                     verbose=verbose, **model_args)
+        else:
+            model, train_metrics, valid_metrics, test_metrics \
+                    = train_mlp(train_data, valid_data, test_data, model_dir,
+                        batch_size=train_batch_size, random_state=random_state,
+                        num_classes=DATASET_NUM_CLASSES[dataset_name],
+                        verbose=verbose, **model_args)
 
     else:
         raise ValueError('Invalid model type: {}'.format(model_type))
@@ -434,6 +571,7 @@ def train(features_dir, output_dir, fold_num,
         pk.dump(results, fp, protocol=pk.HIGHEST_PROTOCOL)
 
 
+    # TODO: Update spreadsheet for cross validation!
     if gsheet_id:
         # Update spreadsheet with results
         LOGGER.info('Updating spreadsheet...')
@@ -443,14 +581,26 @@ def train(features_dir, output_dir, fold_num,
               train_metrics['accuracy'],
               valid_metrics['accuracy'],
               train_metrics['average_class_accuracy'],
-              valid_metrics['average_class_accuracy'],
+              valid_metrics.get('average_class_accuracy', -1),
               ', '.join(map(str, train_metrics['class_accuracy'])),
-              ', '.join(map(str, valid_metrics['class_accuracy'])),
+              ', '.join(map(str, valid_metrics['class_accuracy'])) \
+                  if valid_metrics.get('class_accuracy') else '',
               test_metrics['accuracy'],
               test_metrics['average_class_accuracy'],
               ', '.join(map(str, test_metrics['class_accuracy']))
         ]
-        update_experiment(service, gsheet_id, config, 'R', 'AB',
+        update_experiment(service, gsheet_id, config, 'U', 'AE',
                           update_values, 'classifier')
+
+        if parameter_search:
+            for param, param_value in zip(train_metrics['search_params'],
+                    train_metrics['search_params_best_values']):
+                if param not in CLASSIFIER_FIELD_NAMES:
+                    continue
+                # Also update search parameter
+                # ASSUMES that parameter values will be in the first 26 columns
+                col = chr(CLASSIFIER_FIELD_NAMES.index(param) + 67)
+                update_experiment(service, gsheet_id, config, col, col,
+                                  [param_value], 'classifier')
 
     LOGGER.info('Done!')
