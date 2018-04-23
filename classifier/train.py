@@ -294,7 +294,7 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
 
     if valid_data:
         valid_pred = m.predict(validation_data[0])
-        valid_metrics = compute_metrics(validation_data[1], valid_pred)
+        valid_metrics.update(compute_metrics(validation_data[1], valid_pred))
         valid_metrics.update({
             'class_accuracy': valid_metrics['class_accuracy'],
             'average_class_accuracy': valid_metrics['average_class_accuracy']
