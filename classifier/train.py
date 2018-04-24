@@ -19,6 +19,7 @@ from sklearn.externals import joblib
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
 
 from classifier.metrics import compute_metrics
 from data.usc.features import preprocess_split_data
@@ -130,7 +131,7 @@ def train_svm(train_data, valid_data, test_data, model_dir, C=1.0, kernel='rbf',
     # Compute new metrics
     classes = np.arange(num_classes)
     train_loss = hinge_loss(y_train, clf.decision_function(X_train), labels=classes)
-    train_metrics = compute_metrics(y_train, y_train_pred)
+    train_metrics = compute_metrics(y_train, y_train_pred, num_classes=num_classes)
     train_metrics['loss'] = train_loss
     train_msg = 'Train - hinge loss: {}, acc: {}'
     LOGGER.info(train_msg.format(train_loss, train_metrics['accuracy']))
@@ -140,7 +141,7 @@ def train_svm(train_data, valid_data, test_data, model_dir, C=1.0, kernel='rbf',
         y_valid = valid_data['labels']
         y_valid_pred = clf.predict(X_valid)
         valid_loss = hinge_loss(y_valid, clf.decision_function(X_valid), labels=classes)
-        valid_metrics = compute_metrics(y_valid, y_valid_pred)
+        valid_metrics = compute_metrics(y_valid, y_valid_pred, num_classes=num_classes)
         valid_metrics['loss'] = valid_loss
         valid_msg = 'Valid - hinge loss: {}, acc: {}'
         LOGGER.info(valid_msg.format(valid_loss, valid_metrics['accuracy']))
@@ -157,7 +158,68 @@ def train_svm(train_data, valid_data, test_data, model_dir, C=1.0, kernel='rbf',
             y_test_pred.append(class_pred)
 
         y_test_pred = np.array(y_test_pred)
-        test_metrics = compute_metrics(test_data['labels'], y_test_pred)
+        test_metrics = compute_metrics(test_data['labels'], y_test_pred, num_classes=num_classes)
+    else:
+        test_metrics = {}
+
+    return clf, train_metrics, valid_metrics, test_metrics
+
+
+def train_rf(train_data, valid_data, test_data, model_dir, n_estimators=100,
+             num_classes=10, random_state=12345678, **kwargs):
+    """
+    Train a Support Vector Machine model on the given data
+    """
+    np.random.seed(random_state)
+    random.seed(random_state)
+
+    X_train = train_data['features']
+    y_train = train_data['labels']
+
+    model_output_path = os.path.join(model_dir, "model.pkl")
+
+    # Create classifier
+    clf = RandomForestClassifier(n_estimators=n_estimators, n_jobs=-1,
+                                 random_state=random_state)
+
+    # Fit data and get output for train and valid batches
+    LOGGER.debug('Fitting model to data...')
+    clf.fit(X_train, y_train)
+
+    LOGGER.info('Saving model...')
+    joblib.dump(clf, model_output_path)
+
+    y_train_pred = clf.predict(X_train)
+    # Compute new metrics
+    train_loss = 0
+    train_metrics = compute_metrics(y_train, y_train_pred, num_classes=num_classes)
+    train_metrics['loss'] = train_loss
+    train_msg = 'Train - acc: {}'
+    LOGGER.info(train_msg.format(train_loss, train_metrics['accuracy']))
+
+    if valid_data:
+        X_valid = valid_data['features']
+        y_valid = valid_data['labels']
+        y_valid_pred = clf.predict(X_valid)
+        valid_loss = 0
+        valid_metrics = compute_metrics(y_valid, y_valid_pred, num_classes=num_classes)
+        valid_metrics['loss'] = valid_loss
+        valid_msg = 'Valid - acc: {}'
+        LOGGER.info(valid_msg.format(valid_loss, valid_metrics['accuracy']))
+    else:
+        valid_metrics = {}
+
+    # Evaluate model on test data
+    if test_data:
+        X_test = test_data['features']
+        y_test_pred_frame = clf.predict_proba(X_test)
+        y_test_pred = []
+        for start_idx, end_idx in test_data['file_idxs']:
+            class_pred = y_test_pred_frame[start_idx:end_idx].mean(axis=0).argmax()
+            y_test_pred.append(class_pred)
+
+        y_test_pred = np.array(y_test_pred)
+        test_metrics = compute_metrics(test_data['labels'], y_test_pred, num_classes=num_classes)
     else:
         test_metrics = {}
 
@@ -278,7 +340,7 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
 
     # Compute metrics for train and valid
     train_pred = m.predict(X_train)
-    train_metrics = compute_metrics(y_train, train_pred)
+    train_metrics = compute_metrics(y_train, train_pred, num_classes=num_classes)
     # Set up train and validation metrics
     train_metrics = {
         'loss': metric_cb.train_loss[-1],
@@ -294,7 +356,7 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
 
     if valid_data:
         valid_pred = m.predict(validation_data[0])
-        valid_metrics.update(compute_metrics(validation_data[1], valid_pred))
+        valid_metrics.update(compute_metrics(validation_data[1], valid_pred, num_classes=num_classes))
         valid_metrics.update({
             'class_accuracy': valid_metrics['class_accuracy'],
             'average_class_accuracy': valid_metrics['average_class_accuracy']
@@ -309,7 +371,7 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
             class_pred = y_test_pred_frame[start_idx:end_idx].mean(axis=0).argmax()
             y_test_pred.append(class_pred)
         y_test_pred = np.array(y_test_pred)
-        test_metrics = compute_metrics(test_data['labels'], y_test_pred)
+        test_metrics = compute_metrics(test_data['labels'], y_test_pred, num_classes=num_classes)
     else:
         test_metrics = {}
 
@@ -533,6 +595,20 @@ def train(features_dir, output_dir, fold_num,
                     num_classes=DATASET_NUM_CLASSES[dataset_name],
                     random_state=random_state, verbose=verbose, **model_args)
 
+    elif model_type == 'rf':
+        if parameter_search:
+            search_space = { 'n_estimators': [100, 500, 1000] }
+            model, train_metrics, valid_metrics, test_metrics \
+                = train_param_search(train_data, valid_data, test_data, model_dir,
+                                     train_func=train_rf, search_space=search_space,
+                                     num_classes=DATASET_NUM_CLASSES[dataset_name],
+                                     valid_ratio=parameter_search_valid_ratio,
+                                     random_state=random_state, verbose=verbose, **model_args)
+        else:
+            model, train_metrics, valid_metrics, test_metrics \
+                = train_rf(train_data, valid_data, test_data, model_dir,
+                           num_classes=DATASET_NUM_CLASSES[dataset_name],
+                           random_state=random_state, verbose=verbose, **model_args)
     elif model_type == 'mlp':
         if parameter_search:
             search_space = {

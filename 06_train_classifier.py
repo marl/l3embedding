@@ -98,6 +98,14 @@ def parse_arguments():
                         choices=['rbf', 'sigmoid', 'linear', 'poly'],
                         help='(SVM) kernel type')
 
+    parser.add_argument('-rfne',
+                        '--rf-num-estimators',
+                        dest='n_estimators',
+                        action='store',
+                        type=int,
+                        default=100,
+                        help='(RF) Number of decision trees in the random forest')
+
     parser.add_argument('-gsid',
                         '--gsheet-id',
                         dest='gsheet_id',
@@ -140,7 +148,7 @@ def parse_arguments():
                         action='store',
                         type=str,
                         default='svm',
-                        choices=['svm', 'mlp'],
+                        choices=['svm', 'mlp', 'rf'],
                         help='Type of model used for training classifier')
 
     parser.add_argument('-no',

@@ -5,7 +5,7 @@ LOGGER = logging.getLogger('classifier-metrics')
 LOGGER.setLevel(logging.DEBUG)
 
 
-def compute_metrics(y, pred):
+def compute_metrics(y, pred, num_classes=10):
     """
     Compute perfomance metrics given the predicted labels and the true labels
 
@@ -29,7 +29,7 @@ def compute_metrics(y, pred):
     acc = (y == pred).mean()
 
     class_acc = []
-    for class_idx in range(10):
+    for class_idx in range(num_classes):
         idxs = (y == class_idx)
         class_acc.append((y[idxs] == pred[idxs]).mean())
 
