@@ -50,10 +50,10 @@ def parse_arguments():
                         help='If no validation fold is used, the ratio of the extended training set to set aside for validation')
 
     parser.add_argument('-pstwv',
-                        '--parameter-search-train-with-valid',
+                        '--parameter-search-train-without-valid',
                         dest='parameter_search_train_with_valid',
-                        action='store_true',
-                        help='If True, retrain with validation set')
+                        action='store_false',
+                        help='If set, do not retrain with validation set')
 
     parser.add_argument('-lr',
                         '--learning-rate',
