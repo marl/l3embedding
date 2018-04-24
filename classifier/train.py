@@ -389,6 +389,8 @@ def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
 
     best_valid_acc = float('-inf')
     best_params = None
+    best_clf = None
+    best_test_metrics = None
 
     if valid_data:
         train_data_skf = train_data
@@ -412,15 +414,17 @@ def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
 
         kwargs.update(dict(zip(search_params, params)))
 
-        _, train_metrics, valid_metrics, _ \
-            = train_func(train_data_skf, valid_data_skf, None, model_dir, **kwargs)
+        clf, train_metrics, valid_metrics, test_metrics \
+            = train_func(train_data_skf, valid_data_skf, test_data, model_dir, **kwargs)
 
         if valid_metrics['accuracy'] > best_valid_acc:
             best_valid_acc = valid_metrics['accuracy']
             best_params = params
+            best_clf = clf
+            best_test_metrics = test_metrics
 
-        search_train_metrics[best_params] = train_metrics
-        search_valid_metrics[best_params] = valid_metrics
+        search_train_metrics[params] = train_metrics
+        search_valid_metrics[params] = valid_metrics
 
     LOGGER.info('Best {} = {}, valid accuracy = {}'.format(search_params,
                                                            best_params,
@@ -445,9 +449,10 @@ def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
                     }, None, test_data, model_dir, **kwargs)
         else:
             # If valid data was provided but we just want to train the final
-            # model with train, just do that
-            clf, train_metrics, _, test_metrics \
-                = train_func(train_data, None, test_data, model_dir, **kwargs)
+            # model with train, just use best results
+            clf = best_clf
+            train_metrics = dict(search_train_metrics[best_params])
+            test_metrics = best_test_metrics
 
     else:
         if train_with_valid:
@@ -455,9 +460,10 @@ def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
             clf, train_metrics, _, test_metrics \
                 = train_func(train_data, None, test_data, model_dir, **kwargs)
         else:
-            # If valid data was not provided, train with just the sub-train split
-            clf, train_metrics, _, test_metrics \
-                = train_func(train_data_skf, None, test_data, model_dir, **kwargs)
+            # If valid data was not provided, just use results from the sub-train split
+            clf = best_clf
+            train_metrics = dict(search_train_metrics[best_params])
+            test_metrics = best_test_metrics
 
     train_metrics['search'] = search_train_metrics
     train_metrics['search_params'] = search_params
