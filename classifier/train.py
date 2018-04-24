@@ -669,7 +669,7 @@ def train(features_dir, output_dir, fold_num,
               test_metrics['average_class_accuracy'],
               ', '.join(map(str, test_metrics['class_accuracy']))
         ]
-        update_experiment(service, gsheet_id, config, 'U', 'AE',
+        update_experiment(service, gsheet_id, config, 'V', 'AF',
                           update_values, 'classifier')
 
         if parameter_search:
@@ -679,7 +679,7 @@ def train(features_dir, output_dir, fold_num,
                     continue
                 # Also update search parameter
                 # ASSUMES that parameter values will be in the first 26 columns
-                col = chr(CLASSIFIER_FIELD_NAMES.index(param) + 67)
+                col = chr(CLASSIFIER_FIELD_NAMES.index(param) + 65)
                 update_experiment(service, gsheet_id, config, col, col,
                                   [param_value], 'classifier')
 

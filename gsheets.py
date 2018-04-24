@@ -47,6 +47,7 @@ CLASSIFIER_FIELD_NAMES = [
     'parameter_search',
     'parameter_search_valid_fold',
     'parameter_search_valid_ratio',
+    'parameter_search_train_with_valid',
     'model_type',
     'feature_mode',
     'train_batch_size',
@@ -154,7 +155,7 @@ def request_with_retry(request, num_retries=50):
     return response
 
 
-def get_row(service, spreadsheet_id, param_dict, sheet_name):
+def get_row(service, spreadsheet_id, param_dict, sheet_name, id_field='model_dir'):
     range_ = '{}!C:C'.format(sheet_name)
     major_dimension = 'COLUMNS'
 
@@ -165,7 +166,7 @@ def get_row(service, spreadsheet_id, param_dict, sheet_name):
     response = request_with_retry(request)
 
     try:
-        row_idx = response['values'][0].index(param_dict['model_dir'])
+        row_idx = response['values'][0].index(param_dict[id_field])
         return row_idx + 1
     except ValueError:
         return None
