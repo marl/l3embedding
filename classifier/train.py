@@ -477,7 +477,7 @@ def train(features_dir, output_dir, fold_num,
           model_type='svm', feature_mode='framewise',
           train_batch_size=64, random_state=20171021, parameter_search=False,
           parameter_search_valid_fold=True, parameter_search_valid_ratio=0.15,
-          gsheet_id=None, google_dev_app_name=None,
+          parameter_search_train_with_valid=False, gsheet_id=None, google_dev_app_name=None,
           verbose=False, non_overlap=False, non_overlap_chunk_size=10,
           use_min_max=False, **model_args):
     init_console_logger(LOGGER, verbose=verbose)
@@ -520,6 +520,7 @@ def train(features_dir, output_dir, fold_num,
         'parameter_search': parameter_search,
         'parameter_search_valid_fold': parameter_search_valid_fold,
         'parameter_search_valid_ratio': parameter_search_valid_ratio,
+        'parameter_search_train_with_valid': parameter_search_train_with_valid,
         'model_type': model_type,
         'feature_mode': feature_mode,
         'train_batch_size': train_batch_size,
@@ -588,6 +589,7 @@ def train(features_dir, output_dir, fold_num,
                     train_func=train_svm, search_space=search_space,
                     num_classes=DATASET_NUM_CLASSES[dataset_name],
                     valid_ratio=parameter_search_valid_ratio,
+                    train_with_valid=parameter_search_train_with_valid,
                     random_state=random_state, verbose=verbose, **model_args)
         else:
             model, train_metrics, valid_metrics, test_metrics \
@@ -603,6 +605,7 @@ def train(features_dir, output_dir, fold_num,
                                      train_func=train_rf, search_space=search_space,
                                      num_classes=DATASET_NUM_CLASSES[dataset_name],
                                      valid_ratio=parameter_search_valid_ratio,
+                                     train_with_valid=parameter_search_train_with_valid,
                                      random_state=random_state, verbose=verbose, **model_args)
         else:
             model, train_metrics, valid_metrics, test_metrics \
@@ -621,6 +624,7 @@ def train(features_dir, output_dir, fold_num,
                      batch_size=train_batch_size, random_state=random_state,
                      num_classes=DATASET_NUM_CLASSES[dataset_name],
                      valid_ratio=parameter_search_valid_ratio,
+                     train_with_valid=parameter_search_train_with_valid,
                      verbose=verbose, **model_args)
         else:
             model, train_metrics, valid_metrics, test_metrics \
