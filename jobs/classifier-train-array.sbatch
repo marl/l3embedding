@@ -3,7 +3,7 @@
 #SBATCH --job-name=us8k-classifier-train
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=2
-#SBATCH --mem=64GB
+#SBATCH --mem=16GB
 #SBATCH --time=7-0
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=name@email.org
@@ -17,7 +17,7 @@ source activate l3embedding-cpu
 SRCDIR=$HOME/dev/l3embedding
 FEATURES_DIR=/scratch/jtc440/sonyc-usc/features/esc50/l3/original/music/cnn_L3_orig
 OUTPUT_DIR=/scratch/jtc440/sonyc-usc
-MODEL_TYPE='svm'
+MODEL_TYPE='mlp'
 FEATURE_MODE='framewise'
 GOOGLE_DEV_APP_NAME=''
 GSHEET_ID=''
@@ -34,8 +34,10 @@ python $SRCDIR/06_train_classifier.py \
     --gsheet-id $GSHEET_ID \
     --google-dev-app-name $GOOGLE_DEV_APP_NAME \
     --parameter-search \
+    --parameter-search-train-without-valid \
     --parameter-search-no-valid-fold \
     --parameter-search-valid-ratio 0.15 \
+    --svm-kernel-type linear \
     --verbose \
     $FEATURES_DIR \
     $OUTPUT_DIR \
