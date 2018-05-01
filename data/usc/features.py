@@ -143,8 +143,8 @@ def preprocess_split_data(train_data, valid_data, test_data,
     reverse_shuffle_idxs = np.argsort(shuffle_idxs)
     train_data['features'] = train_data['features'][shuffle_idxs]
     train_data['labels'] = train_data['labels'][shuffle_idxs]
-    train_data['file_idxs'] = np.vstack([reverse_shuffle_idxs[slice(*pair)]
-                                         for pair in train_data['file_idxs']])
+    train_data['file_idxs'] = [reverse_shuffle_idxs[slice(*pair)]
+                               for pair in train_data['file_idxs']]
 
     return min_max_scaler, stdizer
 
