@@ -336,7 +336,8 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
     m.compile(Adam(lr=learning_rate), loss=loss, metrics=metrics)
     LOGGER.debug('Fitting model to data...')
     m.fit(x=X_train, y=y_train, batch_size=batch_size, epochs=num_epochs,
-          validation_data=validation_data, validation_split=valid_split, callbacks=cb)
+          validation_data=validation_data, validation_split=valid_split,
+          callbacks=cb, verbose=2)
 
     # Compute metrics for train and valid
     train_pred = m.predict(X_train)
