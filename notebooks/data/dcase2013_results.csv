@@ -1,0 +1,67 @@
+﻿Username,Model ID,Model Dir,Commit,"Features
+Dir","Test
+Fold
+Num","Param
+Search","Param
+Search
+Valid
+Fold
+","Param
+Search
+Valid
+Ratio
+","Param
+Search
+Train
+With
+Valid
+","Model
+Type","Feature
+Mode","Train
+Batch
+Size","Non
+Overlap","Random
+State","Num
+Epochs
+","Learning
+Rate (MLP)","Weight
+Decay
+(MLP)
+","Reg.
+Factor
+(SVM)
+","Conv
+Tolerance
+(SVM)
+","Max
+Iterations
+(SVM)","Train
+Loss","Valid
+Loss","Train
+Accuracy","Valid
+Accuracy","Train Average
+Class Accuracy","Valid Average
+Class Accuracy","Train Class
+Accuracy","Valid Class
+Accuracy","Test
+Accuracy","Test Average
+Class Accuracy","Test Class
+Accuracy"
+js7561,dcase2013/l3/original/environmental/cnn_L3_melspec1/framewise/overlap/no-min-max/mlp,/scratch/js7561/l3_cls/classifier/dcase2013/l3/original/environmental/cnn_L3_melspec1/framewise/overlap/no-min-max/mlp/fold2/20180427174607,ae2b517eb0a5302c59ced3a038eeafacf902513d,/scratch/jtc440/sonyc-usc/features/dcase2013/l3/original/environmental/cnn_L3_melspec1,2,TRUE,FALSE,0.15,FALSE,mlp,framewise,32,FALSE,20171021,50,1.00E-05,1.00E-05,1,1.00E-05,-1,0.000521011,0.000581202,1,1,1,1,"1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0","1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0",0.96,0.96,"1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 1.0, 1.0, 0.9, 0.8"
+js7561,dcase2013/l3/original/music/cnn_L3_melspec1/framewise/overlap/no-min-max/mlp,/scratch/js7561/l3_cls/classifier/dcase2013/l3/original/music/cnn_L3_melspec1/framewise/overlap/no-min-max/mlp/fold2/20180427174607,ae2b517eb0a5302c59ced3a038eeafacf902513d,/scratch/jtc440/sonyc-usc/features/dcase2013/l3/original/music/cnn_L3_melspec1,2,TRUE,FALSE,0.15,FALSE,mlp,framewise,32,FALSE,20171021,50,1.00E-05,1.00E-05,1,1.00E-05,-1,0.000723378,0.000865292,1,1,1,1,"1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0","1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0",0.96,0.96,"1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 1.0, 1.0, 0.9, 0.8"
+js7561,dcase2013/l3/original/music/cnn_L3_melspec2/framewise/overlap/no-min-max/mlp,/scratch/js7561/l3_cls/classifier/dcase2013/l3/original/music/cnn_L3_melspec2/framewise/overlap/no-min-max/mlp/fold2/20180427174607,ae2b517eb0a5302c59ced3a038eeafacf902513d,/scratch/hhw230/sonyc-usc/features/dcase2013/l3/original/music/cnn_L3_melspec2,2,TRUE,FALSE,0.15,FALSE,mlp,framewise,32,FALSE,20171021,50,1.00E-05,1.00E-05,1,1.00E-05,-1,0.000673865,0.000870263,1,1,1,1,"1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0","1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0",0.96,0.96,"1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 1.0, 1.0, 0.9, 0.8"
+js7561,dcase2013/l3/short/environmental/cnn_L3_melspec1/framewise/overlap/no-min-max/mlp,/scratch/js7561/l3_cls/classifier/dcase2013/l3/short/environmental/cnn_L3_melspec1/framewise/overlap/no-min-max/mlp/fold2/20180427174607,ae2b517eb0a5302c59ced3a038eeafacf902513d,/scratch/hhw230/sonyc-usc/features/dcase2013/l3/short/environmental/cnn_L3_melspec1,2,TRUE,FALSE,0.15,FALSE,mlp,framewise,32,FALSE,20171021,50,1.00E-05,1.00E-05,1,1.00E-05,-1,0.004461471,0.004684339,1,1,1,1,"1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0","1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0",0.96,0.96,"0.9, 1.0, 1.0, 1.0, 1.0, 0.9, 1.0, 1.0, 0.9, 0.9"
+js7561,dcase2013/l3/short/environmental/cnn_L3_melspec2/framewise/overlap/no-min-max/mlp,/scratch/js7561/l3_cls/classifier/dcase2013/l3/short/environmental/cnn_L3_melspec2/framewise/overlap/no-min-max/mlp/fold2/20180427174607,ae2b517eb0a5302c59ced3a038eeafacf902513d,/scratch/hhw230/sonyc-usc/features/dcase2013/l3/short/environmental/cnn_L3_melspec2,2,TRUE,FALSE,0.15,FALSE,mlp,framewise,32,FALSE,20171021,50,1.00E-05,1.00E-05,1,1.00E-05,-1,0.004963388,0.005131662,1,1,1,1,"1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0","1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0",0.96,0.96,"1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 1.0, 0.9, 0.9, 0.9"
+js7561,dcase2013/l3/original/environmental/cnn_L3_kapredbinputbn/framewise/overlap/no-min-max/mlp,/scratch/js7561/l3_cls/classifier/dcase2013/l3/original/environmental/cnn_L3_kapredbinputbn/framewise/overlap/no-min-max/mlp/fold2/20180427174607,ae2b517eb0a5302c59ced3a038eeafacf902513d,/scratch/hhw230/sonyc-usc/features/dcase2013/l3/original/environmental/cnn_L3_kapredbinputbn,2,TRUE,FALSE,0.15,FALSE,mlp,framewise,32,FALSE,20171021,50,1.00E-05,1.00E-05,1,1.00E-05,-1,0.001746329,0.001793127,0.999797857,1,1,1,"1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0","1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0",0.95,0.95,"0.9, 1.0, 1.0, 1.0, 1.0, 0.9, 1.0, 1.0, 0.9, 0.8"
+js7561,dcase2013/l3/original/environmental/cnn_L3_melspec2/framewise/overlap/no-min-max/mlp,/scratch/js7561/l3_cls/classifier/dcase2013/l3/original/environmental/cnn_L3_melspec2/framewise/overlap/no-min-max/mlp/fold2/20180427174607,ae2b517eb0a5302c59ced3a038eeafacf902513d,/scratch/jtc440/sonyc-usc/features/dcase2013/l3/original/environmental/cnn_L3_melspec2,2,TRUE,FALSE,0.15,FALSE,mlp,framewise,32,FALSE,20171021,50,1.00E-05,1.00E-05,1,1.00E-05,-1,0.000570133,0.000643959,1,1,1,1,"1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0","1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0",0.95,0.95,"0.9, 1.0, 1.0, 1.0, 1.0, 0.9, 1.0, 1.0, 0.9, 0.8"
+js7561,dcase2013/l3/short/environmental/cnn_L3_kapredbinputbn/framewise/overlap/no-min-max/mlp,/scratch/js7561/l3_cls/classifier/dcase2013/l3/short/environmental/cnn_L3_kapredbinputbn/framewise/overlap/no-min-max/mlp/fold2/20180427174607,ae2b517eb0a5302c59ced3a038eeafacf902513d,/scratch/hhw230/sonyc-usc/features/dcase2013/l3/short/environmental/cnn_L3_kapredbinputbn,2,TRUE,FALSE,0.15,FALSE,mlp,framewise,32,FALSE,20171021,50,0.0001,1.00E-05,1,1.00E-05,-1,0.002521921,0.003925787,1,1,1,1,"1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0","1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0",0.95,0.95,"0.9, 1.0, 1.0, 1.0, 1.0, 0.8, 1.0, 0.9, 1.0, 0.9"
+js7561,dcase2013/l3/short/environmental/cnn_L3_orig/framewise/overlap/no-min-max/mlp,/scratch/js7561/l3_cls/classifier/dcase2013/l3/short/environmental/cnn_L3_orig/framewise/overlap/no-min-max/mlp/fold2/20180427174607,ae2b517eb0a5302c59ced3a038eeafacf902513d,/scratch/jtc440/sonyc-usc/features/dcase2013/l3/short/environmental/cnn_L3_orig,2,TRUE,FALSE,0.15,FALSE,mlp,framewise,32,FALSE,20171021,50,0.0001,1.00E-04,1,1.00E-05,-1,0.01040496,0.012845931,1,1,1,1,"1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0","1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0",0.95,0.95,"1.0, 0.9, 1.0, 1.0, 1.0, 0.9, 1.0, 0.9, 1.0, 0.8"
+js7561,dcase2013/l3/short/music/cnn_L3_kapredbinputbn/framewise/overlap/no-min-max/mlp,/scratch/js7561/l3_cls/classifier/dcase2013/l3/short/music/cnn_L3_kapredbinputbn/framewise/overlap/no-min-max/mlp/fold2/20180427174607,ae2b517eb0a5302c59ced3a038eeafacf902513d,/scratch/hhw230/sonyc-usc/features/dcase2013/l3/short/music/cnn_L3_kapredbinputbn,2,TRUE,FALSE,0.15,FALSE,mlp,framewise,32,FALSE,20171021,50,0.0001,1.00E-04,1,1.00E-05,-1,0.01225311,0.016584669,1,0.998854525,1,0.998853211,"1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0","1.0, 1.0, 1.0, 1.0, 0.9977064220183486, 1.0, 1.0, 0.9931192660550459, 1.0, 0.9977064220183486",0.95,0.95,"1.0, 1.0, 1.0, 1.0, 0.9, 0.9, 1.0, 1.0, 0.9, 0.8"
+js7561,dcase2013/l3/short/music/cnn_L3_melspec1/framewise/overlap/no-min-max/mlp,/scratch/js7561/l3_cls/classifier/dcase2013/l3/short/music/cnn_L3_melspec1/framewise/overlap/no-min-max/mlp/fold2/20180427174607,ae2b517eb0a5302c59ced3a038eeafacf902513d,/scratch/hhw230/sonyc-usc/features/dcase2013/l3/short/music/cnn_L3_melspec1,2,TRUE,FALSE,0.15,FALSE,mlp,framewise,32,FALSE,20171021,50,1.00E-05,1.00E-05,1,1.00E-05,-1,0.006562674,0.00741586,1,1,1,1,"1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0","1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0",0.95,0.95,"0.9, 1.0, 1.0, 1.0, 1.0, 0.9, 1.0, 1.0, 0.9, 0.8"
+js7561,dcase2013/l3/short/music/cnn_L3_melspec2/framewise/overlap/no-min-max/mlp,/scratch/js7561/l3_cls/classifier/dcase2013/l3/short/music/cnn_L3_melspec2/framewise/overlap/no-min-max/mlp/fold2/20180427174607,ae2b517eb0a5302c59ced3a038eeafacf902513d,/scratch/hhw230/sonyc-usc/features/dcase2013/l3/short/music/cnn_L3_melspec2,2,TRUE,FALSE,0.15,FALSE,mlp,framewise,32,FALSE,20171021,50,0.0001,1.00E-04,1,1.00E-05,-1,0.01072127,0.012126957,1,1,1,1,"1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0","1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0",0.95,0.95,"1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 1.0, 1.0, 0.8, 0.8"
+js7561,dcase2013/l3/short/music/cnn_L3_orig/framewise/overlap/no-min-max/mlp,/scratch/js7561/l3_cls/classifier/dcase2013/l3/short/music/cnn_L3_orig/framewise/overlap/no-min-max/mlp/fold2/20180427174607,ae2b517eb0a5302c59ced3a038eeafacf902513d,/scratch/jtc440/sonyc-usc/features/dcase2013/l3/short/music/cnn_L3_orig,2,TRUE,FALSE,0.15,FALSE,mlp,framewise,32,FALSE,20171021,50,0.0001,1.00E-04,1,1.00E-05,-1,0.013331991,0.019654844,1,0.99862543,1,0.998626477,"1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0","1.0, 0.9977116704805492, 1.0, 1.0, 1.0, 0.9954233409610984, 0.9954233409610984, 1.0, 1.0, 0.9977064220183486",0.95,0.95,"1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 1.0, 1.0, 0.8, 0.8"
+js7561,dcase2013/l3/original/environmental/cnn_L3_orig/framewise/overlap/no-min-max/mlp,/scratch/js7561/l3_cls/classifier/dcase2013/l3/original/environmental/cnn_L3_orig/framewise/overlap/no-min-max/mlp/fold2/20180427174607,ae2b517eb0a5302c59ced3a038eeafacf902513d,/scratch/jtc440/sonyc-usc/features/dcase2013/l3/original/environmental/cnn_L3_orig,2,TRUE,FALSE,0.15,FALSE,mlp,framewise,32,FALSE,20171021,50,1.00E-05,1.00E-05,1,1.00E-05,-1,0.000875714,0.001198803,0.999919143,1,1,1,"1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0","1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0",0.94,0.94,"1.0, 1.0, 1.0, 1.0, 1.0, 0.8, 1.0, 1.0, 0.8, 0.8"
+js7561,dcase2013/l3/original/music/cnn_L3_kapredbinputbn/framewise/overlap/no-min-max/mlp,/scratch/js7561/l3_cls/classifier/dcase2013/l3/original/music/cnn_L3_kapredbinputbn/framewise/overlap/no-min-max/mlp/fold2/20180427174607,ae2b517eb0a5302c59ced3a038eeafacf902513d,/scratch/hhw230/sonyc-usc/features/dcase2013/l3/original/music/cnn_L3_kapredbinputbn,2,TRUE,FALSE,0.15,FALSE,mlp,framewise,32,FALSE,20171021,50,1.00E-05,1.00E-05,1,1.00E-05,-1,0.00101895,0.001729461,1,1,1,1,"1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0","1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0",0.94,0.94,"0.9, 1.0, 1.0, 1.0, 1.0, 0.9, 1.0, 1.0, 0.8, 0.8"
+js7561,dcase2013/l3/original/music/cnn_L3_orig/framewise/overlap/no-min-max/mlp,/scratch/js7561/l3_cls/classifier/dcase2013/l3/original/music/cnn_L3_orig/framewise/overlap/no-min-max/mlp/fold2/20180427174607,ae2b517eb0a5302c59ced3a038eeafacf902513d,/scratch/jtc440/sonyc-usc/features/dcase2013/l3/original/music/cnn_L3_orig,2,TRUE,FALSE,0.15,FALSE,mlp,framewise,32,FALSE,20171021,50,1.00E-05,1.00E-03,1,1.00E-05,-1,0.042081074,0.049192403,1,1,1,1,"1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0","1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0",0.94,0.94,"1.0, 1.0, 1.0, 1.0, 1.0, 0.8, 1.0, 1.0, 0.8, 0.8"
+jtc440,dcase2013/soundnet/framewise/overlap/no-min-max/mlp,/scratch/jtc440/sonyc-usc/classifier/dcase2013/soundnet/framewise/overlap/no-min-max/mlp/fold2/20180509031303,8d265f538d4c79de8edbebd5d82a3c2c13c098a8,/scratch/hhw230/sonyc-usc/features/dcase2013/soundnet,2,TRUE,FALSE,0.15,FALSE,mlp,framewise,32,FALSE,20171021,50,0.001,1.00E-04,1,1.00E-05,-1,0.847743234,1.438365181,0.831563845,0.681300813,0.843039225,0.681253305,"0.8735632183908046, 0.9109195402298851, 0.8218390804597702, 0.8595988538681948, 0.7679083094555874, 0.7614942528735632, 0.8390804597701149, 0.9283667621776505, 0.9369627507163324, 0.7306590257879656","0.5645161290322581, 0.7903225806451613, 0.7580645161290323, 0.6065573770491803, 0.6721311475409836, 0.6612903225806451, 0.6612903225806451, 0.7049180327868853, 0.7868852459016393, 0.6065573770491803",0.82,0.82,"0.8, 1.0, 0.9, 0.9, 0.8, 0.9, 0.7, 0.9, 0.9, 0.4"
+jtc440,dcase2013/vggish/framewise/overlap/no-min-max/mlp,/scratch/jtc440/sonyc-usc/classifier/dcase2013/vggish/framewise/overlap/no-min-max/mlp/fold2/20180509031303,8d265f538d4c79de8edbebd5d82a3c2c13c098a8,/scratch/jtc440/sonyc-usc/features/dcase2013/vggish,2,TRUE,FALSE,0.15,FALSE,mlp,framewise,32,FALSE,20171021,50,0.0001,1.00E-04,1,1.00E-05,-1,0.059105595,0.174368465,0.999595715,0.959221077,0.999838319,0.959213675,"1.0, 1.0, 1.0, 1.0, 0.9995957962813258, 1.0, 1.0, 0.9987873888439773, 1.0, 1.0","0.9701834862385321, 0.988558352402746, 0.988558352402746, 0.9564220183486238, 0.9793577981651376, 0.9473684210526315, 0.954233409610984, 0.9105504587155964, 0.9496567505720824, 0.9472477064220184",0.91,0.91,"0.9, 1.0, 0.9, 0.8, 1.0, 1.0, 1.0, 1.0, 0.7, 0.8"
