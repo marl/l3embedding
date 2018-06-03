@@ -1,6 +1,7 @@
 import csv
 import logging
 import os
+import glob
 import random
 import numpy as np
 
@@ -121,9 +122,19 @@ def generate_us8k_fold_data(metadata, data_dir, fold_idx, output_dir, l3embeddin
     for idx, (fname, example_metadata) in enumerate(metadata[fold_idx].items()):
         desc = '({}/{}) Processed {} -'.format(idx+1, num_files, fname)
         with LogTimer(LOGGER, desc, log_level=logging.DEBUG):
-            generate_us8k_file_data(fname, example_metadata, audio_fold_dir,
-                                    output_fold_dir, features,
-                                    l3embedding_model, **feature_args)
+            # TODO: Make sure glob doesn't catch things with numbers afterwards
+            variants = [x for x in glob.glob(os.path.join(audio_fold_dir,
+                '**', os.path.splitext(fname)[0] + '[!0-9]*[wm][ap][v3]'), recursive=True)
+                if os.path.isfile(x) and not x.endswith('.jams')]
+            num_variants = len(variants)
+            for var_idx, var_path in enumerate(variants):
+                audio_dir = os.path.dirname(var_path)
+                var_fname = os.path.basename(var_path)
+                desc = '\t({}/{}) Variants {} -'.format(var_idx+1, num_variants, var_fname)
+                with LogTimer(LOGGER, desc, log_level=logging.DEBUG):
+                    generate_us8k_file_data(var_fname, example_metadata, audio_dir,
+                                            output_fold_dir, features,
+                                            l3embedding_model, **feature_args)
 
 
 def generate_us8k_file_data(fname, example_metadata, audio_fold_dir,

@@ -295,7 +295,7 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
     loss = 'categorical_crossentropy'
     metrics = ['accuracy']
     monitor = 'val_loss'
-    set_random_seed(random_state)
+    #set_random_seed(random_state)
 
     # Set up data inputs
     enc = OneHotEncoder(n_values=num_classes, sparse=False)
@@ -490,8 +490,8 @@ def train(features_dir, output_dir, fold_num,
     LOGGER.debug('Initialized logging.')
 
     # Set random state
-    np.random.seed(random_state)
-    random.seed(random_state)
+    #np.random.seed(random_state)
+    #random.seed(random_state)
 
     datasets = ['us8k', 'esc50', 'dcase2013']
 

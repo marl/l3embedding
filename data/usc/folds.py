@@ -21,7 +21,7 @@ def load_feature_file(feature_filepath):
     return X, y
 
 
-def get_fold(feature_dir, fold_idx):
+def get_fold(feature_dir, fold_idx, augment=False):
     X = []
     y = []
     file_idxs = []
@@ -31,6 +31,10 @@ def get_fold(feature_dir, fold_idx):
 
     start_idx = 0
     for feature_filename in filenames:
+        # Hack for skipping augmented files for US8K
+        if 'us8k' in fold_dir and '_' in feature_filename and not augment:
+            continue
+
         feature_filepath = os.path.join(fold_dir, feature_filename)
         file_X, file_y = load_feature_file(feature_filepath)
 
@@ -87,7 +91,7 @@ def get_train_folds(feature_dir, test_fold_idx, num_folds, valid=True):
         if fold_idx == test_fold_idx or (valid and fold_idx == valid_fold_idx):
             continue
 
-        fold_data = get_fold(feature_dir, fold_idx)
+        fold_data = get_fold(feature_dir, fold_idx, augment=True)
 
         X.append(fold_data['features'])
         y.append(fold_data['labels'])
