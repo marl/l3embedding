@@ -157,6 +157,26 @@ def parse_arguments():
                         choices=['svm', 'mlp', 'rf'],
                         help='Type of model used for training classifier')
 
+    parser.add_argument('-atdd',
+                        '--augmented-train-data-dir',
+                        dest='augmented_train_data_dir',
+                        action='store',
+                        type=str,
+                        help='Path to augmented training data directory')
+    parser.add_argument('-asd',
+                        '--augmented-standardizer-dir',
+                        dest='augmented_standardizer_dir',
+                        action='store',
+                        type=str,
+                        help='Path to augmented standardizer directory')
+
+    parser.add_argument('-nvdd',
+                        '--nonaugmented-validation-data-dir',
+                        dest='nonaugmented_validation_data_dir',
+                        action='store',
+                        type=str,
+                        help='Path to validation data for augmented training')
+
     parser.add_argument('-no',
                         '--non-overlap',
                         dest='non_overlap',

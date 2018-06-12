@@ -1,4 +1,5 @@
 import logging
+import pickle as pk
 import os
 import librosa
 import numpy as np
@@ -95,14 +96,16 @@ def expand_framewise_labels(data):
     data['labels'] = np.concatenate(labels)
 
 
+
 def preprocess_split_data(train_data, valid_data, test_data,
+                          standardizer_dir=None,
                           feature_mode='framewise', non_overlap=False,
-                          non_overlap_chunk_size=10, use_min_max=False):
+                          non_overlap_chunk_size=10, use_min_max=False, test_fold_idx=None):
     # NOTE: This function mutates data so there aren't extra copies
 
     # Remove overlapping frames if no overlap
     if non_overlap:
-        remove_data_overlap(train_data, chunk_size=non_overlap_chunk_size)
+        #remove_data_overlap(train_data, chunk_size=non_overlap_chunk_size)
         if valid_data:
             remove_data_overlap(valid_data, chunk_size=non_overlap_chunk_size)
         remove_data_overlap(test_data, chunk_size=non_overlap_chunk_size)
@@ -118,9 +121,12 @@ def preprocess_split_data(train_data, valid_data, test_data,
 
     if feature_mode == 'framewise':
         # Expand training and validation labels to apply to each frame
-        expand_framewise_labels(train_data)
+        #expand_framewise_labels(train_data)
+        """
         if valid_data:
             expand_framewise_labels(valid_data)
+        """
+        pass
     elif feature_mode == 'stats':
         # Summarize frames in each file using summary statistics
         framewise_to_stats(train_data)
@@ -131,13 +137,19 @@ def preprocess_split_data(train_data, valid_data, test_data,
         raise ValueError('Invalid feature mode: {}'.format(feature_mode))
 
     # Standardize features
-    stdizer = StandardScaler()
-    train_data['features'] = stdizer.fit_transform(train_data['features'])
+    if not standardizer_dir:
+        stdizer = StandardScaler()
+        train_data['features'] = stdizer.fit_transform(train_data['features'])
+    else:
+        stdizer_path = os.path.join(standardizer_dir, 'fold{}'.format(test_fold_idx+1))
+        with open(stdizer_path, 'rb') as f:
+            stdizer = pk.load(f)
     if valid_data:
         valid_data['features'] = stdizer.transform(valid_data['features'])
     test_data['features'] = stdizer.transform(test_data['features'])
 
     # Shuffle training data
+    """
     num_train_examples = len(train_data['labels'])
     shuffle_idxs = np.random.permutation(num_train_examples)
     reverse_shuffle_idxs = np.argsort(shuffle_idxs)
@@ -145,6 +157,7 @@ def preprocess_split_data(train_data, valid_data, test_data,
     train_data['labels'] = train_data['labels'][shuffle_idxs]
     train_data['file_idxs'] = [reverse_shuffle_idxs[slice(*pair)]
                                for pair in train_data['file_idxs']]
+    """
 
     return min_max_scaler, stdizer
 

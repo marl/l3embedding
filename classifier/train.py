@@ -23,7 +23,7 @@ from sklearn.ensemble import RandomForestClassifier
 
 from classifier.metrics import compute_metrics
 from data.usc.features import preprocess_split_data
-from data.usc.folds import get_split
+from data.usc.folds import get_split, get_train_folds_generator, load_nonaugmented_validation_data
 from l3embedding.train import LossHistory
 from log import *
 
@@ -256,7 +256,7 @@ def construct_mlp_model(input_shape, weight_decay=1e-5, num_classes=10):
     return m, inp, y
 
 
-def train_mlp(train_data, valid_data, test_data, model_dir,
+def train_mlp(train_gen, valid_data, test_data, model_dir,
               batch_size=64, num_epochs=100, valid_split=0.15, patience=20,
               learning_rate=1e-4, weight_decay=1e-5, num_classes=10,
               random_state=12345678, verbose=False, **kwargs):
@@ -300,8 +300,12 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
     # Set up data inputs
     enc = OneHotEncoder(n_values=num_classes, sparse=False)
 
+    """
     X_train = train_data['features']
     y_train = enc.fit_transform(train_data['labels'].reshape(-1, 1))
+    """
+    X_train, y_train = next(train_gen)
+
 
     if valid_data:
         validation_data = (valid_data['features'],
@@ -335,8 +339,8 @@ def train_mlp(train_data, valid_data, test_data, model_dir,
     LOGGER.debug('Compiling model...')
     m.compile(Adam(lr=learning_rate), loss=loss, metrics=metrics)
     LOGGER.debug('Fitting model to data...')
-    m.fit(x=X_train, y=y_train, batch_size=batch_size, epochs=num_epochs,
-          validation_data=validation_data, validation_split=valid_split,
+    m.fit_generator(train_gen, epochs=num_epochs, steps_per_epoch=5375,
+          validation_data=validation_data,
           callbacks=cb, verbose=2)
 
     # Compute metrics for train and valid
@@ -486,6 +490,8 @@ def train(features_dir, output_dir, fold_num,
           parameter_search_valid_fold=True, parameter_search_valid_ratio=0.15,
           parameter_search_train_with_valid=False, gsheet_id=None, google_dev_app_name=None,
           verbose=False, non_overlap=False, non_overlap_chunk_size=10,
+          augmented_train_data_dir=None, augmented_standardizer_dir=None,
+          nonaugmented_validation_data_dir=None,
           use_min_max=False, **model_args):
     init_console_logger(LOGGER, verbose=verbose)
     LOGGER.debug('Initialized logging.')
@@ -528,6 +534,8 @@ def train(features_dir, output_dir, fold_num,
         'parameter_search_valid_fold': parameter_search_valid_fold,
         'parameter_search_valid_ratio': parameter_search_valid_ratio,
         'parameter_search_train_with_valid': parameter_search_train_with_valid,
+        'augmented_train_data_dir': augmented_train_data_dir,
+        'augmented_standardizer_dir': augmented_standardizer_dir,
         'model_type': model_type,
         'feature_mode': feature_mode,
         'train_batch_size': train_batch_size,
@@ -571,15 +579,21 @@ def train(features_dir, output_dir, fold_num,
     fold_idx = fold_num - 1
 
     LOGGER.info('Loading data for configuration with test fold {}...'.format(fold_num))
-    train_data, valid_data, test_data = get_split(features_dir, fold_idx, dataset_name,
+    _, _, test_data = get_split(features_dir, fold_idx, dataset_name,
                                                   valid=(not parameter_search or parameter_search_valid_fold))
 
+
+    valid_data = load_nonaugmented_validation_data(nonaugmented_validation_data_dir, fold_idx)
+
     LOGGER.info('Preprocessing data...')
-    min_max_scaler, stdizer = preprocess_split_data(train_data, valid_data, test_data,
+    min_max_scaler, stdizer = preprocess_split_data(None, valid_data, test_data,
                                                 feature_mode=feature_mode,
                                                 non_overlap=non_overlap,
                                                 non_overlap_chunk_size=non_overlap_chunk_size,
-                                                use_min_max=use_min_max)
+                                                standardizer_dir=augmented_standardizer_dir,
+                                                use_min_max=use_min_max, test_fold_idx=fold_idx)
+
+    train_gen = get_train_folds_generator(augmented_train_data_dir, augmented_standardizer_dir, fold_idx, 10, valid=True, batch_size=train_batch_size)
 
     min_max_scaler_output_path = os.path.join(model_dir, "min_max_scaler.pkl")
     joblib.dump(min_max_scaler, min_max_scaler_output_path)
@@ -635,7 +649,7 @@ def train(features_dir, output_dir, fold_num,
                      verbose=verbose, **model_args)
         else:
             model, train_metrics, valid_metrics, test_metrics \
-                    = train_mlp(train_data, valid_data, test_data, model_dir,
+                    = train_mlp(train_gen, valid_data, test_data, model_dir,
                         batch_size=train_batch_size, random_state=random_state,
                         num_classes=DATASET_NUM_CLASSES[dataset_name],
                         verbose=verbose, **model_args)
