@@ -147,7 +147,9 @@ def get_entries(target_dataset, sheet_name, first_row=3, l3_only=True, l3_model=
         if unique[ident] < limit:
             unique[ident] += 1
             data.append(entry)
-            data2[ident] = entry['test_acc']
+            if ident not in data2:
+                data2[ident] = []
+            data2[ident].append(entry['test_acc'])
 
     for ident, count in unique.items():
         if target_dataset == 'us8k':
@@ -159,6 +161,7 @@ def get_entries(target_dataset, sheet_name, first_row=3, l3_only=True, l3_model=
         else:
             if count != 1:
                 print('Missing trials for {}: {}'.format(ident, count))
+
 
     return data, data2
 
@@ -272,15 +275,30 @@ def get_print_parts(ident1, ident2):
     return tuple(intersection_tuple), model1_list, model2_list
 
 
-def compute_stat_test(data2, desc, dcase=False):
+def compute_stat_test(data2, desc, var=None, dcase=False):
     keys = data2.keys()
 
     models = set()
     folds = set()
     a = {}
 
+    if var == 'dataset':
+        ident_idx = 1
+    elif var == 'embedding_length':
+        ident_idx = 2
+    elif var == 'audioset_subset':
+        ident_idx = 3
+    elif var == 'embedding_model_type':
+        ident_idx = 4
+
+    if var:
+        print(var)
+
     for k in keys:
-        ident = k[1:]
+        if var:
+            ident = (k[ident_idx],)
+        else:
+            ident = k[1:]
         fold = k[0]
         models.add(ident)
         folds.add(fold)
@@ -288,15 +306,20 @@ def compute_stat_test(data2, desc, dcase=False):
         if ident not in a:
             a[ident] = {}
 
-        a[ident][fold] = data2[k]
+        if fold not in a[ident]:
+            a[ident][fold] = []
+
+        a[ident][fold] += data2[k]
 
     folds = list(sorted(list(folds)))
-    models = list(models)
+    models = list(set(models))
 
     num_folds = len(folds)
 
-    dataset = get_dataset(models[0])
-
+    if var:
+        dataset = get_dataset(k[1:])
+    else:
+        dataset = get_dataset(models[0])
 
     print("{} - {}".format(dataset, desc))
     measurements = set()
@@ -314,11 +337,11 @@ def compute_stat_test(data2, desc, dcase=False):
         k2_acc = []
         if not dcase:
             for fold in range(1, num_folds+1):
-                k1_acc.append(a[k1][fold])
-                k2_acc.append(a[k2][fold])
+                k1_acc += a[k1][fold]
+                k2_acc += a[k2][fold]
         else:
-            k1_acc.append(a[k1][2])
-            k2_acc.append(a[k2][2])
+            k1_acc += a[k1][2]
+            k2_acc += a[k2][2]
         T, p = scipy.stats.wilcoxon(k1_acc, k2_acc)
 
         if p < 0.05:
@@ -353,55 +376,72 @@ us8k_data, us8k_data2 = get_entries('us8k', 'classifier', first_row=3)
 esc50_data, esc50_data2 = get_entries('esc50', 'ESC50', first_row=3)
 dcase2013_data, dcase2013_data2 = get_entries('dcase2013', 'DCASE', first_row=3)
 
-compute_stat_test(us8k_data2, "L3")
-compute_stat_test(esc50_data2, "L3")
+compute_stat_test(us8k_data2, "L3", 'embedding_model_type')
+compute_stat_test(us8k_data2, "L3", 'embedding_length')
+compute_stat_test(us8k_data2, "L3", 'audioset_subset')
+compute_stat_test(esc50_data2, "L3", 'embedding_model_type')
+compute_stat_test(esc50_data2, "L3", 'embedding_length')
+compute_stat_test(esc50_data2, "L3", 'audioset_subset')
 #compute_stat_test(dcase2013_data2, "L3")
 
-font = {'size' : 18}
-matplotlib.rc('font', **font)
+for var in ['embedding_model_type', 'embedding_length', 'audioset_subset']:
+    font = {'size' : 18}
+    matplotlib.rc('font', **font)
 
-fig, axarr = plt.subplots(3, figsize=(10, 13), sharex=True)
+    fig, axarr = plt.subplots(3, figsize=(7, 10), sharex=True)
 
-tick_labels = []
-for model_name in ["L", "M128", "M256"]:
-    for width in ["6K", "512"]:
-        for subset in ["Env", "Mus"]:
-            tick_labels.append("{}/{}/{}".format(model_name, width, subset))
+    tick_labels = []
+    """
+    for model_name in ["L", "M128", "M256"]:
+        for width in ["6K", "512"]:
+            for subset in ["Env", "Mus"]:
+                tick_labels.append("{}/{}/{}".format(model_name, width, subset))
+    """
+    if var == 'embedding_model_type':
+        tick_labels = ["Linear", "Mel-128", "Mel-256"]
+    elif var == 'embedding_length':
+        tick_labels = ["6144", "512"]
+    else:
+        tick_labels = ["Env.", "Music"]
 
-for data, ax, dataset_name, tick_interval in zip([us8k_data, esc50_data, dcase2013_data], axarr, ['UrbanSound8K', 'ESC-50', 'DCASE 2013'], [0.02, 0.02, 0.01]):
-    df = pandas.DataFrame(data)
-    ax = df.boxplot(column='test_acc', by=['embedding_model_type', 'embedding_length', 'audioset_subset'], figsize=(12,14), showmeans=True, ax=ax)
+    for data, ax, dataset_name, tick_interval in zip([us8k_data, esc50_data, dcase2013_data], axarr, ['UrbanSound8K', 'ESC-50', 'DCASE 2013'], [0.03, 0.02, 0.01]):
+        df = pandas.DataFrame(data)
+        ax = df.boxplot(column='test_acc', by=var, figsize=(7,9), showmeans=True, ax=ax)
 
-    ax.set_xticklabels(tick_labels, ha='right')
-    ax.xaxis.set_tick_params(rotation=45)
-    start, end = ax.get_ylim()
-    ax.yaxis.set_ticks(np.arange(start, end, tick_interval))
-    ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%0.2f'))
-    ax.set_title(dataset_name)
-    ax.set_xlabel('')
-    ax.set_ylabel('Classification accuracy')
-    fig.suptitle("")
+        ax.set_xticklabels(tick_labels, ha='right')
+        ax.xaxis.set_tick_params(rotation=45)
+        start, end = ax.get_ylim()
+        ax.yaxis.set_ticks(np.arange(start, end, tick_interval))
+        ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%0.2f'))
+        ax.set_title(dataset_name)
+        ax.set_xlabel('')
+        ax.set_ylabel('Classification accuracy')
+        fig.suptitle("")
 
-# Set colors
-    pal = sns.color_palette("Paired", n_colors=10)
-    colors = []
-    for c in pal[:8]:
-        colors.append(c)
-        colors.append(c)
-#colors.extend(pal[-2:])
-    children = ax.get_children()
-    for idx in range(12):
-        box = children[idx*8]
-        xs = box.get_xdata()
-        ys = box.get_ydata()
-        ax.fill_between((xs[0], xs[1]), ys[0], ys[2], color=colors[idx] + (0.5,))
+    # Set colors
+        pal = sns.color_palette("Set2", n_colors=10)
+        colors = []
+        for c in pal[:8]:
+            colors.append(c)
+            #colors.append(c)
+    #colors.extend(pal[-2:])
+        children = ax.get_children()
+        if var == 'embedding_model_type':
+            num_boxes = 3
+        else:
+            num_boxes = 2
+        for idx in range(num_boxes):
+            box = children[idx*8]
+            xs = box.get_xdata()
+            ys = box.get_ydata()
+            ax.fill_between((xs[0], xs[1]), ys[0], ys[2], color=colors[idx] + (0.5,))
 
 
-# remove legend()
-#ax.legend().set_visible(False)
+    # remove legend()
+    #ax.legend().set_visible(False)
 
-fig.tight_layout()
-fig.savefig('us8k_test_boxplot.png')
+    fig.tight_layout()
+    fig.savefig('us8k_test_boxplot_{}.png'.format(var))
 
 
 
@@ -413,7 +453,7 @@ fig.savefig('us8k_test_boxplot.png')
 
 
 l3_model = ('original', 'music', '4_mel2')
-us8k_data, us8k_data2, = get_entries('us8k', 'classifier', first_row=3, l3_only=False, l3_model=l3_model)
+us8k_data, us8k_data2 = get_entries('us8k', 'classifier', first_row=3, l3_only=False, l3_model=l3_model)
 esc50_data, esc50_data2 = get_entries('esc50', 'ESC50', first_row=3, l3_only=False, l3_model=l3_model)
 dcase2013_data, dcase2013_data2 = get_entries('dcase2013', 'DCASE', first_row=3, l3_only=False, l3_model=l3_model)
 
@@ -534,6 +574,7 @@ us8k_aug_data, us8k_aug_data2, = get_entries('us8k', 'classifier_augmented', fir
 [x.update({'augmented': "true"}) for x in us8k_aug_data]
 
 us8k_data2 = {k:v for k,v in us8k_data2.items() if k[1:] == ('us8k', 'original', 'music', '4_mel2')}
+us8k_data = [x for x in us8k_data if 'l3' in x['model_id']]
 us8k_data += us8k_aug_data
 us8k_data2.update({k + ('augment',): v for k, v in us8k_aug_data2.items()})
 
