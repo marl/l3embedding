@@ -452,7 +452,7 @@ for var in ['embedding_model_type', 'embedding_length', 'audioset_subset']:
 
 
 
-l3_model = ('original', 'music', '4_mel2')
+l3_model = ('original', 'music', '3_mel1')
 us8k_data, us8k_data2 = get_entries('us8k', 'classifier', first_row=3, l3_only=False, l3_model=l3_model)
 esc50_data, esc50_data2 = get_entries('esc50', 'ESC50', first_row=3, l3_only=False, l3_model=l3_model)
 dcase2013_data, dcase2013_data2 = get_entries('dcase2013', 'DCASE', first_row=3, l3_only=False, l3_model=l3_model)
@@ -523,7 +523,7 @@ fig, axarr = plt.subplots(1, 3, figsize=(6, 4))
 for data, ax, dataset_name, tick_interval, (start, end) in zip([us8k_data, esc50_data, dcase2013_data], axarr, ['UrbanSound8K', 'ESC-50', 'DCASE 2013'], [0.05, 0.05, 0.02], [(0.55, 0.9), (0.40, 0.85), (0.80, 1.)]):
     df = pandas.DataFrame(data)
     ax = df.boxplot(column='test_acc', by=['embedding_model_type', 'embedding_length', 'audioset_subset'], showmeans=True, ax=ax)
-    ax.set_xticklabels(["L3-M256/6K/Mus", "SoundNet", "VGGish"], ha='right')
+    ax.set_xticklabels(["L3-M128/6K/Mus", "SoundNet", "VGGish"], ha='right')
     ax.xaxis.set_tick_params(rotation=45)
     #tick_interval = 0.05
     #start, end = 0.4, 1.0
@@ -614,3 +614,61 @@ for idx in range(2):
 
 fig.tight_layout()
 fig.savefig('us8k_test_boxplot_3.png')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+us8k_epoch_df = pandas.read_csv('epoch_us8k.csv')
+esc50_epoch_df = pandas.read_csv('epoch_esc50.csv')
+
+tick_labels = ['0.26M', '2.62M', '5.24M', '13.11M', '26.21M', '39.32M', '52.43M', '65.54M', '78.64M']
+
+font = {'size' : 8}
+matplotlib.rc('font', **font)
+
+fig, axarr = plt.subplots(2, 1, figsize=(5, 5), sharex=True)
+
+for df, ax, dataset_name, tick_interval, (start, end) in zip([us8k_epoch_df, esc50_epoch_df], axarr, ['UrbanSound8K', 'ESC-50'], [0.05, 0.05], [(0.55, 0.9), (0.55, 0.9)]):
+    ax = df.boxplot(column='test_acc', by='# of samples', showmeans=True, ax=ax)
+    ax.set_xticklabels(tick_labels, ha='right')
+    ax.xaxis.set_tick_params(rotation=45)
+    ax.set_ylim(start, end)
+    ax.yaxis.set_ticks(np.arange(start, end, tick_interval))
+    ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%0.2f'))
+    ax.set_title(dataset_name)
+    ax.set_xlabel('')
+    ax.set_ylabel('Classification accuracy')
+
+    # Set colors
+    colors = sns.color_palette(None, n_colors=1)
+    #colors.extend(pal[-2:])
+    children = ax.get_children()
+    for idx in range(len(tick_labels)):
+        box = children[idx*8]
+        xs = box.get_xdata()
+        ys = box.get_ydata()
+        ax.fill_between((xs[0], xs[1]), ys[0], ys[2], color=colors[0] + (0.5,))
+
+fig.suptitle("")
+
+fig.tight_layout()
+fig.savefig('us8k_test_boxplot_4.png')
