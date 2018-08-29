@@ -13,6 +13,7 @@ import itertools
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import matplotlib.ticker as ticker
 import seaborn as sns
 from pprint import pprint
@@ -40,7 +41,6 @@ CLASSIFIER_FIELD_NAMES = [
     'tol',
     'max_iterations',
     'train_loss',
-    'valid_loss',
     'train_acc',
     'valid_acc',
     'train_avg_class_acc',
@@ -52,10 +52,11 @@ CLASSIFIER_FIELD_NAMES = [
     'test_class_acc',
 ]
 
+"""
 def append_row(service, spreadsheet_id, param_dict, sheet_name):
     # The A1 notation of a range to search for a logical table of data.
     # Values will be appended after the last row of the table.
-    range_ = '{}!A1:A{}'.format(sheet_name, len(FIELD_NAMES))
+    range_ = '{}!A1:AF{}'.format(sheet_name, len(FIELD_NAMES))
     # How the input data should be interpreted.
     value_input_option = 'USER_ENTERED'
     # How the input data should be inserted.
@@ -74,6 +75,7 @@ def append_row(service, spreadsheet_id, param_dict, sheet_name):
         insertDataOption=insert_data_option,
         body=value_range_body)
     response = request_with_retry(request)
+"""
 
 
 value_render_option = 'UNFORMATTED_VALUE'
@@ -85,7 +87,7 @@ credentials = get_credentials(GOOGLE_DEV_APP_NAME)
 service = discovery.build('sheets', 'v4', credentials=credentials)
 
 def get_entries(target_dataset, sheet_name, first_row=3, l3_only=True, l3_model=None):
-    range_ = '{}!A{}:AF'.format(sheet_name, first_row)
+    range_ = '{}!A{}:AF1561'.format(sheet_name, first_row)
     request = service.spreadsheets().values().get(spreadsheetId=GSHEET_ID, range=range_, valueRenderOption=value_render_option, dateTimeRenderOption=date_time_render_option)
     response = request.execute()
 
@@ -111,11 +113,19 @@ def get_entries(target_dataset, sheet_name, first_row=3, l3_only=True, l3_model=
         if l3_only and 'L3' not in model_id:
             continue
 
+        if len(CLASSIFIER_FIELD_NAMES) != len(datum):
+            if len(datum) == len(CLASSIFIER_FIELD_NAMES) + 1:
+                datum.pop(22)
+
         entry = {k: v for k,v in zip(CLASSIFIER_FIELD_NAMES, datum)}
 
         if 'L3' in model_id:
             dataset, _, embedding_length, audioset_subset, embedding_model_type, \
                     _, _, _, _ = model_id.split('/')
+
+            if embedding_length == 'short':
+                # Skip the short embedding length
+                continue
 
             if embedding_model_type == 'cnn_L3_orig':
                 embedding_model_type = '1_orig'
@@ -129,18 +139,17 @@ def get_entries(target_dataset, sheet_name, first_row=3, l3_only=True, l3_model=
         else:
             dataset, embedding_model_type, _, _, _, _ = model_id.split('/')
             audioset_subset = 'na'
-            embedding_length = 'na'
 
 
         fold_num = datum[5]
-        ident = (fold_num, dataset, embedding_length, audioset_subset, embedding_model_type)
+        ident = (fold_num, dataset, audioset_subset, embedding_model_type)
 
 
         if not l3_only and 'L3' in model_id and l3_model and ident[2:] != l3_model:
             continue
 
+
         entry['dataset'] = dataset
-        entry['embedding_length'] = embedding_length
         entry['audioset_subset'] = audioset_subset
         entry['embedding_model_type'] = embedding_model_type
 
@@ -171,8 +180,8 @@ pretty_print_map = {
     'original': '6K',
     'short': '512',
     '2_norm': 'Linear',
-    '3_mel1': 'Mel-128',
-    '4_mel2': 'Mel-256',
+    '3_mel1': 'M128',
+    '4_mel2': 'M256',
     'augment': 'Augmented',
     'music': 'Music',
     'environmental': 'Environmental'
@@ -190,16 +199,6 @@ def get_dataset(ident):
     return dataset
 
 
-def get_embedding_size(ident):
-    if 'original' in ident:
-        emb_size = '6K'
-    elif 'short' in ident:
-        emb_size = '512'
-    else:
-        emb_size = None
-
-    return emb_size
-
 def get_subset(ident):
     if 'music' in ident:
         subset = 'Music'
@@ -213,9 +212,9 @@ def get_tfrepr(ident):
     if '2_norm' in ident:
         tfrepr = 'Linear'
     elif '3_mel1' in ident:
-        tfrepr = 'Mel-128'
+        tfrepr = 'M128'
     elif '4_mel2' in ident:
-        tfrepr = 'Mel-256'
+        tfrepr = 'M256'
     elif 'vggish' in ident:
         tfrepr = "VGGish"
     elif 'soundnet' in ident:
@@ -231,11 +230,8 @@ def get_print_parts(ident1, ident2):
 
 
     intersection_tuple = []
-    int_emb_size = get_embedding_size(intersection)
     int_subset = get_subset(intersection)
     int_tfrepr = get_tfrepr(intersection)
-    if int_emb_size:
-        intersection_tuple.append(int_emb_size)
     if int_subset:
         intersection_tuple.append(int_subset)
     if int_tfrepr:
@@ -243,12 +239,9 @@ def get_print_parts(ident1, ident2):
 
     model1_list = []
     model1 = set(ident1) - set(ident2)
-    mod1_emb_size = get_embedding_size(model1)
     mod1_subset = get_subset(model1)
     mod1_tfrepr = get_tfrepr(model1)
     mod1_augmented = 'Augmented' if 'augmented' in model1 else None
-    if mod1_emb_size:
-        model1_list.append(mod1_emb_size)
     if mod1_subset:
         model1_list.append(mod1_subset)
     if mod1_tfrepr:
@@ -258,12 +251,9 @@ def get_print_parts(ident1, ident2):
 
     model2_list = []
     model2 = set(ident2) - set(ident1)
-    mod2_emb_size = get_embedding_size(model2)
     mod2_subset = get_subset(model2)
     mod2_tfrepr = get_tfrepr(model2)
     mod2_augmented = 'Augmented' if 'augmented' in model2 else None
-    if mod2_emb_size:
-        model2_list.append(mod2_emb_size)
     if mod2_subset:
         model2_list.append(mod2_subset)
     if mod2_tfrepr:
@@ -284,12 +274,10 @@ def compute_stat_test(data2, desc, var=None, dcase=False):
 
     if var == 'dataset':
         ident_idx = 1
-    elif var == 'embedding_length':
-        ident_idx = 2
     elif var == 'audioset_subset':
-        ident_idx = 3
+        ident_idx = 2
     elif var == 'embedding_model_type':
-        ident_idx = 4
+        ident_idx = 3
 
     if var:
         print(var)
@@ -320,7 +308,6 @@ def compute_stat_test(data2, desc, var=None, dcase=False):
         dataset = get_dataset(k[1:])
     else:
         dataset = get_dataset(models[0])
-
     print("{} - {}".format(dataset, desc))
     measurements = set()
 
@@ -377,18 +364,22 @@ esc50_data, esc50_data2 = get_entries('esc50', 'ESC50', first_row=3)
 dcase2013_data, dcase2013_data2 = get_entries('dcase2013', 'DCASE', first_row=3)
 
 compute_stat_test(us8k_data2, "L3", 'embedding_model_type')
-compute_stat_test(us8k_data2, "L3", 'embedding_length')
 compute_stat_test(us8k_data2, "L3", 'audioset_subset')
 compute_stat_test(esc50_data2, "L3", 'embedding_model_type')
-compute_stat_test(esc50_data2, "L3", 'embedding_length')
 compute_stat_test(esc50_data2, "L3", 'audioset_subset')
 #compute_stat_test(dcase2013_data2, "L3")
 
-for var in ['embedding_model_type', 'embedding_length', 'audioset_subset']:
-    font = {'size' : 18}
+var_print_name = {
+    'embedding_model_type': 'Input Representation',
+    'audioset_subset': 'Embedding Training Data'
+}
+
+#fig, axarr_arr = plt.subplots(2, 3, figsize=(8, 7))
+for var_idx, var in enumerate(['embedding_model_type', 'audioset_subset']):
+    font = {'size' : 10}
     matplotlib.rc('font', **font)
 
-    fig, axarr = plt.subplots(3, figsize=(7, 10), sharex=True)
+    fig, axarr = plt.subplots(1, 3, figsize=(8,4)) #axarr_arr[var_idx]
 
     tick_labels = []
     """
@@ -398,23 +389,27 @@ for var in ['embedding_model_type', 'embedding_length', 'audioset_subset']:
                 tick_labels.append("{}/{}/{}".format(model_name, width, subset))
     """
     if var == 'embedding_model_type':
-        tick_labels = ["Linear", "Mel-128", "Mel-256"]
-    elif var == 'embedding_length':
-        tick_labels = ["6144", "512"]
+        tick_labels = ["Linear", "M128", "M256"]
     else:
         tick_labels = ["Env.", "Music"]
 
     for data, ax, dataset_name, tick_interval in zip([us8k_data, esc50_data, dcase2013_data], axarr, ['UrbanSound8K', 'ESC-50', 'DCASE 2013'], [0.03, 0.02, 0.01]):
         df = pandas.DataFrame(data)
-        ax = df.boxplot(column='test_acc', by=var, figsize=(7,9), showmeans=True, ax=ax)
+        ax = df.boxplot(column='test_acc', by=var, figsize=(7,9), showmeans=True, ax=ax, widths=0.65)
 
         ax.set_xticklabels(tick_labels, ha='right')
         ax.xaxis.set_tick_params(rotation=45)
         start, end = ax.get_ylim()
         ax.yaxis.set_ticks(np.arange(start, end, tick_interval))
         ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%0.2f'))
+        """
+        if var_idx == 0:
+            ax.set_title(dataset_name)
+        else:
+            ax.set_title('')
+        """
         ax.set_title(dataset_name)
-        ax.set_xlabel('')
+        ax.set_xlabel(var_print_name[var])
         ax.set_ylabel('Classification accuracy')
         fig.suptitle("")
 
@@ -441,7 +436,7 @@ for var in ['embedding_model_type', 'embedding_length', 'audioset_subset']:
     #ax.legend().set_visible(False)
 
     fig.tight_layout()
-    fig.savefig('us8k_test_boxplot_{}.png'.format(var))
+    fig.savefig('us8k_test_boxplot_1_{}.png'.format(var))
 
 
 
@@ -452,7 +447,7 @@ for var in ['embedding_model_type', 'embedding_length', 'audioset_subset']:
 
 
 
-l3_model = ('original', 'music', '3_mel1')
+l3_model = ('music', '3_mel1')
 us8k_data, us8k_data2 = get_entries('us8k', 'classifier', first_row=3, l3_only=False, l3_model=l3_model)
 esc50_data, esc50_data2 = get_entries('esc50', 'ESC50', first_row=3, l3_only=False, l3_model=l3_model)
 dcase2013_data, dcase2013_data2 = get_entries('dcase2013', 'DCASE', first_row=3, l3_only=False, l3_model=l3_model)
@@ -522,8 +517,8 @@ fig, axarr = plt.subplots(1, 3, figsize=(6, 4))
 
 for data, ax, dataset_name, tick_interval, (start, end) in zip([us8k_data, esc50_data, dcase2013_data], axarr, ['UrbanSound8K', 'ESC-50', 'DCASE 2013'], [0.05, 0.05, 0.02], [(0.55, 0.9), (0.40, 0.85), (0.80, 1.)]):
     df = pandas.DataFrame(data)
-    ax = df.boxplot(column='test_acc', by=['embedding_model_type', 'embedding_length', 'audioset_subset'], showmeans=True, ax=ax)
-    ax.set_xticklabels(["L3-M128/6K/Mus", "SoundNet", "VGGish"], ha='right')
+    ax = df.boxplot(column='test_acc', by=['embedding_model_type', 'audioset_subset'], showmeans=True, ax=ax, widths=0.65)
+    ax.set_xticklabels(["L3-M128/Mus", "SoundNet", "VGGish"], ha='right')
     ax.xaxis.set_tick_params(rotation=45)
     #tick_interval = 0.05
     #start, end = 0.4, 1.0
@@ -566,14 +561,14 @@ fig.savefig('us8k_test_boxplot_2.png')
 
 
 
-l3_model = ('original', 'music', '4_mel2')
+l3_model = ('music', '3_mel1')
 us8k_data, us8k_data2, = get_entries('us8k', 'classifier', first_row=3, l3_only=False, l3_model=l3_model)
 us8k_aug_data, us8k_aug_data2, = get_entries('us8k', 'classifier_augmented', first_row=3, l3_only=False, l3_model=l3_model)
 
 [x.update({'augmented': "false"}) for x in us8k_data]
 [x.update({'augmented': "true"}) for x in us8k_aug_data]
 
-us8k_data2 = {k:v for k,v in us8k_data2.items() if k[1:] == ('us8k', 'original', 'music', '4_mel2')}
+us8k_data2 = {k:v for k,v in us8k_data2.items() if k[1:] == ('us8k', 'music', '3_mel1')}
 us8k_data = [x for x in us8k_data if 'l3' in x['model_id']]
 us8k_data += us8k_aug_data
 us8k_data2.update({k + ('augment',): v for k, v in us8k_aug_data2.items()})
@@ -588,7 +583,7 @@ fig = plt.figure(figsize=(4, 1.5))
 
 df = pandas.DataFrame(us8k_data)
 ax = df.boxplot(column='test_acc', by=['augmented'], showmeans=True, ax=fig.gca())
-ax.set_xticklabels(["L3-M256/6K/Mus", "L3-M256/6K/Mus-Aug"])
+ax.set_xticklabels(["L3-M128/Mus", "L3-M128/Mus-Aug"])
 start, end = ax.get_ylim()
 ax.yaxis.set_ticks(np.arange(start, end, 0.04))
 ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%0.2f'))
@@ -672,3 +667,195 @@ fig.suptitle("")
 
 fig.tight_layout()
 fig.savefig('us8k_test_boxplot_4.png')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+us8k_data, us8k_data2 = get_entries('us8k', 'classifier', first_row=3)
+
+l3_model = ('music', '3_mel1')
+us8k_data, us8k_data2, = get_entries('us8k', 'classifier', first_row=3, l3_only=False, l3_model=l3_model)
+us8k_aug_data, us8k_aug_data2, = get_entries('us8k', 'classifier_augmented', first_row=3, l3_only=False, l3_model=l3_model)
+
+font = {'size' : 12}
+matplotlib.rc('font', **font)
+fig, axes = plt.subplots(ncols=10, figsize=(13, 5), sharey=True)
+fig.subplots_adjust(wspace=0)
+#repr_strs = ["Linear", "M128", "M256"]
+#repr_ids = ["2_norm", "3_mel1", "4_mel2"]
+
+repr_strs = ["L3-M128/Mus", "L3-M128/Mus-Aug"]
+
+us8k_classes = [
+    'air conditioner',
+    'car horn',
+    'children playing',
+    'dog bark',
+    'drilling',
+    'engine idling',
+    'gun shot',
+    'jackhammer',
+    'siren',
+    'street music'
+]
+
+intervals = [
+0.1,
+0.05,
+0.02,
+0.02,
+0.05,
+0.05,
+0.05,
+0.05,
+0.05,
+0.05
+]
+
+
+for ax, class_idx, class_name in zip(axes, range(10), us8k_classes):
+
+    """
+    linear_acc_list = []
+    m128_acc_list = []
+    m256_acc_list = []
+
+    for repr_id, acc_list in zip(repr_ids, [linear_acc_list, m128_acc_list, m256_acc_list]):
+        for row in us8k_data:
+            if row['embedding_model_type'] == repr_id:
+                acc_list.append([float(x) for x in row['test_class_acc'].split(', ')][class_idx])
+
+
+    ax.boxplot([linear_acc_list, m128_acc_list, m256_acc_list], showmeans=True, labels=repr_strs, widths=0.65)
+    ax.set_xticklabels(['' for _ in range(3)], ha='right')
+    ax.set_xlabel(class_name.replace(' ', '\n'))
+    ax.margins(0.05) # Optional
+    """
+
+    nonaug_acc_list = []
+    aug_acc_list = []
+
+    for row in us8k_data:
+        nonaug_acc_list.append([float(x) for x in row['test_class_acc'].split(', ')][class_idx])
+
+    for row in us8k_aug_data:
+        aug_acc_list.append([float(x) for x in row['test_class_acc'].split(', ')][class_idx])
+
+    ax.boxplot([nonaug_acc_list, aug_acc_list], showmeans=True, labels=repr_strs, widths=0.65)
+    ax.set_xticklabels(['' for _ in range(2)], ha='right')
+    ax.set_xlabel(class_name.replace(' ', '\n'))
+    ax.margins(0.05) # Optional
+
+
+    ax.set_ylim(0, 1.0)
+    start, end = ax.get_ylim()
+    ax.yaxis.set_ticks(np.arange(start, end + 0.1, 0.1))
+    """
+    start, end = ax.get_ylim()
+    start = max(start, 0)
+    end = min(end, 1.0)
+    ax.set_ylim(start, end)
+    if end <= 1.0 and np.arange(start, end+intervals[class_idx], intervals[class_idx])[-1] <= 1.0:
+        end = end + intervals[class_idx]
+    ax.yaxis.set_ticks(np.arange(start, end, intervals[class_idx]))
+    """
+    ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%0.2f'))
+    ax.set_title("")
+    ax.grid(True)
+
+    if class_idx == 0:
+        ax.set_ylabel('Classification accuracy')
+    fig.suptitle("")
+
+
+    # Set colors
+    colors = sns.color_palette(None, n_colors=3)
+    children = ax.get_children()
+    for idx in range(2):
+        box = children[idx*8]
+        xs = box.get_xdata()
+        ys = box.get_ydata()
+        ax.fill_between((xs[0], xs[1]), ys[0], ys[2], color=colors[idx] + (0.5,))
+
+
+colors = sns.color_palette(None, n_colors=2)
+patches = []
+for idx in range(2):
+    patches.append(mpatches.Patch(color=colors[idx], label=repr_strs[idx]))
+
+
+# Put a legend to the right of the current axis
+
+plt.tight_layout()
+for ax in axes:
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width, box.height * 0.94])
+plt.figlegend(handles=patches, loc="upper center",  ncol=len(patches), framealpha=1.0)
+
+fig.savefig('us8k_test_boxplot_5.png')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+avc_epoch_results = [('1', 0.50244140625),
+ ('10', 0.58526611328125),
+ ('20', 0.6324615478515625),
+ ('50', 0.68865966796875),
+ ('100', 0.729644775390625),
+ ('150', 0.7453155517578125),
+ ('200', 0.7532501220703125),
+ ('250', 0.7622222900390625),
+ ('300', 0.77081298828125)]
+
+tick_labels = ['0M', '0.26M', '2.62M', '5.24M', '13.11M', '26.21M', '39.32M', '52.43M', '65.54M', '78.64M']
+
+_, acc_list = zip(*avc_epoch_results)
+num_examples = [float(x.replace('M', '')) for x in tick_labels]
+
+font = {'size' : 8}
+matplotlib.rc('font', **font)
+
+fig = plt.figure(figsize=(5,3))
+ax = plt.subplot(111)
+plt.plot(np.arange(len(acc_list)), acc_list)
+ax.set_xticklabels(tick_labels, ha='right')
+ax.xaxis.set_tick_params(rotation=45)
+ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%0.2f'))
+ax.set_xlabel('# training examples')
+ax.set_ylabel('AVC accuracy')
+
+fig.tight_layout()
+fig.savefig('us8k_test_boxplot_6.png')
+
