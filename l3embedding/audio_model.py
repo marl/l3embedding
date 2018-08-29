@@ -255,7 +255,7 @@ def construct_cnn_L3_melspec1_audio_model():
     # MELSPECTROGRAM PREPROCESSING
     # 128 x 199 x 1
     y_a = Melspectrogram(n_dft=n_dft, n_hop=n_hop, n_mels=n_mels,
-                      power_melgram=1.0, htk=True, # n_win=n_win,
+                      sr=asr, power_melgram=1.0, htk=True, # n_win=n_win,
                       return_decibel_melgram=True, padding='same')(x_a)
 
     # CONV BLOCK 1
@@ -364,7 +364,7 @@ def construct_cnn_L3_melspec2_audio_model():
     # MELSPECTROGRAM PREPROCESSING
     # 128 x 199 x 1
     y_a = Melspectrogram(n_dft=n_dft, n_hop=n_hop, n_mels=n_mels,
-                      power_melgram=1.0, htk=True, # n_win=n_win,
+                      sr=asr, power_melgram=1.0, htk=True, # n_win=n_win,
                       return_decibel_melgram=True, padding='same')(x_a)
 
     # CONV BLOCK 1
