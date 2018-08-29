@@ -60,7 +60,6 @@ CLASSIFIER_FIELD_NAMES = [
     'tol',
     'max_iterations',
     'train_loss',
-    'valid_loss',
     'train_acc',
     'valid_acc',
     'train_avg_class_acc',

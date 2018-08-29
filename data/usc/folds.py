@@ -1,3 +1,4 @@
+import gzip
 import os
 import random
 import pickle as pk
@@ -16,9 +17,18 @@ DATASET_NUM_FOLDS = {
     'dcase2013': NUM_FOLDS_DCASE2013
 }
 
+def np_load(path):
+    if path.endswith('.gz'):
+        with gzip.open(path, 'rb') as f:
+            data = dict(np.load(f))
+    else:
+        data = np.load(path)
+
+    return data
+
 
 def load_feature_file(feature_filepath):
-    data = np.load(feature_filepath)
+    data = np_load(feature_filepath)
     X, y = data['X'], data['y']
     if type(y) == np.ndarray and y.ndim == 0:
         y = int(y)
@@ -38,6 +48,7 @@ def get_fold(feature_dir, fold_idx, augment=False, train_filenames_to_idxs=None)
                                   for x in train_filenames_to_idxs.keys()])
     filenames = []
 
+
     start_idx = 0
     for feature_filename in filenames_:
         # Hack for skipping augmented files for US8K
@@ -48,6 +59,8 @@ def get_fold(feature_dir, fold_idx, augment=False, train_filenames_to_idxs=None)
         file_X, file_y = load_feature_file(feature_filepath)
 
         if train_filenames_to_idxs and feature_filename in nonaugmented_files:
+            import pdb
+            pdb.set_trace()
             train_idxs = np.array(train_filenames_to_idxs[feature_filename])
             file_X = file_X[train_idxs]
 
@@ -142,8 +155,8 @@ def fold_sampler(feature_dir, standardizer_dir, fold_idx):
         random.shuffle(batches)
         for batch_fname in batches:
             batch_path = os.path.join(fold_dir, batch_fname)
-            data = np.load(batch_path)
-            X = data['X']
+            data = np_load(batch_path)
+            X = stdizer.transform(data['X'])
             y = data['y']
 
             shuffle_idxs = np.random.permutation(X.shape[0])
@@ -220,8 +233,8 @@ def load_nonaugmented_validation_data(valid_data_dir, test_fold_idx):
         if fold_idx == test_fold_idx:
             continue
 
-        valid_fold_data_path = os.path.join(valid_data_dir, "fold{}.npz".format(fold_idx+1))
-        valid_fold_data = np.load(valid_fold_data_path)
+        valid_fold_data_path = os.path.join(valid_data_dir, "fold{}.npz.gz".format(fold_idx+1))
+        valid_fold_data = np_load(valid_fold_data_path)
 
         X_valid.append(valid_fold_data['features'])
         y_valid.append(valid_fold_data['labels'])

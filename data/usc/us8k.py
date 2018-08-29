@@ -4,6 +4,7 @@ import os
 import glob
 import random
 import numpy as np
+import zipfile
 
 import data.usc.features as cls_features
 from log import LogTimer
@@ -159,7 +160,8 @@ def generate_us8k_file_data(fname, example_metadata, audio_fold_dir,
     class_label = example_metadata['classID']
     y = class_label
 
-    np.savez_compressed(output_path, X=X, y=y)
+    with zipfile.ZipFile(output_path, mode='wb', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as f:
+        np.savez(f, X=X, y=y)
 
     return output_path, 'success'
 

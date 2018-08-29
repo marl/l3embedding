@@ -6,11 +6,7 @@ import numpy as np
 import scipy as sp
 import soundfile as sf
 import resampy
-import tensorflow as tf
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from .vggish import vggish_input
-from .vggish import vggish_postprocess
-from .vggish import vggish_slim
 
 LOGGER = logging.getLogger('cls-data-generation')
 LOGGER.setLevel(logging.DEBUG)
@@ -179,6 +175,10 @@ def preprocess_features(data, min_max_scaler, stdizer,
 def extract_vggish_embedding(audio_path, input_op_name='vggish/input_features',
                              output_op_name='vggish/embedding',
                              resources_dir=None, **params):
+    import tensorflow as tf
+    from .vggish import vggish_input
+    from .vggish import vggish_postprocess
+    from .vggish import vggish_slim
     # TODO: Make more efficient so we're not loading model every time we extract features
     fs = params.get('target_sample_rate', 16000)
     frame_win_sec = params.get('frame_win_sec', 0.96)

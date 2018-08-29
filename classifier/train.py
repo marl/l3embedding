@@ -339,7 +339,7 @@ def train_mlp(train_gen, valid_data, test_data, model_dir,
     LOGGER.debug('Compiling model...')
     m.compile(Adam(lr=learning_rate), loss=loss, metrics=metrics)
     LOGGER.debug('Fitting model to data...')
-    m.fit_generator(train_gen, epochs=num_epochs, steps_per_epoch=5375,
+    m.fit_generator(train_gen, epochs=num_epochs, steps_per_epoch=185665,
           validation_data=validation_data,
           callbacks=cb, verbose=2)
 
