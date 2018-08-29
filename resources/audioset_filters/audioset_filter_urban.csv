@@ -1,0 +1,21 @@
+filter_type,accept_reject,include_children,string
+label,accept,true,"Male speech, man speaking"
+label,accept,true,"Female speech, woman speaking"
+label,accept,true,"Child speech, kid speaking"
+label,accept,true,Conversation
+label,accept,true,Babbling
+label,accept,true,Battle cry
+label,accept,true,Laughter
+label,accept,true,"Crying, sobbing"
+label,accept,true,Finger snapping
+label,accept,true,Clapping
+label,accept,true,Human group actions
+label,accept,true,Vehicle
+label,accept,true,Engine
+label,accept,true,Siren
+label,accept,true,"Gunshot, gunfire"
+label,accept,true,Splinter
+label,accept,true,Chop
+label,accept,true,Pump (liquid)
+label,accept,true,Basketball bounce
+label,accept,true,Bark
