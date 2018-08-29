@@ -1,0 +1,111 @@
+filter_type,accept_reject,include_children,string
+label,accept,false,Accordion
+label,accept,false,Acoustic guitar
+label,accept,false,Alto saxophone
+label,accept,false,Bagpipes
+label,accept,false,Banjo
+label,accept,false,Bass (instrument role)
+label,accept,false,Bass drum
+label,accept,false,Bass guitar
+label,accept,false,Bassoon
+label,accept,false,Bell
+label,accept,false,Bicycle bell
+label,accept,false,Bowed string instrument
+label,accept,false,Brass instrument
+label,accept,false,Bugle
+label,accept,false,Cello
+label,accept,false,Change ringing (campanology)
+label,accept,false,Chant
+label,accept,false,Child singing
+label,accept,false,Chime
+label,accept,false,Choir
+label,accept,false,Church bell
+label,accept,false,Clarinet
+label,accept,false,Clavinet
+label,accept,false,Cornet
+label,accept,false,Cowbell
+label,accept,false,Crash cymbal
+label,accept,false,Cymbal
+label,accept,false,"Dental drill, dentist's drill"
+label,accept,false,Didgeridoo
+label,accept,false,Double bass
+label,accept,false,Drill
+label,accept,false,Drum
+label,accept,false,Drum kit
+label,accept,false,Drum machine
+label,accept,false,Drum roll
+label,accept,false,Electric guitar
+label,accept,false,Electric piano
+label,accept,false,Electronic organ
+label,accept,false,Female singing
+label,accept,false,Filing (rasp)
+label,accept,false,Flute
+label,accept,false,French horn
+label,accept,false,Glockenspiel
+label,accept,false,Gong
+label,accept,false,Guitar
+label,accept,false,Hammer
+label,accept,false,Hammond organ
+label,accept,false,Harmonica
+label,accept,false,Harp
+label,accept,false,Harpsichord
+label,accept,false,Hi-hat
+label,accept,false,Jackhammer
+label,accept,false,Jingle bell
+label,accept,false,Keyboard (musical)
+label,accept,false,Male singing
+label,accept,false,Mallet percussion
+label,accept,false,Mandolin
+label,accept,false,Mantra
+label,accept,false,Maraca
+label,accept,false,"Marimba, xylophone"
+label,accept,false,Mellotron
+label,accept,false,Musical ensemble
+label,accept,false,Musical instrument
+label,accept,false,Oboe
+label,accept,false,Orchestra
+label,accept,false,Organ
+label,accept,false,Percussion
+label,accept,false,Piano
+label,accept,false,Pizzicato
+label,accept,false,Plucked string instrument
+label,accept,false,Power tool
+label,accept,false,Rapping
+label,accept,false,Rattle (instrument)
+label,accept,false,Rhodes piano
+label,accept,false,Rimshot
+label,accept,false,Sampler
+label,accept,false,Sanding
+label,accept,false,Sawing
+label,accept,false,Saxophone
+label,accept,false,Scratching (performance technique)
+label,accept,false,Shofar
+label,accept,false,Singing
+label,accept,false,Singing bowl
+label,accept,false,Sitar
+label,accept,false,Snare drum
+label,accept,false,Soprano saxophone
+label,accept,false,"Steel guitar, slide guitar"
+label,accept,false,Steelpan
+label,accept,false,String section
+label,accept,false,Strum
+label,accept,false,Synthesizer
+label,accept,false,Synthetic singing
+label,accept,false,Tabla
+label,accept,false,Tambourine
+label,accept,false,Tapping (guitar technique)
+label,accept,false,Theremin
+label,accept,false,Timpani
+label,accept,false,Tools
+label,accept,false,Trombone
+label,accept,false,Trumpet
+label,accept,false,Tubular bells
+label,accept,false,Tuning fork
+label,accept,false,Ukulele
+label,accept,false,Vibraphone
+label,accept,false,"Violin, fiddle"
+label,accept,false,Wind chime
+label,accept,false,"Wind instrument, woodwind instrument"
+label,accept,false,Wood block
+label,accept,false,Yodeling
+label,accept,false,Zither
