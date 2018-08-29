@@ -6,6 +6,7 @@ import pickle as pk
 import random
 import git
 from itertools import product
+import time
 
 import keras
 import keras.regularizers as regularizers
@@ -520,6 +521,8 @@ def train(features_dir, output_dir, fold_num,
                              datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
 
     # Make sure model directory exists
+    # Add random time delay to avoid parallel jobs colliding
+    time.sleep(np.random.random() * 10)
     if not os.path.isdir(model_dir):
         os.makedirs(model_dir)
 
