@@ -267,7 +267,7 @@ def train(train_data_dir, validation_data_dir, output_dir,
         m, inputs, outputs = MODELS[model_type](num_gpus=gpus)
 
     # NOTE: this results in twice the loss as in categorical crossentropy!
-    loss = 'binary_crossentropy'
+    loss = 'categorical_crossentropy'
     metrics = ['accuracy']
 
     # Make sure the directories we need exist

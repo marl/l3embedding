@@ -1,4 +1,4 @@
-name: l3embedding
+name: l3embedding-new
 channels:
 - conda-forge
 - anaconda

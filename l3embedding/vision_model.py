@@ -121,7 +121,6 @@ def construct_cnn_L3_orig_inputbn_vision_model():
     ####
     # INPUT
     x_i = Input(shape=(224, 224, 3), dtype='float32')
-    # NOTE: Revisit this after talking with Juan
     y_i = BatchNormalization()(x_i)
 
     # CONV BLOCK 1

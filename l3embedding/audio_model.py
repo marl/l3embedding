@@ -148,7 +148,6 @@ def construct_cnn_L3_kapredbinputbn_audio_model():
     # 257 x 199 x 1
     y_a = Spectrogram(n_dft=n_dft, n_hop=n_hop, power_spectrogram=1.0, # n_win=n_win,
                       return_decibel_spectrogram=True, padding='valid')(x_a)
-    # NOTE: Revisit this after talking with Juan
     y_a = BatchNormalization()(y_a)
 
     # CONV BLOCK 1
@@ -258,6 +257,7 @@ def construct_cnn_L3_melspec1_audio_model():
     y_a = Melspectrogram(n_dft=n_dft, n_hop=n_hop, n_mels=n_mels,
                       sr=asr, power_melgram=1.0, htk=True, # n_win=n_win,
                       return_decibel_melgram=True, padding='same')(x_a)
+    y_a = BatchNormalization()(y_a)
 
     # CONV BLOCK 1
     n_filter_a_1 = 64
@@ -367,6 +367,7 @@ def construct_cnn_L3_melspec2_audio_model():
     y_a = Melspectrogram(n_dft=n_dft, n_hop=n_hop, n_mels=n_mels,
                       sr=asr, power_melgram=1.0, htk=True, # n_win=n_win,
                       return_decibel_melgram=True, padding='same')(x_a)
+    y_a = BatchNormalization()(y_a)
 
     # CONV BLOCK 1
     n_filter_a_1 = 64
