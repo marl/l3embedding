@@ -148,6 +148,7 @@ def construct_cnn_L3_kapredbinputbn_audio_model():
     # 257 x 199 x 1
     y_a = Spectrogram(n_dft=n_dft, n_hop=n_hop, power_spectrogram=1.0, # n_win=n_win,
                       return_decibel_spectrogram=True, padding='valid')(x_a)
+    # NOTE: Revisit this after talking with Juan
     y_a = BatchNormalization()(y_a)
 
     # CONV BLOCK 1

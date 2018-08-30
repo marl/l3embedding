@@ -102,7 +102,7 @@ class GSheetLogger(keras.callbacks.Callback):
             self.best_valid_loss, self.best_train_acc, self.best_valid_acc]
 
         update_experiment(self.service, self.spreadsheet_id, self.param_dict,
-                          'R', 'AA', values, 'embedding')
+                          'R', 'Z', values, 'embedding')
 
 
 class TimeHistory(keras.callbacks.Callback):
@@ -266,6 +266,7 @@ def train(train_data_dir, validation_data_dir, output_dir,
     else:
         m, inputs, outputs = MODELS[model_type](num_gpus=gpus)
 
+    # NOTE: this results in twice the loss as in categorical crossentropy!
     loss = 'binary_crossentropy'
     metrics = ['accuracy']
 
