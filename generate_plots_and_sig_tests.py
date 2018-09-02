@@ -514,7 +514,7 @@ font = {'size' : 8}
 matplotlib.rc('font', **font)
 
 #fig, axarr = plt.subplots(3, figsize=(3, 6), sharex=True)
-fig, axarr = plt.subplots(1, 3, figsize=(6, 4))
+fig, axarr = plt.subplots(1, 3, figsize=(6, 3.5))
 
 for data, ax, dataset_name, tick_interval, (start, end) in zip([us8k_data, esc50_data, dcase2013_data], axarr, ['UrbanSound8K', 'ESC-50', 'DCASE 2013'], [0.05, 0.05, 0.02], [(0.55, 0.9), (0.40, 0.85), (0.80, 1.)]):
     df = pandas.DataFrame(data)
@@ -641,7 +641,7 @@ tick_labels = ['0.26M', '2.62M', '5.24M', '13.11M', '26.21M', '39.32M', '52.43M'
 font = {'size' : 8}
 matplotlib.rc('font', **font)
 
-fig, axarr = plt.subplots(2, 1, figsize=(5, 5), sharex=True)
+fig, axarr = plt.subplots(2, 1, figsize=(5, 4), sharex=True)
 
 for df, ax, dataset_name, tick_interval, (start, end) in zip([us8k_epoch_df, esc50_epoch_df], axarr, ['UrbanSound8K', 'ESC-50'], [0.05, 0.05], [(0.55, 0.9), (0.55, 0.9)]):
     ax = df.boxplot(column='test_acc', by='# of samples', showmeans=True, ax=ax)
@@ -698,7 +698,7 @@ us8k_aug_data, us8k_aug_data2, = get_entries('us8k', 'classifier_augmented', fir
 
 font = {'size' : 12}
 matplotlib.rc('font', **font)
-fig, axes = plt.subplots(ncols=10, figsize=(13, 5), sharey=True)
+fig, axes = plt.subplots(ncols=10, figsize=(13, 3), sharey=True)
 fig.subplots_adjust(wspace=0)
 #repr_strs = ["Linear", "M128", "M256"]
 #repr_ids = ["2_norm", "3_mel1", "4_mel2"]
