@@ -4,7 +4,7 @@
 #SBATCH --job-name=l3embedding-train-melspec2
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=2
-#SBATCH --mem=64GB
+#SBATCH --mem=62GB
 #SBATCH --time=7-0
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=name@mail.com
