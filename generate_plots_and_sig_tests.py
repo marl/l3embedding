@@ -437,7 +437,7 @@ for var_idx, var in enumerate(['embedding_model_type', 'audioset_subset']):
     #ax.legend().set_visible(False)
 
     fig.tight_layout()
-    fig.savefig('us8k_test_boxplot_1_{}.png'.format(var))
+    fig.savefig('us8k_test_boxplot_1_{}.pdf'.format(var))
 
 
 
@@ -493,7 +493,7 @@ axarr[0].set_ylabel('Classification accuracy')
 #ax.legend().set_visible(False)
 
 fig.tight_layout()
-fig.savefig('us8k_test_boxplot_2.png')
+fig.savefig('us8k_test_boxplot_2.pdf')
 """
 
 
@@ -548,7 +548,7 @@ fig.suptitle("")
 #ax.legend().set_visible(False)
 
 fig.tight_layout()
-fig.savefig('us8k_test_boxplot_2.png')
+fig.savefig('us8k_test_boxplot_2.pdf')
 
 
 
@@ -609,7 +609,7 @@ for idx in range(2):
 #ax.legend().set_visible(False)
 
 fig.tight_layout()
-fig.savefig('us8k_test_boxplot_3.png')
+fig.savefig('us8k_test_boxplot_3.pdf')
 
 
 
@@ -667,7 +667,7 @@ for df, ax, dataset_name, tick_interval, (start, end) in zip([us8k_epoch_df, esc
 fig.suptitle("")
 
 fig.tight_layout()
-fig.savefig('us8k_test_boxplot_4.png')
+fig.savefig('us8k_test_boxplot_4.pdf')
 
 
 
@@ -811,7 +811,7 @@ for ax in axes:
     ax.set_position([box.x0, box.y0, box.width, box.height * 0.94])
 plt.figlegend(handles=patches, loc="upper center",  ncol=len(patches), framealpha=1.0)
 
-fig.savefig('us8k_test_boxplot_5.png')
+fig.savefig('us8k_test_boxplot_5.pdf')
 
 
 
@@ -858,5 +858,5 @@ ax.set_xlabel('# training examples')
 ax.set_ylabel('AVC accuracy')
 
 fig.tight_layout()
-fig.savefig('us8k_test_boxplot_6.png')
+fig.savefig('us8k_test_boxplot_6.pdf')
 
