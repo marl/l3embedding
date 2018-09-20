@@ -274,7 +274,7 @@ def train(train_data_dir, validation_data_dir, output_dir,
     if continue_model_dir:
         model_dir = continue_model_dir
     else:
-        model_dir = os.path.join(output_dir, model_id, datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
+        model_dir = os.path.join(output_dir, 'embedding', model_id, datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
     if not os.path.isdir(model_dir):
         os.makedirs(model_dir)
 
