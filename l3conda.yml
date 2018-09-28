@@ -1,4 +1,4 @@
-name: l3embedding
+name: l3embedding-new-cpu
 channels:
   - conda-forge
   - anaconda
@@ -85,7 +85,7 @@ dependencies:
   - notebook=5.6.0=py36_0
   - numpy=1.13.3=py36hdbf6ddf_4
   - openssl=1.0.2l=h9d1a558_3
-  - pandas=0.22.0=py36hf484d3e_0
+  - pandas=0.23.4=py36h04863e7_0
   - pandoc=2.2.3.2=0
   - pandocfilters=1.4.2=py36_1
   - parso=0.3.1=py36_0
@@ -172,4 +172,3 @@ dependencies:
     - werkzeug==0.12.2
     - youtube-dl==2017.9.24
 prefix: /beegfs/jtc440/miniconda3/envs/l3embedding-new
-
