@@ -102,7 +102,7 @@ class GSheetLogger(keras.callbacks.Callback):
             self.best_valid_loss, self.best_train_acc, self.best_valid_acc]
 
         update_experiment(self.service, self.spreadsheet_id, self.param_dict,
-                          'R', 'AA', values, 'embedding')
+                          'R', 'Z', values, 'embedding')
 
 
 class TimeHistory(keras.callbacks.Callback):
@@ -266,14 +266,15 @@ def train(train_data_dir, validation_data_dir, output_dir,
     else:
         m, inputs, outputs = MODELS[model_type](num_gpus=gpus)
 
-    loss = 'binary_crossentropy'
+    # NOTE: this results in twice the loss as in categorical crossentropy!
+    loss = 'categorical_crossentropy'
     metrics = ['accuracy']
 
     # Make sure the directories we need exist
     if continue_model_dir:
         model_dir = continue_model_dir
     else:
-        model_dir = os.path.join(output_dir, model_id, datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
+        model_dir = os.path.join(output_dir, 'embedding', model_id, datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
     if not os.path.isdir(model_dir):
         os.makedirs(model_dir)
 

@@ -29,6 +29,14 @@ def parse_arguments():
                         default=64,
                         help='(MLP) Number of training examples per batch')
 
+    parser.add_argument('-eap',
+                        '--early-stopping-patience',
+                        dest='patience',
+                        action='store',
+                        type=int,
+                        default=20,
+                        help='(MLP) Patience for early stopping')
+
     parser.add_argument('-ps',
                         '--parameter-search',
                         dest='parameter_search',

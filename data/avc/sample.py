@@ -80,6 +80,15 @@ def get_filename(path):
     return os.path.splitext(os.path.basename(path))[0]
 
 
+def get_max_abs_sample_value(dtype):
+    if np.issubdtype(dtype, np.unsignedinteger):
+        return np.iinfo(dtype).max
+    elif np.issubdtype(dtype, np.signedinteger):
+        return -np.iinfo(dtype).min
+    elif np.issubdtype(dtype, np.floating):
+        return 1.0
+
+
 def load_metadata(metadata_path):
     metadata = {}
     for path in glob.glob(metadata_path):
@@ -139,12 +148,13 @@ def sample_one_second(audio_data, sampling_frequency, augment=False):
         audio_data = audio_data.astype(float)
         # Make sure we don't clip
         if np.abs(audio_data).max():
-            max_gain = min(0.1, 1.0/np.abs(audio_data).max() - 1)
+            max_gain = min(0.1, get_max_abs_sample_value(orig_dtype)/np.abs(audio_data).max() - 1)
         else:
             # TODO: Handle audio with all zeros
             warnings.warn('Got audio sample with all zeros', UserWarning)
             max_gain = 0.1
         gain = 1 + random.uniform(-0.1, max_gain)
+        assert 0.9 <= gain <= 1.1
         with LogTimer(LOGGER, 'Applying gain to audio'):
             audio_data *= gain
 

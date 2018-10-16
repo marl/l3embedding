@@ -20,6 +20,10 @@ def compute_metrics(y, pred, num_classes=10):
         metrics: Metrics dictionary
                  (Type: dict[str, *])
     """
+    # Make sure everything is a numpy array
+    y = np.array(y)
+    pred = np.array(pred)
+
     # Convert from one-hot to integer encoding if necessary
     if y.ndim == 2:
         y = np.argmax(y, axis=1)

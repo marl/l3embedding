@@ -344,20 +344,31 @@ def train_mlp(train_gen, valid_data, test_data, model_dir,
           validation_data=validation_data,
           callbacks=cb, verbose=2)
 
+    # Load the weights from the checkpoint with the lowest valid loss
+    m.load_weights(weight_path)
+
+    # Get the epoch index corresponding the checkpoint with the
+    # lowest valid loss
+    checkpoint_idx = np.argmin(metric_cb.valid_loss)
+
     # Compute metrics for train and valid
     train_pred = m.predict(X_train)
     train_metrics = compute_metrics(y_train, train_pred, num_classes=num_classes)
     # Set up train and validation metrics
     train_metrics = {
-        'loss': metric_cb.train_loss[-1],
-        'accuracy': metric_cb.train_acc[-1],
+        'loss': metric_cb.train_loss[checkpoint_idx],
+        'loss_history': list(metric_cb.train_loss),
+        'accuracy': metric_cb.train_acc[checkpoint_idx],
+        'accuracy_history': list(metric_cb.train_acc),
         'class_accuracy': train_metrics['class_accuracy'],
         'average_class_accuracy': train_metrics['average_class_accuracy']
     }
 
     valid_metrics = {
-        'loss': metric_cb.valid_loss[-1],
-        'accuracy': metric_cb.valid_acc[-1],
+        'loss': metric_cb.valid_loss[checkpoint_idx],
+        'loss_history': list(metric_cb.valid_loss),
+        'accuracy': metric_cb.valid_acc[checkpoint_idx],
+        'accuracy_history': list(metric_cb.valid_acc),
     }
 
     if valid_data:
@@ -487,7 +498,7 @@ def train_param_search(train_data, valid_data, test_data, model_dir, train_func,
 
 def train(features_dir, output_dir, fold_num,
           model_type='svm', feature_mode='framewise',
-          train_batch_size=64, random_state=20171021, parameter_search=False,
+          train_batch_size=64, patience=20, random_state=20171021, parameter_search=False,
           parameter_search_valid_fold=True, parameter_search_valid_ratio=0.15,
           parameter_search_train_with_valid=False, gsheet_id=None, google_dev_app_name=None,
           verbose=False, non_overlap=False, non_overlap_chunk_size=10,
@@ -515,14 +526,15 @@ def train(features_dir, output_dir, fold_num,
                             "min-max" if use_min_max else "no-min-max",
                             model_type)
 
+    # Add random time delay to avoid parallel jobs colliding
+    time.sleep(np.random.random() * 10)
+
     # Make sure the directories we need exist
     model_dir = os.path.join(output_dir, 'classifier', model_id,
                              'fold{}'.format(fold_num),
                              datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
 
     # Make sure model directory exists
-    # Add random time delay to avoid parallel jobs colliding
-    time.sleep(np.random.random() * 10)
     if not os.path.isdir(model_dir):
         os.makedirs(model_dir)
 
@@ -542,6 +554,7 @@ def train(features_dir, output_dir, fold_num,
         'model_type': model_type,
         'feature_mode': feature_mode,
         'train_batch_size': train_batch_size,
+        'patience': patience,
         'non_overlap': non_overlap,
         'non_overlap_chunk_size': non_overlap_chunk_size,
         'random_state': random_state,
@@ -645,15 +658,15 @@ def train(features_dir, output_dir, fold_num,
             model, train_metrics, valid_metrics, test_metrics \
                 = train_param_search(train_data, valid_data, test_data, model_dir,
                      train_func=train_mlp, search_space=search_space,
-                     batch_size=train_batch_size, random_state=random_state,
+                     batch_size=train_batch_size, patience=patience, random_state=random_state,
                      num_classes=DATASET_NUM_CLASSES[dataset_name],
                      valid_ratio=parameter_search_valid_ratio,
                      train_with_valid=parameter_search_train_with_valid,
                      verbose=verbose, **model_args)
         else:
             model, train_metrics, valid_metrics, test_metrics \
-                    = train_mlp(train_gen, valid_data, test_data, model_dir,
-                        batch_size=train_batch_size, random_state=random_state,
+                    = train_mlp(train_data, valid_data, test_data, model_dir,
+                        batch_size=train_batch_size, patience=patience, random_state=random_state,
                         num_classes=DATASET_NUM_CLASSES[dataset_name],
                         verbose=verbose, **model_args)
 
@@ -675,7 +688,6 @@ def train(features_dir, output_dir, fold_num,
         pk.dump(results, fp, protocol=pk.HIGHEST_PROTOCOL)
 
 
-    # TODO: Update spreadsheet for cross validation!
     if gsheet_id:
         # Update spreadsheet with results
         LOGGER.info('Updating spreadsheet...')
@@ -697,6 +709,7 @@ def train(features_dir, output_dir, fold_num,
                           update_values, 'classifier')
 
         if parameter_search:
+            # Update spreadsheet for cross validation in parameter search
             for param, param_value in zip(train_metrics['search_params'],
                     train_metrics['search_params_best_values']):
                 if param not in CLASSIFIER_FIELD_NAMES:

@@ -257,6 +257,7 @@ def construct_cnn_L3_melspec1_audio_model():
     y_a = Melspectrogram(n_dft=n_dft, n_hop=n_hop, n_mels=n_mels,
                       sr=asr, power_melgram=1.0, htk=True, # n_win=n_win,
                       return_decibel_melgram=True, padding='same')(x_a)
+    y_a = BatchNormalization()(y_a)
 
     # CONV BLOCK 1
     n_filter_a_1 = 64
@@ -366,6 +367,7 @@ def construct_cnn_L3_melspec2_audio_model():
     y_a = Melspectrogram(n_dft=n_dft, n_hop=n_hop, n_mels=n_mels,
                       sr=asr, power_melgram=1.0, htk=True, # n_win=n_win,
                       return_decibel_melgram=True, padding='same')(x_a)
+    y_a = BatchNormalization()(y_a)
 
     # CONV BLOCK 1
     n_filter_a_1 = 64
