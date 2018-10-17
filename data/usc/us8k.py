@@ -4,7 +4,8 @@ import os
 import glob
 import random
 import numpy as np
-import zipfile
+import gzip
+from io import BytesIO
 
 import data.usc.features as cls_features
 from log import LogTimer
@@ -160,8 +161,11 @@ def generate_us8k_file_data(fname, example_metadata, audio_fold_dir,
     class_label = example_metadata['classID']
     y = class_label
 
-    with zipfile.ZipFile(output_path, mode='wb', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as f:
-        np.savez(f, X=X, y=y)
+    with gzip.open(output_path, mode='wb') as f:
+        buf = BytesIO()
+        np.savez(buf, X=X, y=y)
+        f.write(buf.getbuffer())
+
 
     return output_path, 'success'
 
