@@ -18,11 +18,8 @@ DATASET_NUM_FOLDS = {
 }
 
 def np_load(path):
-    if path.endswith('.gz'):
-        with gzip.open(path, 'rb') as f:
-            data = dict(np.load(f))
-    else:
-        data = np.load(path)
+    with gzip.open(path, 'rb') as f:
+        data = dict(np.load(f))
 
     return data
 
@@ -59,8 +56,6 @@ def get_fold(feature_dir, fold_idx, augment=False, train_filenames_to_idxs=None)
         file_X, file_y = load_feature_file(feature_filepath)
 
         if train_filenames_to_idxs and feature_filename in nonaugmented_files:
-            import pdb
-            pdb.set_trace()
             train_idxs = np.array(train_filenames_to_idxs[feature_filename])
             file_X = file_X[train_idxs]
 

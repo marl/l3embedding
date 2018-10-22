@@ -504,7 +504,7 @@ def train(features_dir, output_dir, fold_num,
           verbose=False, non_overlap=False, non_overlap_chunk_size=10,
           augmented_train_data_dir=None, augmented_standardizer_dir=None,
           nonaugmented_validation_data_dir=None,
-          use_min_max=False, **model_args):
+          use_min_max=False, foo=False, **model_args):
     init_console_logger(LOGGER, verbose=verbose)
     LOGGER.debug('Initialized logging.')
 
@@ -638,7 +638,7 @@ def train(features_dir, output_dir, fold_num,
         if parameter_search:
             search_space = { 'n_estimators': [100, 500, 1000] }
             model, train_metrics, valid_metrics, test_metrics \
-                = train_param_search(train_data, valid_data, test_data, model_dir,
+                = train_param_search(train_gen, valid_data, test_data, model_dir,
                                      train_func=train_rf, search_space=search_space,
                                      num_classes=DATASET_NUM_CLASSES[dataset_name],
                                      valid_ratio=parameter_search_valid_ratio,
@@ -651,12 +651,126 @@ def train(features_dir, output_dir, fold_num,
                            random_state=random_state, verbose=verbose, **model_args)
     elif model_type == 'mlp':
         if parameter_search:
-            search_space = {
-                'learning_rate': [1e-5, 1e-4, 1e-3],
-                'weight_decay': [1e-5, 1e-4, 1e-3],
-            }
+            """
+                search_space = {
+                    'learning_rate': [1e-5],#, 1e-4, 1e-3],
+                    'weight_decay': [1e-5]#, 1e-4, 1e-3],
+                }
+            """
+
+            if fold_num == 1:
+                if not foo:
+                    search_space = {
+                        'learning_rate': [1e-5],
+                        'weight_decay': [0.0001]
+                    }
+                else:
+                    search_space = {
+                        'learning_rate': [1e-5],
+                        'weight_decay': [1e-5]
+                    }
+            elif fold_num == 2:
+                if not foo:
+                    search_space = {
+                        'learning_rate': [0.0001],
+                        'weight_decay': [0.0001]
+                    }
+                else:
+                    search_space = {
+                        'learning_rate': [1e-5],
+                        'weight_decay': [1e-5]
+                    }
+            elif fold_num == 3:
+                if not foo:
+                    search_space = {
+                        'learning_rate': [1e-5],
+                        'weight_decay': [0.001]
+                    }
+                else:
+                    search_space = {
+                        'learning_rate': [1e-5],
+                        'weight_decay': [0.001]
+                    }
+            elif fold_num == 4:
+                if not foo:
+                    search_space = {
+                        'learning_rate': [1e-5],
+                        'weight_decay': [0.001]
+                    }
+                else:
+                    search_space = {
+                        'learning_rate': [1e-5],
+                        'weight_decay': [0.0001]
+                    }
+            elif fold_num == 5:
+                if not foo:
+                    search_space = {
+                        'learning_rate': [1e-5],
+                        'weight_decay': [0.001]
+                    }
+                else:
+                    search_space = {
+                        'learning_rate': [1e-5],
+                        'weight_decay': [1e-5]
+                    }
+            elif fold_num == 6:
+                if not foo:
+                    search_space = {
+                        'learning_rate': [1e-5],
+                        'weight_decay': [0.001]
+                    }
+                else:
+                    search_space = {
+                        'learning_rate': [1e-5],
+                        'weight_decay': [1e-5]
+                    }
+            elif fold_num == 7:
+                if not foo:
+                    search_space = {
+                        'learning_rate': [1e-5],
+                        'weight_decay': [0.0001]
+                    }
+                else:
+                    search_space = {
+                        'learning_rate': [1e-5],
+                        'weight_decay': [0.0001]
+                    }
+            elif fold_num == 8:
+                if not foo:
+                    search_space = {
+                        'learning_rate': [1e-5],
+                        'weight_decay': [0.001]
+                    }
+                else:
+                    search_space = {
+                        'learning_rate': [1e-5],
+                        'weight_decay': [1e-5]
+                    }
+            elif fold_num == 9:
+                if not foo:
+                    search_space = {
+                        'learning_rate': [1e-5],
+                        'weight_decay': [1e-5]
+                    }
+                else:
+                    search_space = {
+                        'learning_rate': [1e-5],
+                        'weight_decay': [0.0001]
+                    }
+            elif fold_num == 10:
+                if not foo:
+                    search_space = {
+                        'learning_rate': [1e-5],
+                        'weight_decay': [0.0001]
+                    }
+                else:
+                    search_space = {
+                        'learning_rate': [1e-5],
+                        'weight_decay': [0.0001]
+                    }
+
             model, train_metrics, valid_metrics, test_metrics \
-                = train_param_search(train_data, valid_data, test_data, model_dir,
+                = train_param_search(train_gen, valid_data, test_data, model_dir,
                      train_func=train_mlp, search_space=search_space,
                      batch_size=train_batch_size, patience=patience, random_state=random_state,
                      num_classes=DATASET_NUM_CLASSES[dataset_name],

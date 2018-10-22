@@ -203,6 +203,11 @@ def parse_arguments():
                         action='store_true',
                         default=False)
 
+    parser.add_argument('--foo',
+                        dest='foo',
+                        action='store_true',
+                        default=False)
+
     parser.add_argument('features_dir',
                         action='store',
                         type=str,
