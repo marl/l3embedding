@@ -1,4 +1,11 @@
 # l3embedding
+
+Code for running the expriments presented in:
+
+Look, Listen, and Learn More: Design Choices for Deep Audio Embeddings<br/>
+Jason Cramer, Ho-Hsiang Wu, Justin Salamon and Juan Pablo Bello<br/>
+Under review, 2018.
+
 This is an implementation of the proposed model in Look, Listen and Learn ([Arandjelović, R., Zisserman, A. 2017](https://arxiv.org/pdf/1705.08168.pdf)). This model uses videos to learn vision and audio features in an unsupervised fashion by training the model for the proposed Audio-Visual Correspondence (AVC) task. This task tries to determine whether a piece of audio and an image frame come from the same video and occur simulatneously.
 
 Dependencies
