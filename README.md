@@ -1,5 +1,14 @@
 # l3embedding
-This is an implementation of the proposed model in Look, Listen and Learn ([Arandjelović, R., Zisserman, A. 2017](https://arxiv.org/pdf/1705.08168.pdf)). This model uses videos to learn vision and audio features in an unsupervised fashion by training the model for the proposed Audio-Visual Correspondence (AVC) task. This task tries to determine whether a piece of audio and an image frame come from the same video and occur simulatneously.
+
+Code for running the expriments presented in:
+
+Look, Listen, and Learn More: Design Choices for Deep Audio Embeddings<br/>
+Jason Cramer, Ho-Hsiang Wu, Justin Salamon and Juan Pablo Bello<br/>
+Under review, 2018.
+
+For the pre-trained embedding models (openL3), please go to: [github.com/marl/openl3](https://github.com/marl/openl3)
+
+This repository contains an implementation of the model proposed in Look, Listen and Learn ([Arandjelović, R., Zisserman, A. 2017](https://arxiv.org/pdf/1705.08168.pdf)). This model uses videos to learn vision and audio features in an unsupervised fashion by training the model for the proposed Audio-Visual Correspondence (AVC) task. This task tries to determine whether a piece of audio and an image frame come from the same video and occur simulatneously.
 
 Dependencies
 * Python 3 (we use 3.6.3)
