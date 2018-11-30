@@ -17,8 +17,8 @@ cd /home/$USER/dev
 source activate l3
 
 SRCDIR=$HOME/dev/l3embedding
-TRAIN_DATA_DIR=/beegfs/work/AudioSetSamples_music/music_train
-VAL_DATA_DIR=/beegfs/work/AudioSetSamples_music/music_valid
+TRAIN_DATA_DIR=/beegfs/work/AudioSetSamples/music_train
+VAL_DATA_DIR=/beegfs/work/AudioSetSamples/music_valid
 OUTPUT_DIR=/scratch/js7561/sonyc-usc
 GOOGLE_DEV_APP_NAME='l3embeddingexperiments'
 GSHEET_ID='1eyFv_jUWJeEuG1VKQNfAmhQUREMRDgEMxfVDffRaHDo'
