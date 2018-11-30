@@ -7,14 +7,14 @@
 #SBATCH --mem=62GB
 #SBATCH --time=7-0
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=js7561@nyu.edu
+#SBATCH --mail-user=justin.salamon@gmail.com
 #SBATCH --output="l3embedding-train-environmental-melspec1-%j.out"
 #SBATCH --err="l3embedding-train-environmental-melspec1-%j.err"
 
 
 source ~/.bashrc
 cd /home/$USER/dev
-source activate l3
+source activate l3embedding
 
 SRCDIR=$HOME/dev/l3embedding
 TRAIN_DATA_DIR=/beegfs/work/AudioSetSamples_environmental/environmental_train
