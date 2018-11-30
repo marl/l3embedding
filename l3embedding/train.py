@@ -7,6 +7,7 @@ import pickle
 import random
 import csv
 
+import minispec
 import numpy as np
 import keras
 from keras.optimizers import Adam
@@ -140,7 +141,7 @@ def cycle_shuffle(iterable, shuffle=True):
 
 
 def data_generator(data_dir, batch_size=512, random_state=20180123,
-                   start_batch_idx=None, keys=None):
+                   start_batch_idx=None, keys=None, model_type='cnn_L3_melspec2'):
     random.seed(random_state)
 
     batch = None
@@ -186,7 +187,37 @@ def data_generator(data_dir, batch_size=512, random_state=20180123,
                     batch['video'] = 2 * img_as_float(batch['video']).astype('float32') - 1
 
                     # Convert audio to float
-                    batch['audio'] = pcm2float(batch['audio'], dtype='float32')
+                    audio_data = pcm2float(batch['audio'], dtype='float32')
+
+                    # Compute spectrogram
+                    if model_type == 'cnn_L3_melspec2':
+                        S = np.abs(minispec.core.stft(n_fft=2048, hop_length=242,
+                                                      window='hann', center=False,
+                                                      pad_mode='constant')
+                        audio_data = minispec.feature.melspectrogram(y=None, sr=48000, S=S,
+                                                                     n_mels=256, power=1.0,
+                                                                     htk=True)
+                        del S
+                    elif model_type == 'cnn_L3_melspec1':
+                        S = np.abs(minispec.core.stft(n_fft=2048, hop_length=242,
+                                                      window='hann', center=False,
+                                                      pad_mode='constant')
+                        audio_data = minispec.feature.melspectrogram(y=None, sr=48000, S=S,
+                                                                     n_mels=128, power=1.0,
+                                                                     htk=True)
+                        del S
+                    else:
+
+                        audio_data = np.abs(minispec.core.stft(n_fft=512, hop_length=242, window='hann',
+                                                               center=False, pad_mode='constant'))
+
+                    # Convert amplitude to dB
+                    audio_data = minispec.core.amplitude_to_db(audio_data).astype(orig_dtype)
+
+                    # Add additional channel dimension
+                    batch['audio'] = audio_data[:,:,np.newaxis]
+                    del audio_data
+
 
                     yield batch
 
@@ -377,7 +408,8 @@ def train(train_data_dir, validation_data_dir, output_dir,
         train_data_dir,
         batch_size=train_batch_size,
         random_state=random_state,
-        start_batch_idx=train_start_batch_idx)
+        start_batch_idx=train_start_batch_idx,
+        model_type=model_type)
 
     train_gen = pescador.maps.keras_tuples(train_gen,
                                            ['video', 'audio'],
@@ -388,7 +420,8 @@ def train(train_data_dir, validation_data_dir, output_dir,
         validation_data_dir,
         validation_epoch_size,
         batch_size=validation_batch_size,
-        random_state=random_state)
+        random_state=random_state,
+        model_type=model_type)
 
     val_gen = pescador.maps.keras_tuples(val_gen,
                                          ['video', 'audio'],
