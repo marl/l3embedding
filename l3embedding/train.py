@@ -187,36 +187,44 @@ def data_generator(data_dir, batch_size=512, random_state=20180123,
                     batch['video'] = 2 * img_as_float(batch['video']).astype('float32') - 1
 
                     # Convert audio to float
-                    audio_data = pcm2float(batch['audio'], dtype='float32')
+                    audio_data_batch = batch['audio']
+                    batch['audio'] = []
 
-                    # Compute spectrogram
-                    if model_type == 'cnn_L3_melspec2':
-                        S = np.abs(minispec.core.stft(n_fft=2048, hop_length=242,
-                                                      window='hann', center=False,
-                                                      pad_mode='constant')
-                        audio_data = minispec.feature.melspectrogram(y=None, sr=48000, S=S,
-                                                                     n_mels=256, power=1.0,
-                                                                     htk=True)
-                        del S
-                    elif model_type == 'cnn_L3_melspec1':
-                        S = np.abs(minispec.core.stft(n_fft=2048, hop_length=242,
-                                                      window='hann', center=False,
-                                                      pad_mode='constant')
-                        audio_data = minispec.feature.melspectrogram(y=None, sr=48000, S=S,
-                                                                     n_mels=128, power=1.0,
-                                                                     htk=True)
-                        del S
-                    else:
+                    for audio_data in audio_data_batch:
+                        audio_data = pcm2float(audio_data.flatten(), dtype='float32')
+                        # Compute spectrogram
+                        if model_type == 'cnn_L3_melspec2':
+                            S = np.abs(minispec.core.stft(audio_data, n_fft=2048, hop_length=242,
+                                                          window='hann', center=True,
+                                                          pad_mode='constant'))
+                            audio_data = minispec.feature.melspectrogram(sr=48000, S=S,
+                                                                         n_mels=256, power=1.0,
+                                                                         htk=True)
+                            del S
+                        elif model_type == 'cnn_L3_melspec1':
+                            S = np.abs(minispec.core.stft(audio_data, n_fft=2048, hop_length=242,
+                                                          window='hann', center=True,
+                                                          pad_mode='constant'))
+                            audio_data = minispec.feature.melspectrogram(sr=48000, S=S,
+                                                                         n_mels=128, power=1.0,
+                                                                         htk=True)
+                            del S
+                        else:
 
-                        audio_data = np.abs(minispec.core.stft(n_fft=512, hop_length=242, window='hann',
-                                                               center=False, pad_mode='constant'))
+                            audio_data = np.abs(minispec.core.stft(audio_data, n_fft=512, hop_length=242,
+                                                                   window='hann', center=True,
+                                                                   pad_mode='constant'))
 
-                    # Convert amplitude to dB
-                    audio_data = minispec.core.amplitude_to_db(audio_data).astype(orig_dtype)
+                        # Convert amplitude to dB
+                        audio_data = minispec.core.amplitude_to_db(audio_data)
 
-                    # Add additional channel dimension
-                    batch['audio'] = audio_data[:,:,np.newaxis]
-                    del audio_data
+                        # Add additional batch and channel dimensions
+                        batch['audio'].append(audio_data[np.newaxis,:,:,np.newaxis])
+
+                        del audio_data
+
+                    del audio_data_batch
+                    batch['audio'] = np.vstack(batch['audio']).astype('float32')
 
 
                     yield batch
