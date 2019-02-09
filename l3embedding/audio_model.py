@@ -32,7 +32,7 @@ def construct_cnn_L3_kapredbinputbn_audio_model():
     asr = 48000
     audio_window_dur = 1
 
-    n_frames = 1 + int((asr * audio_window_dur - n_dft) / float(n_hop))
+    n_frames = 1 + int((asr * audio_window_dur) / float(n_hop))
     x_a = Input(shape=(int(n_dft / 2) + 1, n_frames, 1), dtype='float32')
     y_a = BatchNormalization()(x_a)
 
@@ -137,7 +137,7 @@ def construct_cnn_L3_melspec1_audio_model():
     audio_window_dur = 1
 
     # INPUT
-    n_frames = 1 + int((asr * audio_window_dur - n_dft) / float(n_hop))
+    n_frames = 1 + int((asr * audio_window_dur) / float(n_hop))
     x_a = Input(shape=(n_mels, n_frames, 1), dtype='float32')
     y_a = BatchNormalization()(x_a)
 
@@ -389,7 +389,7 @@ def construct_tiny_L3_audio_model():
     audio_window_dur = 1
 
     # INPUT
-    n_frames = 1 + int((asr * audio_window_dur - n_dft) / float(n_hop))
+    n_frames = 1 + int((asr * audio_window_dur) / float(n_hop))
     x_a = Input(shape=(int(n_dft/2) + 1, n_frames, 1), dtype='float32')
 
     y_a = Conv2D(10, (5,5), padding='valid', strides=(1,1),
