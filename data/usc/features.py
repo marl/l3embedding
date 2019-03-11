@@ -5,11 +5,7 @@ import numpy as np
 import scipy as sp
 import soundfile as sf
 import resampy
-import tensorflow as tf
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from .vggish import vggish_input
-from .vggish import vggish_postprocess
-from .vggish import vggish_slim
 
 LOGGER = logging.getLogger('cls-data-generation')
 LOGGER.setLevel(logging.DEBUG)
@@ -166,6 +162,10 @@ def preprocess_features(data, min_max_scaler, stdizer,
 def extract_vggish_embedding(audio_path, input_op_name='vggish/input_features',
                              output_op_name='vggish/embedding',
                              resources_dir=None, **params):
+    import tensorflow as tf
+    from .vggish import vggish_input
+    from .vggish import vggish_postprocess
+    from .vggish import vggish_slim
     # TODO: Make more efficient so we're not loading model every time we extract features
     fs = params.get('target_sample_rate', 16000)
     frame_win_sec = params.get('frame_win_sec', 0.96)
@@ -253,6 +253,20 @@ def compute_stats_features(embeddings):
     return np.concatenate((minimum, maximum, median, mean, var, skewness, kurtosis))
 
 
+def amplitude_to_db(S, amin=1e-10, dynamic_range=80.0):
+    magnitude = np.abs(S)
+    power = np.square(magnitude, out=magnitude)
+    ref_value = power.max()
+
+    log_spec = 10.0 * np.log10(np.maximum(amin, magnitude))
+    log_spec -= log_spec.max()
+
+    log_spec = np.maximum(log_spec, -dynamic_range)
+
+    return log_spec
+
+
+
 def get_l3_frames_uniform(audio, l3embedding_model, hop_size=0.1, sr=48000):
     """
     Get L3 embedding for each frame in the given audio file
@@ -295,13 +309,23 @@ def get_l3_frames_uniform(audio, l3embedding_model, hop_size=0.1, sr=48000):
         audio = np.pad(audio, (left_pad, right_pad), mode='constant')
 
     # Divide into overlapping 1 second frames
-    x = librosa.util.utils.frame(audio, frame_length=frame_length, hop_length=hop_length).T
+    frames = librosa.util.utils.frame(audio, frame_length=frame_length, hop_length=hop_length).T
+
+    X = []
+    for frame in frames:
+        S = np.abs(librosa.core.stft(frame, n_fft=2048, hop_length=242,
+                                      window='hann', center=True,
+                                      pad_mode='constant'))
+        S = librosa.feature.melspectrogram(sr=48000, S=S, n_mels=128,
+                                            power=1.0, htk=True)
+        S = amplitude_to_db(np.array(S))
+        X.append(S)
 
     # Add a channel dimension
-    x = x.reshape((x.shape[0], 1, x.shape[-1]))
+    X = np.array(X)[:, :, :, np.newaxis]
 
     # Get the L3 embedding for each frame
-    l3embedding = l3embedding_model.predict(x)
+    l3embedding = l3embedding_model.predict(X)
 
     return l3embedding
 
