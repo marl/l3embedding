@@ -14,7 +14,7 @@
 
 source ~/.bashrc
 cd /home/$USER/dev
-source activate l3cpu
+source activate l3embedding
 
 SRCDIR=$HOME/dev/l3embedding
 L3_MODEL_PATH='/scratch/jtc440/l3_output/converted_models/embedding/music/cnn_L3_melspec2/20190222215808/model_best_valid_accuracy.h5'
@@ -27,8 +27,8 @@ FOLD=$SLURM_ARRAY_TASK_ID
 DATASET='us8k'
 
 module purge
-#module load cuda/8.0.44
-#module load cudnn/8.0v6.0
+module load cuda/8.0.44
+module load cudnn/8.0v6.0
 module load ffmpeg/intel/3.2.2
 
 python $SRCDIR/05_generate_embedding_samples.py \
