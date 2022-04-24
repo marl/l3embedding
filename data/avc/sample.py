@@ -163,7 +163,7 @@ def sample_one_second(audio_data, sampling_frequency, augment=False):
     else:
         audio_aug_params = {}
 
-    return audio_data, start, audio_aug_params
+    return audio_data, start / float(sampling_frequency), audio_aug_params
 
 
 def sample_cropped_frame(frame_data):
